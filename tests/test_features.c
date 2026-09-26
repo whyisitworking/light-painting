@@ -3,7 +3,6 @@
 
 #include <math.h>
 #include <stdint.h>
-#include <string.h>
 
 #define BINS 256
 #define FS 48828.125f
