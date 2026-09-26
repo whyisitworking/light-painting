@@ -147,6 +147,57 @@ static void test_river_flows_outward(void) {
     effects_deinit(&effects);
 }
 
+// A beat launches a pulse from the centre that travels outward
+static void test_ripple_travels(void) {
+    effects_t effects;
+    features_t features = quiet();
+
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
+    effects_set_mode(&effects, EFFECTS_RIPPLES);
+
+    features.beat = true;
+    features.beat_strength = 1.f;
+    effects_render(&effects, &features, pixels);
+
+    features = quiet();
+    for (int frame = 0; frame < 10; frame++)
+        effects_render(&effects, &features, pixels);
+
+    CHECK_NEAR(brightest(LEDS / 2, LEDS), LEDS / 2 + 10 * EFFECTS_RIPPLE_SPEED,
+               0.5);
+
+    effects_deinit(&effects);
+}
+
+// Treble sparkles, reproducibly for a seed
+static void test_sparkles_deterministic(void) {
+    effects_t a, b;
+    features_t features = quiet();
+    uint32_t first[LEDS];
+    bool lit = false;
+
+    for (size_t band = BANDS * 3 / 4; band < BANDS; band++)
+        bands[band] = 1.f;
+
+    CHECK(effects_init(&a, LEDS, BANDS, HOP, 7));
+    CHECK(effects_init(&b, LEDS, BANDS, HOP, 7));
+    effects_set_mode(&a, EFFECTS_RIPPLES);
+    effects_set_mode(&b, EFFECTS_RIPPLES);
+
+    for (int frame = 0; frame < 20; frame++) {
+        effects_render(&a, &features, first);
+        effects_render(&b, &features, pixels);
+        CHECK(memcmp(first, pixels, sizeof(pixels)) == 0);
+    }
+
+    for (size_t i = 0; i < LEDS; i++)
+        lit = lit || pixels[i] != 0;
+    CHECK(lit);
+
+    effects_deinit(&a);
+    effects_deinit(&b);
+}
+
 int main(void) {
     test_rejects_invalid();
     check_silence_is_dark(EFFECTS_SPECTRUM);
@@ -156,6 +207,9 @@ int main(void) {
     test_beat_flash();
     check_silence_is_dark(EFFECTS_RIVER);
     test_river_flows_outward();
+    check_silence_is_dark(EFFECTS_RIPPLES);
+    test_ripple_travels();
+    test_sparkles_deterministic();
 
     return CHECK_REPORT();
 }

@@ -96,6 +96,107 @@ static void render_river(effects_t *this, const features_t *features) {
         put_mirrored(this, d, this->river[d]);
 }
 
+static uint32_t next_random(effects_t *this) {
+    uint32_t x = this->random;
+
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+
+    return this->random = x;
+}
+
+// 0 (inclusive) to 1 (exclusive)
+static float random_unit(effects_t *this) {
+    return (float)(next_random(this) >> 8) / 16777216.f;
+}
+
+static float band_mean(const features_t *features, size_t from, size_t to) {
+    float sum = 0.f;
+
+    for (size_t b = from; b < to; b++)
+        sum += features->bands[b];
+
+    return to > from ? sum / (float)(to - from) : 0.f;
+}
+
+// White sparkles appearing with the treble, fading each frame
+static void render_sparkles(effects_t *this, const features_t *features) {
+    size_t from =
+        this->band_count -
+        (size_t)((float)this->band_count * EFFECTS_TREBLE_FRACTION);
+    float treble = band_mean(features, from, this->band_count);
+
+    for (size_t i = 0; i < this->led_count; i++) {
+        this->sparkle[i] *= EFFECTS_SPARKLE_DECAY;
+
+        if (random_unit(this) < treble * EFFECTS_SPARKLE_RATE)
+            this->sparkle[i] = 1.f;
+
+        add(&this->frame[i],
+            scale((rgb_t){1.f, 1.f, 1.f}, 0.8f * this->sparkle[i]));
+    }
+}
+
+// Beats launch pulses from the centre, the treble sparkles
+static void render_ripples(effects_t *this, const features_t *features) {
+    if (features->beat) {
+        effects_ripple_t *slot = NULL;
+
+        // A free slot, or else the pulse furthest out
+        for (size_t r = 0; r < EFFECTS_RIPPLE_MAX; r++) {
+            effects_ripple_t *ripple = &this->ripples[r];
+
+            if (!ripple->active) {
+                slot = ripple;
+                break;
+            }
+
+            if (slot == NULL || ripple->position > slot->position)
+                slot = ripple;
+        }
+
+        *slot = (effects_ripple_t){
+            .position = 0.f,
+            .strength = features->beat_strength,
+            .color_position = (float)(this->beat_count++ % 8) / 8.f,
+            .active = true,
+        };
+    }
+
+    for (size_t r = 0; r < EFFECTS_RIPPLE_MAX; r++) {
+        effects_ripple_t *ripple = &this->ripples[r];
+        float width, fade, brightness;
+        rgb_t color;
+
+        if (!ripple->active)
+            continue;
+
+        width = 3.f + 6.f * ripple->strength;
+        fade = fmaxf(0.f, 1.f - ripple->position / (float)this->half);
+        brightness = (0.5f + 0.5f * ripple->strength) * fade;
+        color = color_at(this, features, ripple->color_position);
+
+        // Brightest at the leading edge, fading behind it
+        for (size_t k = 0; (float)k < width; k++) {
+            float distance = ripple->position - (float)k;
+
+            if (distance < 0.f)
+                break;
+
+            put_mirrored(this, (size_t)distance,
+                         scale(color, brightness * (1.f - (float)k / width)));
+        }
+
+        ripple->position += EFFECTS_RIPPLE_SPEED;
+
+        if (ripple->position - width >= (float)this->half)
+            ripple->active = false;
+    }
+
+    render_sparkles(this, features);
+}
+
 bool effects_init(effects_t *this, size_t led_count, size_t band_count,
                   float hop_seconds, uint32_t seed) {
     size_t half = (led_count + 1) / 2;
@@ -156,6 +257,9 @@ void effects_render(effects_t *this, const features_t *features,
         break;
     case EFFECTS_RIVER:
         render_river(this, features);
+        break;
+    case EFFECTS_RIPPLES:
+        render_ripples(this, features);
         break;
     default:
         break;
