@@ -110,6 +110,15 @@ static void test_beat_flash(void) {
     first = brightness(pixels[0]);
     CHECK(first > 0);
 
+    // White added after gamma, as it will be shown
+    for (size_t i = 0; i < LEDS; i++) {
+        color_neopixel_t color = {.value = pixels[i]};
+        long white = lroundf(EFFECTS_FLASH_LEVEL * 255.f);
+
+        CHECK(color.grba.r == white && color.grba.g == white &&
+              color.grba.b == white);
+    }
+
     features = quiet();
     for (int frame = 0; frame < 5; frame++)
         effects_render(&effects, &features, pixels);
@@ -120,6 +129,44 @@ static void test_beat_flash(void) {
     CHECK(all_dark());
 
     effects_deinit(&effects);
+}
+
+// The flash saturates on bright pixels instead of wrapping to dark
+static void test_beat_flash_saturates(void) {
+    effects_t effects;
+    features_t features = quiet();
+    uint32_t plain[LEDS];
+    unsigned white = (unsigned)lroundf(EFFECTS_FLASH_LEVEL * 255.f);
+
+    for (size_t b = 0; b < BANDS; b++)
+        bands[b] = 1.f;
+
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
+    effects_set_mode(&effects, EFFECTS_SPECTRUM);
+    effects_render(&effects, &features, plain);
+    effects_deinit(&effects);
+
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
+    effects_set_mode(&effects, EFFECTS_SPECTRUM);
+    features.beat = true;
+    features.beat_strength = 1.f;
+    effects_render(&effects, &features, pixels);
+    effects_deinit(&effects);
+
+    for (size_t i = 0; i < LEDS; i++) {
+        color_neopixel_t before = {.value = plain[i]};
+        color_neopixel_t after = {.value = pixels[i]};
+
+        CHECK(after.grba.r == (before.grba.r + white > 255
+                                   ? 255
+                                   : before.grba.r + white));
+        CHECK(after.grba.g == (before.grba.g + white > 255
+                                   ? 255
+                                   : before.grba.g + white));
+        CHECK(after.grba.b == (before.grba.b + white > 255
+                                   ? 255
+                                   : before.grba.b + white));
+    }
 }
 
 // A sound enters at the centre and flows outward one LED per frame
@@ -261,6 +308,7 @@ int main(void) {
     test_spectrum_band_position();
     test_mirrored_spectrum_band_position();
     test_beat_flash();
+    test_beat_flash_saturates();
     check_silence_is_dark(EFFECTS_RIVER);
     test_river_flows_outward();
     check_silence_is_dark(EFFECTS_RIPPLES);

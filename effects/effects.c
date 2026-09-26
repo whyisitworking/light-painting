@@ -293,6 +293,9 @@ void effects_set_palette(effects_t *this, effects_palette_t palette) {
 
 void effects_render(effects_t *this, const features_t *features,
                     uint32_t *pixels) {
+    color_neopixel_t flash;
+    uint8_t white;
+
     memset(this->frame, 0, this->led_count * sizeof(rgb_t));
 
     switch (this->mode) {
@@ -322,13 +325,19 @@ void effects_render(effects_t *this, const features_t *features,
         this->flash = fmaxf(this->flash,
                             features->beat_strength * EFFECTS_FLASH_LEVEL);
 
+    // The flash goes on after gamma, as shown: added before it, 0.35 would
+    // come out as 25 / 255. Saturating, so bright pixels do not wrap dark
+    white = (uint8_t)lroundf(this->flash * 255.f);
+    flash = color_neopixel_from_rgb(white, white, white);
+
     for (size_t i = 0; i < this->led_count; i++) {
         rgb_t color = this->frame[i];
-        float flash = this->flash;
 
-        pixels[i] = color_neopixel_from_rgb(palette_gamma(color.r + flash),
-                                            palette_gamma(color.g + flash),
-                                            palette_gamma(color.b + flash))
+        pixels[i] = color_neopixel_add(
+                        color_neopixel_from_rgb(palette_gamma(color.r),
+                                                palette_gamma(color.g),
+                                                palette_gamma(color.b)),
+                        flash)
                         .value;
     }
 
