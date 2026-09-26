@@ -161,5 +161,8 @@ void audio_deinit(audio_t *this) {
     free(this->audio_sample_buffer);
     free(this->packed_buffer);
     free(this->frequency_bins);
+#ifdef AUDIO_ENVELOPE
+    free(this->envelope);
+#endif
     fft_real_deinit(&this->fft);
 }
