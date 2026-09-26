@@ -24,9 +24,13 @@ set(PICO_BOARD pico2 CACHE STRING "Board Type")
 include(pico_sdk_import.cmake)
 
 project(light-painting C CXX ASM)
-add_compile_options(
+# Warnings for our own sources only, as errors. Pico SDK libraries are
+# INTERFACE libraries whose sources compile inside our targets, so this is set
+# per source file (set_source_files_properties) rather than per target
+set(PROJECT_WARNINGS
     -Wall
     -Wextra
+    -Werror
     -Wno-format
     -Wno-unused-function
     -Wno-maybe-uninitialized
@@ -61,6 +65,8 @@ add_subdirectory(audio)
 target_sources(light-painting
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/main.c)
+set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/main.c
+    PROPERTIES COMPILE_OPTIONS "${PROJECT_WARNINGS}")
 target_link_libraries(light-painting
     PRIVATE
         i2s
