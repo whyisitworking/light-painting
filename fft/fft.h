@@ -2,6 +2,7 @@
 #define FFT_H
 
 #include <complex.h>
+#include <stddef.h>
 #include <stdint.h>
 
 typedef struct {

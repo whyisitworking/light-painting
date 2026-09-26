@@ -86,7 +86,7 @@ static void fill_twiddles_d(double complex *twiddles, unsigned int N) {
         twiddles[i] = cexp(angle_per_sample * i * I);
 }
 
-int fft_init(fft_t *this, unsigned int count) {
+int fft_init(fft_t *this, size_t count) {
     unsigned int *reversed_indices;
     float complex *twiddles;
 
@@ -227,7 +227,7 @@ void fft_deinit(fft_t *this) {
     free(this->reversed_indices);
 }
 
-int fft_init_d(fft_d_t *this, unsigned int count) {
+int fft_init_d(fft_d_t *this, size_t count) {
     unsigned int *reversed_indices;
     double complex *twiddles;
 
