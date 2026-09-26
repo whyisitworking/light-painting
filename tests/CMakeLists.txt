@@ -52,3 +52,12 @@ add_test(NAME audio COMMAND test_audio)
 
 # A hang (e.g. an endless loop) should fail quickly, not at ctest's default
 set_tests_properties(fft swapchain color audio PROPERTIES TIMEOUT 30)
+
+add_library(features_host STATIC ${ROOT}/features/features.c)
+target_include_directories(features_host PUBLIC ${ROOT}/features)
+target_link_libraries(features_host PUBLIC m)
+
+add_executable(test_features test_features.c)
+target_link_libraries(test_features features_host)
+add_test(NAME features COMMAND test_features)
+set_tests_properties(features PROPERTIES TIMEOUT 30)
