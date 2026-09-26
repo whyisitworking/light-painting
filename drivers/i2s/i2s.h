@@ -11,16 +11,8 @@
 size_t i2s_required_buffer_size(size_t sample_count);
 
 /**
- * The buffers are DMA write rings and must be aligned to their size: create
- * the swapchain with swapchain_init_aligned and this alignment
- */
-size_t i2s_required_buffer_alignment(size_t sample_count);
-
-/**
- * sample_count: 32-bit words per buffer, a power of two from 2 to 8192
- * (whole stereo frames, left word first; buffers are DMA write rings)
- * swapchain: created with swapchain_init_aligned, see
- * i2s_required_buffer_alignment
+ * sample_count: 32-bit words per buffer, a non-zero even number (whole
+ * stereo frames, left word first)
  * sck_pin, ws_pin: consecutive, driven by the state machine
  * data_pin: sampled, distinct from sck_pin and ws_pin
  */
