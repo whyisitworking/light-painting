@@ -81,6 +81,33 @@ static float band_power(const features_state_t *this, const float *bins,
     return p0 + (p1 - p0) * fraction;
 }
 
+// Bass energy above its moving average, once per refractory time, and only
+// when audible above the auto-gain floor
+static void detect_beat(features_state_t *this, const float *power,
+                        float floor_db) {
+    float bass = 0.f, trigger;
+
+    for (size_t b = 0; b < this->bass_band_count; b++)
+        bass += power[b];
+    bass /= (float)this->bass_band_count;
+
+    this->since_beat_s += this->hop_seconds;
+    this->out.beat = false;
+    this->out.beat_strength = 0.f;
+    trigger = this->bass_average * FEATURES_BEAT_THRESHOLD;
+
+    if (this->since_beat_s >= FEATURES_BEAT_REFRACTORY_MS / 1000.f &&
+        bass > trigger && 10.f * log10f(bass + SILENCE_POWER) > floor_db) {
+        this->out.beat = true;
+        this->out.beat_strength =
+            trigger > 0.f ? clamp01(bass / trigger - 1.f) : 1.f;
+        this->since_beat_s = 0.f;
+    }
+
+    // Updated after the comparison, so a kick does not raise its own bar
+    this->bass_average += (bass - this->bass_average) * this->average_k;
+}
+
 const features_t *features_update(features_state_t *this, const float *bins) {
     float power[FEATURES_BAND_COUNT], db[FEATURES_BAND_COUNT];
     float loudest = -1000.f, floor_db, sum = 0.f, weighted = 0.f;
@@ -111,8 +138,8 @@ const features_t *features_update(features_state_t *this, const float *bins) {
     this->out.loudness = sum / FEATURES_BAND_COUNT;
     this->out.centroid =
         sum > 1e-6f ? weighted / sum / (FEATURES_BAND_COUNT - 1) : 0.f;
-    this->out.beat = false;
-    this->out.beat_strength = 0.f;
+
+    detect_beat(this, power, floor_db);
 
     return &this->out;
 }

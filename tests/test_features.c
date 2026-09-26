@@ -149,6 +149,61 @@ static void test_loudness_and_centroid(void) {
     features_deinit(&state);
 }
 
+// Kicks at 120 BPM: one beat per kick, on the kick
+static void test_beat_per_kick(void) {
+    features_state_t state;
+    int beats = 0;
+
+    CHECK(features_init(&state, BINS, BIN_HZ, HOP));
+
+    for (int n = 0; n * HOP < 5.f; n++) {
+        float t = n * HOP, since_kick = fmodf(t, 0.5f);
+        const features_t *features;
+
+        fill(1e-5f);
+        bins[0] = bins[1] = 0.5f * expf(-since_kick / 0.05f);
+        features = features_update(&state, bins);
+
+        if (features->beat && t >= 1.f) {
+            beats++;
+            CHECK(since_kick < 0.02f);
+            CHECK(features->beat_strength > 0.f);
+            CHECK(features->beat_strength <= 1.f);
+        }
+    }
+
+    CHECK(beats == 8);
+
+    features_deinit(&state);
+}
+
+// A steady bass tone is not a beat, nor is silence
+static void test_no_beat_without_onsets(void) {
+    features_state_t state;
+    int beats = 0;
+
+    CHECK(features_init(&state, BINS, BIN_HZ, HOP));
+
+    fill(1e-5f);
+    bins[1] = 0.3f;
+    for (int n = 0; n * HOP < 5.f; n++)
+        if (features_update(&state, bins)->beat && n * HOP >= 2.f)
+            beats++;
+    CHECK(beats == 0);
+
+    features_deinit(&state);
+
+    CHECK(features_init(&state, BINS, BIN_HZ, HOP));
+
+    fill(0.f);
+    for (int n = 0; n < 1000; n++)
+        if (features_update(&state, bins)->beat)
+            beats++;
+    CHECK(beats == 0);
+
+    features_deinit(&state);
+}
+
 int main(void) {
     test_rejects_invalid();
     test_tone_lands_in_its_band();
@@ -156,6 +211,8 @@ int main(void) {
     test_auto_gain();
     test_attack_faster_than_decay();
     test_loudness_and_centroid();
+    test_beat_per_kick();
+    test_no_beat_without_onsets();
 
     return CHECK_REPORT();
 }
