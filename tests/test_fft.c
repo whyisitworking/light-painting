@@ -160,6 +160,73 @@ static void test_dit_d_matches_dft(size_t n) {
     fft_deinit_d(&fft);
 }
 
+static void test_real_matches_dft(size_t n) {
+    static double complex signal[MAX_N], expected[MAX_N];
+    static float real_samples[MAX_N];
+    static double real_samples_d[MAX_N];
+    static float complex packed[MAX_N / 2];
+    static double complex packed_d[MAX_N / 2];
+    static float bins[MAX_N / 2];
+    static double bins_d[MAX_N / 2];
+    fft_real_t fft;
+    fft_real_d_t fft_d;
+
+    fill_random(signal, n);
+    naive_dft(signal, expected, n);
+
+    for (size_t i = 0; i < n; i++) {
+        real_samples[i] = (float)creal(signal[i]);
+        real_samples_d[i] = creal(signal[i]);
+    }
+
+    CHECK(fft_real_init(&fft, n) == 1);
+    fft_real_pack(real_samples, packed, n);
+    fft_real(&fft, packed, bins);
+
+    CHECK(fft_real_init_d(&fft_d, n) == 1);
+    fft_real_pack_d(real_samples_d, packed_d, n);
+    fft_real_d(&fft_d, packed_d, bins_d);
+
+    // Same bins, same normalization as the complex FFTs, k = 0 included
+    for (size_t k = 0; k < n / 2; k++) {
+        CHECK_NEAR(bins[k], cabs(expected[k]) / (n / 2.0), 1e-3);
+        CHECK_NEAR(bins_d[k], cabs(expected[k]) / (n / 2.0), 1e-9);
+    }
+
+    fft_real_deinit(&fft);
+    fft_real_deinit_d(&fft_d);
+}
+
+static void test_real_rejects_invalid_sizes(void) {
+    const size_t invalid[] = {0, 1, 2, 3, 6, 48};
+    fft_real_t fft;
+    fft_real_d_t fft_d;
+
+    for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); i++) {
+        CHECK(fft_real_init(&fft, invalid[i]) != 1);
+        CHECK(fft_real_init_d(&fft_d, invalid[i]) != 1);
+    }
+}
+
+static void test_real_tone(size_t n, size_t k0, float amplitude) {
+    static float real_samples[MAX_N];
+    static float complex packed[MAX_N / 2];
+    static float bins[MAX_N / 2];
+    fft_real_t fft;
+
+    for (size_t i = 0; i < n; i++)
+        real_samples[i] = amplitude * cosf(2.f * (float)M_PI * k0 * i / n);
+
+    CHECK(fft_real_init(&fft, n) == 1);
+    fft_real_pack(real_samples, packed, n);
+    fft_real(&fft, packed, bins);
+
+    for (size_t k = 0; k < n / 2; k++)
+        CHECK_NEAR(bins[k], k == k0 ? amplitude : 0.f, 1e-3);
+
+    fft_real_deinit(&fft);
+}
+
 // A pure tone of amplitude A at bin k0 must show up as a single bin of
 // height A, everything else ~0
 static void test_dif_tone(size_t n, size_t k0, float amplitude) {
@@ -190,7 +257,16 @@ int main(void) {
         test_dif_d_matches_dft(n);
         test_dit_matches_dft(n);
         test_dit_d_matches_dft(n);
+
+        if (n >= 4)
+            test_real_matches_dft(n);
     }
+
+    test_real_rejects_invalid_sizes();
+    test_real_tone(64, 5, 1.f);
+    test_real_tone(512, 37, 0.25f);
+    test_real_tone(512, 1, 0.5f);
+    test_real_tone(512, 255, 0.5f);
 
     test_dif_tone(64, 5, 1.f);
     test_dif_tone(512, 37, 0.25f);

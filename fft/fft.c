@@ -404,3 +404,141 @@ void fft_deinit_d(fft_d_t *this) {
     free(this->twiddles);
     free(this->reversed_indices);
 }
+/**
+ * Real input FFT
+ *
+ * For real x[n], pack z[m] = x[2m] + i*x[2m+1] (M = N/2 entries) and take
+ * Z = FFT_M(z). With E and O the spectra of the even and odd samples:
+ *
+ *   E[k] = (Z[k] + conj(Z[M-k])) / 2
+ *   O[k] = (Z[k] - conj(Z[M-k])) / 2i
+ *   X[k] = E[k] + W_N^k * O[k]
+ *
+ * where Z[M] wraps around to Z[0].
+ */
+
+int fft_real_init(fft_real_t *this, size_t count) {
+    float complex *twiddles;
+
+    // The half size FFT needs at least 2 points
+    if (count < 4 || !is_valid_count(count))
+        return -1;
+
+    twiddles = (float complex *)malloc((count / 2) * sizeof(float complex));
+
+    if (twiddles == NULL)
+        return -1;
+
+    if (fft_init(&this->half, count / 2) != 1) {
+        free(twiddles);
+        return -1;
+    }
+
+    fill_twiddles(twiddles, count);
+
+    this->twiddles = twiddles;
+    this->count = count;
+
+    return 1;
+}
+
+void fft_real_pack(const float *samples, float complex *packed, size_t count) {
+    for (size_t m = 0; m < count / 2; m++)
+        packed[m] = CMPLXF(samples[2 * m], samples[2 * m + 1]);
+}
+
+void fft_real(fft_real_t *this, float complex *packed, float *frequency_bins) {
+    size_t halfN;
+    const unsigned int *reversed_indices;
+
+    if (packed == NULL)
+        return;
+
+    halfN = this->count / 2;
+    reversed_indices = this->half.reversed_indices;
+
+    // The heavy lifting, output lands in bit-reversed order
+    fft_rad2_dif(&this->half, packed, NULL);
+
+    if (frequency_bins == NULL)
+        return;
+
+    for (size_t k = 0; k < halfN; k++) {
+        float complex z_k = packed[reversed_indices[k]];
+        float complex z_mirror =
+            conjf(packed[reversed_indices[(halfN - k) % halfN]]);
+        float complex even = 0.5f * (z_k + z_mirror);
+        float complex odd = -0.5f * I * (z_k - z_mirror);
+
+        frequency_bins[k] = cabsf(even + this->twiddles[k] * odd) / halfN;
+    }
+}
+
+void fft_real_deinit(fft_real_t *this) {
+    fft_deinit(&this->half);
+    free(this->twiddles);
+}
+
+int fft_real_init_d(fft_real_d_t *this, size_t count) {
+    double complex *twiddles;
+
+    // The half size FFT needs at least 2 points
+    if (count < 4 || !is_valid_count(count))
+        return -1;
+
+    twiddles = (double complex *)malloc((count / 2) * sizeof(double complex));
+
+    if (twiddles == NULL)
+        return -1;
+
+    if (fft_init_d(&this->half, count / 2) != 1) {
+        free(twiddles);
+        return -1;
+    }
+
+    fill_twiddles_d(twiddles, count);
+
+    this->twiddles = twiddles;
+    this->count = count;
+
+    return 1;
+}
+
+void fft_real_pack_d(const double *samples, double complex *packed,
+                     size_t count) {
+    for (size_t m = 0; m < count / 2; m++)
+        packed[m] = CMPLX(samples[2 * m], samples[2 * m + 1]);
+}
+
+void fft_real_d(fft_real_d_t *this, double complex *packed,
+                double *frequency_bins) {
+    size_t halfN;
+    const unsigned int *reversed_indices;
+
+    if (packed == NULL)
+        return;
+
+    halfN = this->count / 2;
+    reversed_indices = this->half.reversed_indices;
+
+    // The heavy lifting, output lands in bit-reversed order
+    fft_rad2_dif_d(&this->half, packed, NULL);
+
+    if (frequency_bins == NULL)
+        return;
+
+    for (size_t k = 0; k < halfN; k++) {
+        double complex z_k = packed[reversed_indices[k]];
+        double complex z_mirror =
+            conj(packed[reversed_indices[(halfN - k) % halfN]]);
+        double complex even = 0.5 * (z_k + z_mirror);
+        double complex odd = -0.5 * I * (z_k - z_mirror);
+
+        frequency_bins[k] = cabs(even + this->twiddles[k] * odd) / halfN;
+    }
+}
+
+void fft_real_deinit_d(fft_real_d_t *this) {
+    fft_deinit_d(&this->half);
+    free(this->twiddles);
+}
