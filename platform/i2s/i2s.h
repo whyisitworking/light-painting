@@ -2,9 +2,10 @@
 #define I2S_H
 
 /**
- * PIO based I2S stereo input. The DMA streams the samples into a ring, and
- * each completed chunk is published for the main loop to take with
- * i2s_wait_buffer()
+ * PIO based i2s Stereo
+ *
+ * The DMA streams the samples into a ring, and each completed chunk is
+ * published for the main loop to take with i2s_wait_buffer()
  */
 
 #include <pico/types.h>

@@ -44,7 +44,7 @@ typedef struct {
     // GPIO connected to the SD(Serial Data) pin
     uint data_pin;
 
-    // Hands the completed chunks over to the main loop
+    // Swapchain used to circle the buffers
     swapchain_t swapchain;
 
     // Whether the driver is initialized
@@ -172,6 +172,7 @@ bool i2s_init(size_t sample_count, uint sck_pin, uint ws_pin, uint data_pin) {
                                           pio_offset);
         free(ring_mem);
         swapchain_deinit(&driver.swapchain);
+        // Guard if not
         return false;
     }
 

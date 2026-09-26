@@ -23,7 +23,7 @@ typedef struct {
     // DMA channel used to receive burst data
     uint dma_channel;
 
-    // Hands the frames over from the main loop
+    // The swapchain to use
     swapchain_t swapchain;
 
     // Whether the driver is initialized

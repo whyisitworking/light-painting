@@ -24,6 +24,8 @@ typedef struct {
 } swapchain_t;
 
 /**
+ * Instantiates a swap-
+ *
  * Allocates SWAPCHAIN_BUFFER_COUNT buffers of buffer_size bytes, for one
  * producer and one consumer that may run in different contexts (e.g. an
  * interrupt handler and the main loop). Swaps are not atomic: the caller
