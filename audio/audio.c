@@ -15,7 +15,7 @@ static inline void generate_envelope(float *samples, size_t count) {
 }
 #endif
 
-int audio_init(audio_t *this, size_t audio_sample_count) {
+bool audio_init(audio_t *this, size_t audio_sample_count) {
     float complex *audio_sample_buffer;
     float *frequency_bins;
 #ifdef AUDIO_ENVELOPE
@@ -26,13 +26,13 @@ int audio_init(audio_t *this, size_t audio_sample_count) {
         (float complex *)malloc(audio_sample_count * sizeof(float complex));
 
     if (audio_sample_buffer == NULL)
-        return -1;
+        return false;
 
     frequency_bins = (float *)malloc((audio_sample_count / 2) * sizeof(float));
 
     if (frequency_bins == NULL) {
         free(audio_sample_buffer);
-        return -1;
+        return false;
     }
 
 #ifdef AUDIO_ENVELOPE
@@ -41,7 +41,7 @@ int audio_init(audio_t *this, size_t audio_sample_count) {
     if (envelope == NULL) {
         free(audio_sample_buffer);
         free(frequency_bins);
-        return -1;
+        return false;
     }
 
     generate_envelope(envelope, audio_sample_count);
@@ -53,7 +53,7 @@ int audio_init(audio_t *this, size_t audio_sample_count) {
 #ifdef AUDIO_ENVELOPE
         free(envelope);
 #endif
-        return -1;
+        return false;
     }
 
     this->audio_sample_count = audio_sample_count;
@@ -63,7 +63,7 @@ int audio_init(audio_t *this, size_t audio_sample_count) {
     this->envelope = envelope;
 #endif
 
-    return 1;
+    return true;
 }
 
 void audio_feed_i2s(audio_t *this, const int32_t *samples) {

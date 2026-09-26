@@ -6,7 +6,7 @@
 
 size_t neopixel_required_buffer_size(size_t led_count);
 
-int neopixel_init(swapchain_t *swapchain, size_t count, uint pin);
+bool neopixel_init(swapchain_t *swapchain, size_t count, uint pin);
 
 size_t neopixel_get_pixel_count();
 

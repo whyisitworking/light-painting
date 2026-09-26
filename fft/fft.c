@@ -113,23 +113,23 @@ static inline int is_valid_count(size_t count) {
     return count >= 2 && count <= UINT_MAX && log2N((unsigned int)count) >= 0;
 }
 
-int fft_init(fft_t *this, size_t count) {
+bool fft_init(fft_t *this, size_t count) {
     unsigned int *reversed_indices;
     float complex *twiddles;
 
     if (!is_valid_count(count))
-        return -1;
+        return false;
 
     reversed_indices = (unsigned int *)malloc(count * sizeof(unsigned int));
 
     if (reversed_indices == NULL)
-        return -1;
+        return false;
 
     twiddles = (float complex *)malloc((count / 2) * sizeof(float complex));
 
     if (twiddles == NULL) {
         free(reversed_indices);
-        return -1;
+        return false;
     }
 
     fill_reversed_indices(reversed_indices, count);
@@ -139,7 +139,7 @@ int fft_init(fft_t *this, size_t count) {
     this->reversed_indices = reversed_indices;
     this->twiddles = twiddles;
 
-    return 1;
+    return true;
 }
 
 void fft_rad2_dit(fft_t *this, float complex *samples, float *frequency_bins) {
@@ -258,23 +258,23 @@ void fft_deinit(fft_t *this) {
     free(this->reversed_indices);
 }
 
-int fft_init_d(fft_d_t *this, size_t count) {
+bool fft_init_d(fft_d_t *this, size_t count) {
     unsigned int *reversed_indices;
     double complex *twiddles;
 
     if (!is_valid_count(count))
-        return -1;
+        return false;
 
     reversed_indices = (unsigned int *)malloc(count * sizeof(unsigned int));
 
     if (reversed_indices == NULL)
-        return -1;
+        return false;
 
     twiddles = (double complex *)malloc((count / 2) * sizeof(double complex));
 
     if (twiddles == NULL) {
         free(reversed_indices);
-        return -1;
+        return false;
     }
 
     fill_reversed_indices(reversed_indices, count);
@@ -284,7 +284,7 @@ int fft_init_d(fft_d_t *this, size_t count) {
     this->reversed_indices = reversed_indices;
     this->twiddles = twiddles;
 
-    return 1;
+    return true;
 }
 
 void fft_rad2_dit_d(fft_d_t *this, double complex *samples,
@@ -417,21 +417,21 @@ void fft_deinit_d(fft_d_t *this) {
  * where Z[M] wraps around to Z[0].
  */
 
-int fft_real_init(fft_real_t *this, size_t count) {
+bool fft_real_init(fft_real_t *this, size_t count) {
     float complex *twiddles;
 
     // The half size FFT needs at least 2 points
     if (count < 4 || !is_valid_count(count))
-        return -1;
+        return false;
 
     twiddles = (float complex *)malloc((count / 2) * sizeof(float complex));
 
     if (twiddles == NULL)
-        return -1;
+        return false;
 
-    if (fft_init(&this->half, count / 2) != 1) {
+    if (!fft_init(&this->half, count / 2)) {
         free(twiddles);
-        return -1;
+        return false;
     }
 
     fill_twiddles(twiddles, count);
@@ -439,7 +439,7 @@ int fft_real_init(fft_real_t *this, size_t count) {
     this->twiddles = twiddles;
     this->count = count;
 
-    return 1;
+    return true;
 }
 
 void fft_real_pack(const float *samples, float complex *packed, size_t count) {
@@ -479,21 +479,21 @@ void fft_real_deinit(fft_real_t *this) {
     free(this->twiddles);
 }
 
-int fft_real_init_d(fft_real_d_t *this, size_t count) {
+bool fft_real_init_d(fft_real_d_t *this, size_t count) {
     double complex *twiddles;
 
     // The half size FFT needs at least 2 points
     if (count < 4 || !is_valid_count(count))
-        return -1;
+        return false;
 
     twiddles = (double complex *)malloc((count / 2) * sizeof(double complex));
 
     if (twiddles == NULL)
-        return -1;
+        return false;
 
-    if (fft_init_d(&this->half, count / 2) != 1) {
+    if (!fft_init_d(&this->half, count / 2)) {
         free(twiddles);
-        return -1;
+        return false;
     }
 
     fill_twiddles_d(twiddles, count);
@@ -501,7 +501,7 @@ int fft_real_init_d(fft_real_d_t *this, size_t count) {
     this->twiddles = twiddles;
     this->count = count;
 
-    return 1;
+    return true;
 }
 
 void fft_real_pack_d(const double *samples, double complex *packed,

@@ -1,6 +1,7 @@
 #ifndef SWAPCHAIN_H
 #define SWAPCHAIN_H
 
+#include <stdbool.h>
 #include <stdlib.h>
 
 #define DEFAULT_BUFFER_COUNT 3
@@ -20,7 +21,7 @@ typedef struct {
 /**
  * Instantiates a swap-
  */
-int swapchain_init(swapchain_t *this, size_t buffer_size);
+bool swapchain_init(swapchain_t *this, size_t buffer_size);
 
 /**
  * Producer side

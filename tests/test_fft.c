@@ -28,7 +28,7 @@ static void fill_random(double complex *signal, size_t n) {
 static void test_init(void) {
     fft_t fft;
 
-    CHECK(fft_init(&fft, 64) == 1);
+    CHECK(fft_init(&fft, 64));
     CHECK(fft.count == 64);
 
     fft_deinit(&fft);
@@ -40,13 +40,13 @@ static void test_init_rejects_invalid_sizes(void) {
     fft_d_t fft_d;
 
     for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); i++) {
-        CHECK(fft_init(&fft, invalid[i]) != 1);
-        CHECK(fft_init_d(&fft_d, invalid[i]) != 1);
+        CHECK(!fft_init(&fft, invalid[i]));
+        CHECK(!fft_init_d(&fft_d, invalid[i]));
     }
 
-    CHECK(fft_init(&fft, 2) == 1);
+    CHECK(fft_init(&fft, 2));
     fft_deinit(&fft);
-    CHECK(fft_init_d(&fft_d, 2) == 1);
+    CHECK(fft_init_d(&fft_d, 2));
     fft_deinit_d(&fft_d);
 }
 
@@ -62,7 +62,7 @@ static void test_dif_matches_dft(size_t n) {
     for (size_t i = 0; i < n; i++)
         samples[i] = (float complex)signal[i];
 
-    CHECK(fft_init(&fft, n) == 1);
+    CHECK(fft_init(&fft, n));
     fft_rad2_dif(&fft, samples, bins);
 
     // DIF leaves the spectrum in bit-reversed order
@@ -90,7 +90,7 @@ static void test_dif_d_matches_dft(size_t n) {
     for (size_t i = 0; i < n; i++)
         samples[i] = signal[i];
 
-    CHECK(fft_init_d(&fft, n) == 1);
+    CHECK(fft_init_d(&fft, n));
     fft_rad2_dif_d(&fft, samples, bins);
 
     for (size_t k = 0; k < n; k++) {
@@ -117,7 +117,7 @@ static void test_dit_matches_dft(size_t n) {
     for (size_t i = 0; i < n; i++)
         samples[i] = (float complex)signal[i];
 
-    CHECK(fft_init(&fft, n) == 1);
+    CHECK(fft_init(&fft, n));
     fft_rad2_dit(&fft, samples, bins);
 
     // DIT works in place on the bit-reversed view, so the spectrum ends up
@@ -145,7 +145,7 @@ static void test_dit_d_matches_dft(size_t n) {
     for (size_t i = 0; i < n; i++)
         samples[i] = signal[i];
 
-    CHECK(fft_init_d(&fft, n) == 1);
+    CHECK(fft_init_d(&fft, n));
     fft_rad2_dit_d(&fft, samples, bins);
 
     for (size_t k = 0; k < n; k++) {
@@ -179,11 +179,11 @@ static void test_real_matches_dft(size_t n) {
         real_samples_d[i] = creal(signal[i]);
     }
 
-    CHECK(fft_real_init(&fft, n) == 1);
+    CHECK(fft_real_init(&fft, n));
     fft_real_pack(real_samples, packed, n);
     fft_real(&fft, packed, bins);
 
-    CHECK(fft_real_init_d(&fft_d, n) == 1);
+    CHECK(fft_real_init_d(&fft_d, n));
     fft_real_pack_d(real_samples_d, packed_d, n);
     fft_real_d(&fft_d, packed_d, bins_d);
 
@@ -203,8 +203,8 @@ static void test_real_rejects_invalid_sizes(void) {
     fft_real_d_t fft_d;
 
     for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); i++) {
-        CHECK(fft_real_init(&fft, invalid[i]) != 1);
-        CHECK(fft_real_init_d(&fft_d, invalid[i]) != 1);
+        CHECK(!fft_real_init(&fft, invalid[i]));
+        CHECK(!fft_real_init_d(&fft_d, invalid[i]));
     }
 }
 
@@ -217,7 +217,7 @@ static void test_real_tone(size_t n, size_t k0, float amplitude) {
     for (size_t i = 0; i < n; i++)
         real_samples[i] = amplitude * cosf(2.f * (float)M_PI * k0 * i / n);
 
-    CHECK(fft_real_init(&fft, n) == 1);
+    CHECK(fft_real_init(&fft, n));
     fft_real_pack(real_samples, packed, n);
     fft_real(&fft, packed, bins);
 
@@ -237,7 +237,7 @@ static void test_dif_tone(size_t n, size_t k0, float amplitude) {
     for (size_t i = 0; i < n; i++)
         samples[i] = amplitude * cosf(2.f * (float)M_PI * k0 * i / n);
 
-    CHECK(fft_init(&fft, n) == 1);
+    CHECK(fft_init(&fft, n));
     fft_rad2_dif(&fft, samples, bins);
 
     for (size_t k = 0; k < n / 2; k++)

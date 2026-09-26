@@ -52,14 +52,14 @@ size_t neopixel_required_buffer_size(size_t led_count) {
     return led_count * sizeof(uint32_t);
 }
 
-int neopixel_init(swapchain_t *swapchain, size_t count, uint pin) {
+bool neopixel_init(swapchain_t *swapchain, size_t count, uint pin) {
     PIO pio;
     int pio_sm, dma_channel;
     uint pio_offset;
     dma_channel_config dma_config;
 
     if (driver.is_init)
-        return -1;
+        return false;
 
     // Start with PIO0
     pio = pio0;
@@ -71,18 +71,18 @@ int neopixel_init(swapchain_t *swapchain, size_t count, uint pin) {
 
         if (!pio_can_add_program(pio, &neopixel_program)) {
             // Guard if not
-            return -1;
+            return false;
         }
     }
 
     // Try to grab an unused State Machine
     if ((pio_sm = pio_claim_unused_sm(pio, false)) == -1) {
-        return -1;
+        return false;
     }
 
     if ((dma_channel = dma_claim_unused_channel(false)) == -1) {
         pio_sm_unclaim(pio, pio_sm);
-        return -1;
+        return false;
     }
 
     // Load the PIO program in memory and initialize it
@@ -111,7 +111,7 @@ int neopixel_init(swapchain_t *swapchain, size_t count, uint pin) {
     driver.swapchain = swapchain;
     driver.is_init = true;
 
-    return 1;
+    return true;
 }
 
 bool neopixel_is_init() { return driver.is_init; }

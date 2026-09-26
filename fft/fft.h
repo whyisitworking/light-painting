@@ -2,6 +2,7 @@
 #define FFT_H
 
 #include <complex.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -17,12 +18,12 @@ typedef struct {
     size_t count;
 } fft_d_t;
 
-int fft_init(fft_t *this, size_t count);
+bool fft_init(fft_t *this, size_t count);
 void fft_rad2_dit(fft_t *this, float complex *samples, float *frequency_bins);
 void fft_rad2_dif(fft_t *this, float complex *samples, float *frequency_bins);
 void fft_deinit(fft_t *this);
 
-int fft_init_d(fft_d_t *this, size_t count);
+bool fft_init_d(fft_d_t *this, size_t count);
 void fft_rad2_dit_d(fft_d_t *this, double complex *samples,
                     double *frequency_bins);
 void fft_rad2_dif_d(fft_d_t *this, double complex *samples,
@@ -57,12 +58,12 @@ typedef struct {
     size_t count;
 } fft_real_d_t;
 
-int fft_real_init(fft_real_t *this, size_t count);
+bool fft_real_init(fft_real_t *this, size_t count);
 void fft_real_pack(const float *samples, float complex *packed, size_t count);
 void fft_real(fft_real_t *this, float complex *packed, float *frequency_bins);
 void fft_real_deinit(fft_real_t *this);
 
-int fft_real_init_d(fft_real_d_t *this, size_t count);
+bool fft_real_init_d(fft_real_d_t *this, size_t count);
 void fft_real_pack_d(const double *samples, double complex *packed,
                      size_t count);
 void fft_real_d(fft_real_d_t *this, double complex *packed,

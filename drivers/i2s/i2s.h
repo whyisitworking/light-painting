@@ -18,8 +18,8 @@
 
 size_t i2s_required_buffer_size(size_t sample_count);
 
-int i2s_init(swapchain_t *swapchain, size_t sample_count, uint sck_pin,
-             uint ws_pin, uint data_pin);
+bool i2s_init(swapchain_t *swapchain, size_t sample_count, uint sck_pin,
+              uint ws_pin, uint data_pin);
 
 size_t i2s_sample_count();
 

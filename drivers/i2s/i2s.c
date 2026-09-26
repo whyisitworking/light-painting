@@ -65,24 +65,24 @@ size_t i2s_required_buffer_size(size_t sample_count) {
     return sample_count * sizeof(uint32_t);
 }
 
-int i2s_init(swapchain_t *swapchain, size_t sample_count, uint sck_pin,
-             uint ws_pin, uint data_pin) {
+bool i2s_init(swapchain_t *swapchain, size_t sample_count, uint sck_pin,
+              uint ws_pin, uint data_pin) {
     PIO pio;
     int pio_sm, dma_channel;
     uint pio_offset;
     dma_channel_config dma_config;
 
     if (driver.is_init)
-        return -1;
+        return false;
 
     // SCK, WS & Data must be
     if (sck_pin >= NUM_BANK0_GPIOS || ws_pin >= NUM_BANK0_GPIOS ||
         data_pin >= NUM_BANK0_GPIOS)
-        return -1;
+        return false;
 
     // SCK and WS **MUST** be consecutive pins in that order
     if (sck_pin + 1 != ws_pin)
-        return -1;
+        return false;
 
     // Start with PIO0
     pio = pio0;
@@ -94,20 +94,20 @@ int i2s_init(swapchain_t *swapchain, size_t sample_count, uint sck_pin,
 
         if (!pio_can_add_program(pio, &i2s_program)) {
             // Guard if not
-            return -1;
+            return false;
         }
     }
 
     // Try to grab an unused State Machine
     if ((pio_sm = pio_claim_unused_sm(pio, false)) == -1)
-        return -1;
+        return false;
 
     // Check if an unused dma channel is available
     if ((dma_channel = dma_claim_unused_channel(false)) == -1) {
         // Give up the State Machine claimed before returning
         pio_sm_unclaim(pio, pio_sm);
         // Guard if not
-        return -1;
+        return false;
     }
 
     // Load the PIO program in memory and initialize it
@@ -140,7 +140,7 @@ int i2s_init(swapchain_t *swapchain, size_t sample_count, uint sck_pin,
     driver.data_pin = data_pin;
     driver.is_init = true;
 
-    return 1;
+    return true;
 }
 
 size_t i2s_sample_count() { return driver.sample_count; }
