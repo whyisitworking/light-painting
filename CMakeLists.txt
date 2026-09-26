@@ -40,6 +40,14 @@ add_link_options(
 add_definitions(
     -DAUDIO_ENVELOPE)
 
+# Opt-in, e.g. -DWAIT_FOR_USB_HOST=ON: at startup, wait up to 2 s for a USB
+# serial host so the startup and error messages can be read. Leave it off for
+# demos, the lights then start right away
+option(WAIT_FOR_USB_HOST "Wait up to 2 s for a USB serial host at startup" OFF)
+if (WAIT_FOR_USB_HOST)
+    add_compile_definitions(PICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=2000)
+endif()
+
 pico_sdk_init()
 
 add_executable(light-painting)
