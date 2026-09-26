@@ -24,3 +24,10 @@ target_link_libraries(fft_host PUBLIC m)
 add_executable(test_fft test_fft.c)
 target_link_libraries(test_fft fft_host)
 add_test(NAME fft COMMAND test_fft)
+
+add_library(swapchain_host STATIC ${ROOT}/swapchain/swapchain.c)
+target_include_directories(swapchain_host PUBLIC ${ROOT}/swapchain)
+
+add_executable(test_swapchain test_swapchain.c)
+target_link_libraries(test_swapchain swapchain_host)
+add_test(NAME swapchain COMMAND test_swapchain)

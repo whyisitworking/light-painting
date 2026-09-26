@@ -120,7 +120,13 @@ int main() {
     uint32_t max = 0;
 
     while (true) {
-        synchronized(swapchain_consumer_swap(&audio_swapchain));
+        bool fresh_audio;
+
+        // Wait for audio we have not processed yet
+        do {
+            synchronized(fresh_audio =
+                             swapchain_consumer_swap(&audio_swapchain));
+        } while (!fresh_audio);
 
         audio_feed_i2s(&audio, swapchain_consumer_buffer(&audio_swapchain));
         audio_envelope(&audio);
