@@ -168,8 +168,16 @@ void i2s_stop_sampling() {
 }
 
 void i2s_print_irq_hits() {
-    printf("IRQ hits %zu\n", irq_hit);
+    size_t hits;
+    uint32_t saved_irq;
+
+    // Take and reset in one go: printf can block and interrupts keep counting
+    saved_irq = save_and_disable_interrupts();
+    hits = irq_hit;
     irq_hit = 0;
+    restore_interrupts(saved_irq);
+
+    printf("IRQ hits %zu\n", hits);
 }
 
 void i2s_deinit() {

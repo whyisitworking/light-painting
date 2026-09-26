@@ -210,8 +210,16 @@ void neopixel_stop_transmission() {
 size_t neopixel_get_pixel_count() { return driver.count; }
 
 void neopixel_print_irq_hits() {
-    printf("Frames latched %zu\n", irq_hit);
+    size_t hits;
+    uint32_t saved_irq;
+
+    // Take and reset in one go: printf can block and interrupts keep counting
+    saved_irq = save_and_disable_interrupts();
+    hits = irq_hit;
     irq_hit = 0;
+    restore_interrupts(saved_irq);
+
+    printf("Frames latched %zu\n", hits);
 }
 
 void neopixel_deinit() {
