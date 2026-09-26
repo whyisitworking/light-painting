@@ -62,7 +62,8 @@ target_link_libraries(test_features features_host)
 add_test(NAME features COMMAND test_features)
 set_tests_properties(features PROPERTIES TIMEOUT 30)
 
-add_library(effects_host STATIC ${ROOT}/effects/palette.c)
+add_library(effects_host STATIC ${ROOT}/effects/effects.c
+                                ${ROOT}/effects/palette.c)
 target_include_directories(effects_host PUBLIC ${ROOT}/effects ${ROOT}/util)
 # util/color.h defines non-inline static helpers, as does the firmware build
 target_compile_options(effects_host PUBLIC -Wno-unused-function)
@@ -72,3 +73,8 @@ add_executable(test_palette test_palette.c)
 target_link_libraries(test_palette effects_host)
 add_test(NAME palette COMMAND test_palette)
 set_tests_properties(palette PROPERTIES TIMEOUT 30)
+
+add_executable(test_effects test_effects.c)
+target_link_libraries(test_effects effects_host)
+add_test(NAME effects COMMAND test_effects)
+set_tests_properties(effects PROPERTIES TIMEOUT 30)
