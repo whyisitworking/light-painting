@@ -78,3 +78,8 @@ add_executable(test_effects test_effects.c)
 target_link_libraries(test_effects effects_host)
 add_test(NAME effects COMMAND test_effects)
 set_tests_properties(effects PROPERTIES TIMEOUT 30)
+
+add_executable(test_golden test_golden.c)
+target_link_libraries(test_golden audio_host effects_host)
+add_test(NAME golden COMMAND test_golden)
+set_tests_properties(golden PROPERTIES TIMEOUT 30)
