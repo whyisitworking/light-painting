@@ -188,11 +188,6 @@ bool i2s_init(swapchain_t *swapchain, size_t sample_count, uint sck_pin,
         dma_channel, &dma_config, (void *)ring, &pio->rxf[pio_sm],
         dma_encode_transfer_count_with_self_trigger(sample_count), false);
 
-    // Setup interrupts
-    dma_channel_set_irq0_enabled(dma_channel, true);
-    irq_set_exclusive_handler(DMA_IRQ_0, dma_irq_handler);
-    irq_set_enabled(DMA_IRQ_0, true);
-
     driver.sample_count = sample_count;
     driver.sample_rate = i2s_program_sample_rate(clock_get_hz(clk_sys));
     driver.pio = pio;
@@ -207,6 +202,13 @@ bool i2s_init(swapchain_t *swapchain, size_t sample_count, uint sck_pin,
     driver.ws_pin = ws_pin;
     driver.data_pin = data_pin;
     driver.is_init = true;
+
+    // Setup interrupts, only now that the handler has everything it uses,
+    // and without a completion flag a previous owner may have left behind
+    dma_channel_acknowledge_irq0(dma_channel);
+    dma_channel_set_irq0_enabled(dma_channel, true);
+    irq_set_exclusive_handler(DMA_IRQ_0, dma_irq_handler);
+    irq_set_enabled(DMA_IRQ_0, true);
 
     return true;
 }
