@@ -1,200 +1,78 @@
-#include "audio.h"
-#include "effects.h"
-#include "features.h"
+#include "config.h"
 #include "i2s.h"
 #include "neopixel.h"
+#include "perf.h"
+#include "visualizer.h"
 
 #include <pico/stdlib.h>
-#include <pico/types.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-// Each analysis covers the last AUDIO_FFT_SIZE mono samples and runs every
-// AUDIO_FFT_HOP new ones. At fs = 48828 Hz, 512 / 256:
-//   window 10.5 ms, bin width fs / size = 95 Hz, a new analysis every 5.2 ms
-// Larger sizes resolve lower frequencies, smaller ones react faster
-#define AUDIO_FFT_SIZE 512
-#define AUDIO_FFT_HOP 256
+// Reports a startup step over USB, returns whether it succeeded
+static bool init_step(bool ok, const char *what) {
+    if (ok)
+        printf("%s init!\n", what);
+    else
+        printf("Could not initialize %s\n", what);
 
-// One mono sample per stereo frame: a left and a right word
-#define AUDIO_WORDS_PER_FRAME 2
-
-_Static_assert(AUDIO_FFT_SIZE >= 4 &&
-                   (AUDIO_FFT_SIZE & (AUDIO_FFT_SIZE - 1)) == 0,
-               "AUDIO_FFT_SIZE must be a power of two >= 4");
-_Static_assert(AUDIO_FFT_HOP >= 1 && AUDIO_FFT_HOP <= AUDIO_FFT_SIZE,
-               "AUDIO_FFT_HOP must be between 1 and AUDIO_FFT_SIZE");
-// The audio DMA streams into a hardware ring of two hops: a power of two, at
-// most 32 KB
-_Static_assert((AUDIO_FFT_HOP & (AUDIO_FFT_HOP - 1)) == 0 &&
-                   AUDIO_FFT_HOP <= 2048,
-               "AUDIO_FFT_HOP must be a power of two, at most 2048");
-#define LED_COUNT 300
-
-// Pico 2 header pins, SCK and WS must be consecutive
-#define MIC_SCK_PIN 26
-#define MIC_WS_PIN 27
-#define MIC_DATA_PIN 28
-
-#define LED_DATA_PIN 8
-
-// Visualizer look, see effects/effects.h and effects/palette.h
-#define VISUALIZER_MODE EFFECTS_RIVER
-#define VISUALIZER_PALETTE PALETTE_SYNTHWAVE
-
-#ifdef PERF_STATS
-// Timing of one main loop stage, reported and reset about once per second
-typedef struct {
-    uint32_t count;
-    uint32_t total_us;
-    uint32_t max_us;
-} perf_stat_t;
-
-static void perf_add(perf_stat_t *stat, uint32_t us) {
-    stat->count++;
-    stat->total_us += us;
-
-    if (us > stat->max_us)
-        stat->max_us = us;
+    return ok;
 }
-
-static void perf_print(const char *name, perf_stat_t *stat) {
-    printf("%-7s avg %5lu us, max %5lu us\n", name,
-           stat->count ? stat->total_us / stat->count : 0, stat->max_us);
-    *stat = (perf_stat_t){0};
-}
-#endif
 
 int main() {
-    audio_t audio;
-    features_state_t features;
-    effects_t effects;
-    float hop_seconds;
+    visualizer_t visualizer;
 
     stdio_usb_init();
 
-    if (!i2s_init(AUDIO_FFT_HOP * AUDIO_WORDS_PER_FRAME, MIC_SCK_PIN,
-                  MIC_WS_PIN, MIC_DATA_PIN)) {
-        printf("Could not initialize i2s driver\n");
+    if (!init_step(i2s_init(AUDIO_FFT_HOP * AUDIO_WORDS_PER_FRAME,
+                            MIC_SCK_PIN, MIC_WS_PIN, MIC_DATA_PIN),
+                   "INMP441 i2s driver"))
         return EXIT_FAILURE;
-    }
 
-    printf("INMP init! Sample rate %.3f Hz\n", i2s_sample_rate());
+    printf("Sample rate %.3f Hz\n", i2s_sample_rate());
 
-    if (!neopixel_init(LED_COUNT, LED_DATA_PIN)) {
-        printf("Could not initialize WS2812 driver\n");
+    if (!init_step(neopixel_init(LED_COUNT, LED_DATA_PIN), "WS2812 driver"))
         return EXIT_FAILURE;
-    }
 
-    printf("WS2812 init!\n");
-
-    if (!audio_init(&audio, AUDIO_FFT_SIZE, AUDIO_FFT_HOP)) {
-        printf("Could not initialize audio\n");
+    // After i2s_init(): the sample rate comes from the I2S clock
+    if (!init_step(visualizer_init(&visualizer,
+                                   &(visualizer_config_t){
+                                       .sample_rate = i2s_sample_rate(),
+                                       .fft_size = AUDIO_FFT_SIZE,
+                                       .hop = AUDIO_FFT_HOP,
+                                       .led_count = LED_COUNT,
+                                       .gain = VISUALIZER_GAIN,
+                                       .mode = VISUALIZER_MODE,
+                                       .palette = VISUALIZER_PALETTE,
+                                       .seed = VISUALIZER_SEED,
+                                   }),
+                   "Visualizer"))
         return EXIT_FAILURE;
-    }
-
-    printf("Audio init!\n");
-
-    hop_seconds = AUDIO_FFT_HOP / i2s_sample_rate();
-
-    if (!features_init(&features, audio_get_frequency_bin_count(&audio),
-                       i2s_sample_rate() / AUDIO_FFT_SIZE, hop_seconds)) {
-        printf("Could not initialize features\n");
-        return EXIT_FAILURE;
-    }
-
-    if (!effects_init(&effects, LED_COUNT, FEATURES_BAND_COUNT, hop_seconds,
-                      1)) {
-        printf("Could not initialize effects\n");
-        return EXIT_FAILURE;
-    }
-
-    effects_set_mode(&effects, VISUALIZER_MODE);
-    effects_set_palette(&effects, VISUALIZER_PALETTE);
-
-    printf("Visualizer init!\n");
 
     i2s_start_sampling();
     neopixel_start_transmission();
 
     printf("Started sampling\n");
 
-#ifdef PERF_STATS
-    perf_stat_t perf_wait = {0}, perf_feed = {0}, perf_fft = {0},
-                perf_render = {0};
-    i2s_stats_t i2s_stats;
-    neopixel_stats_t neopixel_stats;
-    uint32_t perf_beats = 0;
-    uint32_t perf_report_us = time_us_32();
-    uint32_t t0, t1, t2, t3, t4;
-#endif
+    perf_init();
 
     while (true) {
         const int32_t *frames;
         const features_t *sound;
 
-#ifdef PERF_STATS
-        t0 = time_us_32();
-#endif
+        perf_begin();
 
         // Wait for audio we have not processed yet
         frames = i2s_wait_buffer();
+        perf_lap(PERF_WAIT);
 
-#ifdef PERF_STATS
-        t1 = time_us_32();
-#endif
+        visualizer_analyze(&visualizer, frames);
+        perf_lap(PERF_ANALYZE);
 
-        audio_feed_i2s(&audio, frames);
-        audio_envelope(&audio);
-        audio_gain(&audio, 1.5f);
-
-#ifdef PERF_STATS
-        t2 = time_us_32();
-#endif
-
-        audio_fft(&audio);
-
-#ifdef PERF_STATS
-        t3 = time_us_32();
-#endif
-
-        sound = features_update(&features, audio_get_frequency_bins(&audio));
-        effects_render(&effects, sound, neopixel_frame());
+        sound = visualizer_render(&visualizer, neopixel_frame());
         neopixel_submit();
+        perf_lap(PERF_RENDER);
 
-#ifdef PERF_STATS
-        t4 = time_us_32();
-
-        perf_add(&perf_wait, t1 - t0);
-        perf_add(&perf_feed, t2 - t1);
-        perf_add(&perf_fft, t3 - t2);
-        perf_add(&perf_render, t4 - t3);
-
-        if (sound->beat)
-            perf_beats++;
-
-        // Report outside the measured stages, printing takes a while
-        if (t4 - perf_report_us >= 1000000) {
-            perf_report_us = t4;
-
-            perf_print("wait", &perf_wait);
-            perf_print("feed", &perf_feed);
-            perf_print("fft", &perf_fft);
-            perf_print("render", &perf_render);
-            i2s_stats = i2s_take_stats();
-            neopixel_stats = neopixel_take_stats();
-            printf("Audio buffers dropped %zu, LED frames dropped %zu\n",
-                   i2s_stats.dropped, neopixel_stats.dropped);
-            // To tune FEATURES_MIN_CEILING_DB: a quiet room should read
-            // loudness ~0 and no beats
-            printf("Ceiling %.1f dB, loudness %.3f, beats %lu\n",
-                   (double)features.ceiling_db, (double)sound->loudness,
-                   (unsigned long)perf_beats);
-            perf_beats = 0;
-            printf("IRQ hits %zu\n", i2s_stats.irq_hits);
-            printf("Frames latched %zu\n", neopixel_stats.frames_latched);
-        }
-#endif
+        perf_end(&visualizer, sound);
     }
 
     return EXIT_SUCCESS;

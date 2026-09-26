@@ -50,10 +50,11 @@ add_compile_options(-fno-math-errno)
 add_subdirectory(lib)
 add_subdirectory(platform)
 
-target_sources(light-painting
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/app/main.c)
-set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/app/main.c
+set(APP_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/app/main.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/app/perf.c)
+target_sources(light-painting PRIVATE ${APP_SOURCES})
+set_source_files_properties(${APP_SOURCES}
     PROPERTIES COMPILE_OPTIONS "${PROJECT_WARNINGS}")
 target_include_directories(light-painting
     PRIVATE
@@ -62,10 +63,7 @@ target_link_libraries(light-painting
     PRIVATE
         i2s
         neopixel
-        audio
-        features
-        effects
-        swapchain
+        visualizer
         pico_stdlib)
 
 # Opt-in, e.g. -DPERF_STATS=ON: print main loop timings and audio/LED
