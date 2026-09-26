@@ -55,8 +55,8 @@ typedef struct {
     // Whether the driver is initialized
     bool is_init;
 
-    // Whether transmission is ongoing
-    bool is_sampling;
+    // Whether transmission is ongoing, read by the interrupt handler
+    volatile bool is_sampling;
 } i2s_t;
 
 static i2s_t driver = {
@@ -78,6 +78,10 @@ static void dma_irq_handler() {
     // meanwhile raises the interrupt again instead of being cleared unseen
     dma_channel_acknowledge_irq0(driver.dma_channel);
     irq_hit++;
+
+    // A completion still pending when sampling was stopped
+    if (!driver.is_sampling)
+        return;
 
     writing = (uintptr_t)dma_channel_hw_addr(driver.dma_channel)->write_addr;
 
@@ -240,6 +244,12 @@ void i2s_stop_sampling() {
                   DMA_CH0_CTRL_TRIG_EN_BITS);
     dma_channel_set_irq0_enabled(driver.dma_channel, false);
     dma_channel_abort(driver.dma_channel);
+
+    // Datasheet 12.6.8.3: the channel is only safe to restart once
+    // CHAN_ABORT reads back zero, which can trail BUSY
+    while (dma_hw->abort & (1u << driver.dma_channel))
+        tight_loop_contents();
+
     dma_channel_acknowledge_irq0(driver.dma_channel);
 
     driver.is_sampling = false;
