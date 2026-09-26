@@ -44,17 +44,13 @@ static void test_init_rejects_invalid_sizes(void) {
     // (size_t)1 << 32 is a power of two, but truncates to 0 as unsigned int
     const size_t invalid[] = {0, 1, 3, 6, 48, 1000, (size_t)1 << 32};
     fft_t fft;
-    fft_d_t fft_d;
 
     for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); i++) {
         CHECK(!fft_init(&fft, invalid[i]));
-        CHECK(!fft_init_d(&fft_d, invalid[i]));
     }
 
     CHECK(fft_init(&fft, 2));
     fft_deinit(&fft);
-    CHECK(fft_init_d(&fft_d, 2));
-    fft_deinit_d(&fft_d);
 }
 
 static void test_dif_matches_dft(size_t n) {
@@ -88,32 +84,6 @@ static void test_dif_matches_dft(size_t n) {
     fft_deinit(&fft);
 }
 
-static void test_dif_d_matches_dft(size_t n) {
-    static double complex signal[MAX_N], expected[MAX_N], samples[MAX_N];
-    static double bins[MAX_N / 2];
-    fft_d_t fft;
-
-    fill_random(signal, n);
-    naive_dft(signal, expected, n);
-
-    for (size_t i = 0; i < n; i++)
-        samples[i] = signal[i];
-
-    CHECK(fft_init_d(&fft, n));
-    fft_rad2_dif_d(&fft, samples, bins);
-
-    for (size_t k = 0; k < n; k++) {
-        double complex actual = samples[fft.reversed_indices[k]];
-        CHECK_NEAR(creal(actual), creal(expected[k]), 1e-9 * n);
-        CHECK_NEAR(cimag(actual), cimag(expected[k]), 1e-9 * n);
-    }
-
-    for (size_t k = 0; k < n / 2; k++)
-        CHECK_NEAR(bins[k], cabs(expected[k]) / (n / 2.0), 1e-9);
-
-    fft_deinit_d(&fft);
-}
-
 static void test_dit_matches_dft(size_t n) {
     static double complex signal[MAX_N], expected[MAX_N];
     static float complex samples[MAX_N];
@@ -145,77 +115,36 @@ static void test_dit_matches_dft(size_t n) {
     fft_deinit(&fft);
 }
 
-static void test_dit_d_matches_dft(size_t n) {
-    static double complex signal[MAX_N], expected[MAX_N], samples[MAX_N];
-    static double bins[MAX_N / 2];
-    fft_d_t fft;
+static void test_real_matches_dft(size_t n) {
+    static double complex signal[MAX_N], expected[MAX_N];
+    static float real_samples[MAX_N];
+    static float complex packed[MAX_N / 2];
+    static float bins[MAX_N / 2];
+    fft_real_t fft;
 
     fill_random(signal, n);
     naive_dft(signal, expected, n);
 
     for (size_t i = 0; i < n; i++)
-        samples[i] = signal[i];
-
-    CHECK(fft_init_d(&fft, n));
-    fft_rad2_dit_d(&fft, samples, bins);
-
-    for (size_t k = 0; k < n; k++) {
-        double complex actual = samples[fft.reversed_indices[k]];
-        CHECK_NEAR(creal(actual), creal(expected[k]), 1e-9 * n);
-        CHECK_NEAR(cimag(actual), cimag(expected[k]), 1e-9 * n);
-    }
-
-    for (size_t k = 0; k < n / 2; k++)
-        CHECK_NEAR(bins[k], cabs(expected[k]) / (n / 2.0), 1e-9);
-
-    fft_deinit_d(&fft);
-}
-
-static void test_real_matches_dft(size_t n) {
-    static double complex signal[MAX_N], expected[MAX_N];
-    static float real_samples[MAX_N];
-    static double real_samples_d[MAX_N];
-    static float complex packed[MAX_N / 2];
-    static double complex packed_d[MAX_N / 2];
-    static float bins[MAX_N / 2];
-    static double bins_d[MAX_N / 2];
-    fft_real_t fft;
-    fft_real_d_t fft_d;
-
-    fill_random(signal, n);
-    naive_dft(signal, expected, n);
-
-    for (size_t i = 0; i < n; i++) {
         real_samples[i] = (float)creal(signal[i]);
-        real_samples_d[i] = creal(signal[i]);
-    }
 
     CHECK(fft_real_init(&fft, n));
     fft_real_pack(real_samples, packed, n);
     fft_real(&fft, packed, bins);
 
-    CHECK(fft_real_init_d(&fft_d, n));
-    fft_real_pack_d(real_samples_d, packed_d, n);
-    fft_real_d(&fft_d, packed_d, bins_d);
-
     // Same bins, same normalization as the complex FFTs, k = 0 included
-    for (size_t k = 0; k < n / 2; k++) {
+    for (size_t k = 0; k < n / 2; k++)
         CHECK_NEAR(bins[k], cabs(expected[k]) / (n / 2.0), FLOAT_BIN_TOLERANCE);
-        CHECK_NEAR(bins_d[k], cabs(expected[k]) / (n / 2.0), 1e-9);
-    }
 
     fft_real_deinit(&fft);
-    fft_real_deinit_d(&fft_d);
 }
 
 static void test_real_rejects_invalid_sizes(void) {
     const size_t invalid[] = {0, 1, 2, 3, 6, 48};
     fft_real_t fft;
-    fft_real_d_t fft_d;
 
     for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); i++) {
         CHECK(!fft_real_init(&fft, invalid[i]));
-        CHECK(!fft_real_init_d(&fft_d, invalid[i]));
     }
 }
 
@@ -265,9 +194,7 @@ int main(void) {
 
     for (size_t n = 2; n <= MAX_N; n <<= 1) {
         test_dif_matches_dft(n);
-        test_dif_d_matches_dft(n);
         test_dit_matches_dft(n);
-        test_dit_d_matches_dft(n);
 
         if (n >= 4)
             test_real_matches_dft(n);
