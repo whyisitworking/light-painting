@@ -12,12 +12,12 @@ static inline void swap_elements(void *volatile arr[], size_t first,
 }
 
 bool swapchain_init(swapchain_t *this, size_t buffer_size) {
-    void *alloc = malloc(DEFAULT_BUFFER_COUNT * buffer_size);
+    char *alloc = (char *)malloc(SWAPCHAIN_BUFFER_COUNT * buffer_size);
     if (alloc == NULL)
         return false;
 
-    for (size_t i = 0; i < DEFAULT_BUFFER_COUNT; i++)
-        this->buffer_chain[i] = (void *)((size_t)alloc + (i * buffer_size));
+    for (size_t i = 0; i < SWAPCHAIN_BUFFER_COUNT; i++)
+        this->buffer_chain[i] = alloc + i * buffer_size;
 
     this->mem = alloc;
     this->fresh = false;
