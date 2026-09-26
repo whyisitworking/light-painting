@@ -7,17 +7,25 @@
 #include <stdint.h>
 
 typedef struct {
+    // FFT size: the number of mono samples analyzed at once
     size_t audio_sample_count;
-    float complex *audio_sample_buffer;
+    // Mono samples being analyzed
+    float *audio_sample_buffer;
+    // Scratch space of the real FFT, audio_sample_count / 2 entries
+    float complex *packed_buffer;
     float *frequency_bins;
 #ifdef AUDIO_ENVELOPE
     float *envelope;
 #endif
-    fft_t fft;
+    fft_real_t fft;
 } audio_t;
 
 bool audio_init(audio_t *this, size_t audio_sample_count);
-void audio_feed_i2s(audio_t *context, const int32_t *samples);
+/**
+ * Feeds audio_sample_count stereo frames straight from the I2S driver: pairs
+ * of left and right words. Both microphones are summed to mono.
+ */
+void audio_feed_i2s(audio_t *context, const int32_t *frames);
 
 #ifdef AUDIO_ENVELOPE
 void audio_envelope(audio_t *this);

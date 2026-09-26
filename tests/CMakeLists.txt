@@ -38,5 +38,15 @@ target_include_directories(test_color PRIVATE ${ROOT}/util)
 target_compile_options(test_color PRIVATE -Wno-unused-function)
 add_test(NAME color COMMAND test_color)
 
+add_library(audio_host STATIC ${ROOT}/audio/audio.c)
+target_include_directories(audio_host PUBLIC ${ROOT}/audio)
+# Same as the firmware build
+target_compile_definitions(audio_host PUBLIC AUDIO_ENVELOPE)
+target_link_libraries(audio_host PUBLIC fft_host)
+
+add_executable(test_audio test_audio.c)
+target_link_libraries(test_audio audio_host)
+add_test(NAME audio COMMAND test_audio)
+
 # A hang (e.g. an endless loop) should fail quickly, not at ctest's default
-set_tests_properties(fft swapchain color PROPERTIES TIMEOUT 30)
+set_tests_properties(fft swapchain color audio PROPERTIES TIMEOUT 30)

@@ -10,7 +10,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// Mono samples per FFT, each from one stereo frame (a left and a right word)
 #define AUDIO_SAMPLE_COUNT 64
+#define AUDIO_WORDS_PER_FRAME 2
 #define LED_COUNT 300
 
 // Pico 2 header pins, SCK and WS must be consecutive
@@ -72,7 +74,8 @@ int main() {
     stdio_usb_init();
 
     if (!swapchain_init(&audio_swapchain,
-                        i2s_required_buffer_size(AUDIO_SAMPLE_COUNT))) {
+                        i2s_required_buffer_size(AUDIO_SAMPLE_COUNT *
+                                                 AUDIO_WORDS_PER_FRAME))) {
         printf("Could not initialize audio swapchain\n");
         return EXIT_FAILURE;
     }
@@ -87,8 +90,8 @@ int main() {
 
     printf("LED swapchain init!\n");
 
-    if (!i2s_init(&audio_swapchain, AUDIO_SAMPLE_COUNT, MIC_SCK_PIN, MIC_WS_PIN,
-                  MIC_DATA_PIN)) {
+    if (!i2s_init(&audio_swapchain, AUDIO_SAMPLE_COUNT * AUDIO_WORDS_PER_FRAME,
+                  MIC_SCK_PIN, MIC_WS_PIN, MIC_DATA_PIN)) {
         printf("Could not initialize i2s driver");
         return EXIT_FAILURE;
     }
