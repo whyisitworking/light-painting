@@ -71,6 +71,13 @@ target_link_libraries(light-painting
         swapchain
         pico_stdlib)
 
+# Opt-in, e.g. -DPERF_STATS=ON: print main loop timings and audio/LED
+# counters over USB about once per second
+option(PERF_STATS "Print performance statistics once per second" OFF)
+if (PERF_STATS)
+    target_compile_definitions(light-painting PRIVATE PERF_STATS)
+endif()
+
 pico_add_extra_outputs(light-painting)
 pico_enable_stdio_usb(light-painting ON)
 pico_enable_stdio_uart(light-painting OFF)
