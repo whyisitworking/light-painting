@@ -14,8 +14,11 @@
 .program i2s
 .side_set 2
 
-; Max clock 6410000
-.define public required_clock       6400000
+; 2 PIO cycles per SCK period, 64 SCK periods per stereo frame
+; INMP441 datasheet: fSCK max 3.2 MHz (tSCP min 312 ns), 64 SCK per frame
+.define public sck_max_hz           3200000
+.define public cycles_per_sck       2
+.define public sck_per_frame        64
 .define public bits_in_per_word     32
 
 frame_l:
@@ -38,6 +41,26 @@ data_r:
 #include "hardware/clocks.h"
 #include "hardware/gpio.h"
 
+/**
+ * Integer clock divider for the fastest SCK not above sck_max_hz. A
+ * fractional divider would stretch only some cycles: the unstretched ones
+ * run faster than the average and break the minimum SCK period.
+ */
+static inline uint32_t i2s_program_clkdiv(uint32_t sys_hz) {
+    uint32_t max_pio_hz = i2s_sck_max_hz * i2s_cycles_per_sck;
+
+    // Round up, so SCK never exceeds the maximum
+    return (sys_hz + max_pio_hz - 1) / max_pio_hz;
+}
+
+/**
+ * Resulting WS (sample) frequency in Hz for the given system clock
+ */
+static inline float i2s_program_sample_rate(uint32_t sys_hz) {
+    return (float)sys_hz / (i2s_program_clkdiv(sys_hz) * i2s_cycles_per_sck *
+                            i2s_sck_per_frame);
+}
+
 static inline void i2s_program_init(PIO pio, uint sm, uint offset,
                                             uint sck_pin, uint ws_pin,
                                             uint data_pin) {
@@ -51,7 +74,7 @@ static inline void i2s_program_init(PIO pio, uint sm, uint offset,
 
     pio_sm_config cfg = i2s_program_get_default_config(offset);
     
-    sm_config_set_clkdiv(&cfg, (float)clock_get_hz(clk_sys) / i2s_required_clock);
+    sm_config_set_clkdiv_int_frac8(&cfg, i2s_program_clkdiv(clock_get_hz(clk_sys)), 0);
     sm_config_set_in_pins(&cfg, data_pin);
     sm_config_set_sideset_pins(&cfg, sck_pin);
     sm_config_set_in_shift(&cfg, false, true, i2s_bits_in_per_word);

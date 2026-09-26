@@ -14,6 +14,9 @@ typedef struct {
     // Number of samples each buffer will contain
     size_t sample_count;
 
+    // Resulting WS (sample) frequency in Hz
+    float sample_rate;
+
     // Selected PIO bank
     PIO pio;
 
@@ -130,6 +133,7 @@ bool i2s_init(swapchain_t *swapchain, size_t sample_count, uint sck_pin,
     irq_set_enabled(DMA_IRQ_0, true);
 
     driver.sample_count = sample_count;
+    driver.sample_rate = i2s_program_sample_rate(clock_get_hz(clk_sys));
     driver.pio = pio;
     driver.pio_sm = (uint)pio_sm;
     driver.pio_offset = pio_offset;
@@ -144,6 +148,8 @@ bool i2s_init(swapchain_t *swapchain, size_t sample_count, uint sck_pin,
 }
 
 size_t i2s_sample_count() { return driver.sample_count; }
+
+float i2s_sample_rate() { return driver.sample_rate; }
 
 void i2s_start_sampling() {
     if (!driver.is_init || driver.is_sampling)
