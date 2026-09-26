@@ -38,11 +38,23 @@ static void test_gamma(void) {
     CHECK(color_gamma(NAN) == 0);
 }
 
+// The primaries, and grey without saturation
+static void test_hsv(void) {
+    color_neopixel_t red = color_neopixel_from_hsv(0, 255, 255);
+    color_neopixel_t green = color_neopixel_from_hsv_f(120.f, 1.f, 1.f);
+    color_neopixel_t grey = color_neopixel_from_hsv(100, 0, 128);
+
+    CHECK(red.grba.r == 255 && red.grba.g == 0 && red.grba.b == 0);
+    CHECK(green.grba.r == 0 && green.grba.g == 255 && green.grba.b == 0);
+    CHECK(grey.grba.r == 128 && grey.grba.g == 128 && grey.grba.b == 128);
+}
+
 int main(void) {
     test_layout();
     test_add();
     test_add_saturates();
     test_gamma();
+    test_hsv();
 
     return CHECK_REPORT();
 }
