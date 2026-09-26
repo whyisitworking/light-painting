@@ -25,6 +25,10 @@ _Static_assert(AUDIO_FFT_SIZE >= 4 &&
                "AUDIO_FFT_SIZE must be a power of two >= 4");
 _Static_assert(AUDIO_FFT_HOP >= 1 && AUDIO_FFT_HOP <= AUDIO_FFT_SIZE,
                "AUDIO_FFT_HOP must be between 1 and AUDIO_FFT_SIZE");
+// Audio DMA buffers are hardware rings: a power of two up to 32 KB
+_Static_assert((AUDIO_FFT_HOP & (AUDIO_FFT_HOP - 1)) == 0 &&
+                   AUDIO_FFT_HOP <= 4096,
+               "AUDIO_FFT_HOP must be a power of two, at most 4096");
 #define LED_COUNT 300
 
 // Pico 2 header pins, SCK and WS must be consecutive
@@ -108,9 +112,11 @@ int main() {
 
     stdio_usb_init();
 
-    if (!swapchain_init(&audio_swapchain,
-                        i2s_required_buffer_size(AUDIO_FFT_HOP *
-                                                 AUDIO_WORDS_PER_FRAME))) {
+    if (!swapchain_init_aligned(
+            &audio_swapchain,
+            i2s_required_buffer_size(AUDIO_FFT_HOP * AUDIO_WORDS_PER_FRAME),
+            i2s_required_buffer_alignment(AUDIO_FFT_HOP *
+                                          AUDIO_WORDS_PER_FRAME))) {
         printf("Could not initialize audio swapchain\n");
         return EXIT_FAILURE;
     }
