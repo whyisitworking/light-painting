@@ -1,6 +1,6 @@
 /**
- * Golden snapshot of the whole pipeline: I2S words through audio, features
- * and effects into pixels, for every mode. Each mode's frames are hashed and
+ * Golden snapshot of the whole pipeline: I2S words through the visualizer
+ * (audio, features and effects) into pixels, for every mode. Each mode's frames are hashed and
  * compared with hashes recorded from a known good build.
  *
  * A change of hash means the pixels changed. That is expected only when a
@@ -11,11 +11,9 @@
  * platform may need its own recording too.
  */
 
-#include "audio.h"
 #include "check.h"
-#include "effects.h"
-#include "features.h"
 #include "signals.h"
+#include "visualizer.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -62,37 +60,34 @@ static void make_hop(int32_t *frames, size_t hop, uint32_t *noise) {
 static uint32_t run_mode(effects_mode_t mode) {
     static int32_t frames[2 * HOP];
     static uint32_t pixels[LEDS];
-    float hop_seconds = (float)(HOP / FS);
-    audio_t audio;
-    features_state_t features;
-    effects_t effects;
+    visualizer_t visualizer;
     uint32_t noise = 12345, hash = 2166136261u;
 
-    CHECK(audio_init(&audio, FFT_SIZE, HOP));
-    CHECK(features_init(&features, audio_get_frequency_bin_count(&audio),
-                        (float)(FS / FFT_SIZE), hop_seconds));
-    CHECK(effects_init(&effects, LEDS, FEATURES_BAND_COUNT, hop_seconds, 1));
-    effects_set_mode(&effects, mode);
-    effects_set_palette(&effects, (effects_palette_t)(mode % PALETTE_COUNT));
+    CHECK(visualizer_init(&visualizer,
+                          &(visualizer_config_t){
+                              .sample_rate = (float)FS,
+                              .fft_size = FFT_SIZE,
+                              .hop = HOP,
+                              .led_count = LEDS,
+                              .gain = GAIN,
+                              .mode = mode,
+                              .palette = (effects_palette_t)(mode %
+                                                             PALETTE_COUNT),
+                              .seed = 1,
+                          }));
 
     for (size_t hop = 0; hop < HOPS; hop++) {
         const features_t *sound;
 
         make_hop(frames, hop, &noise);
-        audio_feed_i2s(&audio, frames);
-        audio_envelope(&audio);
-        audio_gain(&audio, GAIN);
-        audio_fft(&audio);
-        sound = features_update(&features, audio_get_frequency_bins(&audio));
-        effects_render(&effects, sound, pixels);
+        visualizer_analyze(&visualizer, frames);
+        sound = visualizer_render(&visualizer, pixels);
 
         hash = fnv1a(hash, pixels, sizeof(pixels));
         hash = fnv1a(hash, &sound->beat, sizeof(sound->beat));
     }
 
-    effects_deinit(&effects);
-    features_deinit(&features);
-    audio_deinit(&audio);
+    visualizer_deinit(&visualizer);
 
     return hash;
 }
