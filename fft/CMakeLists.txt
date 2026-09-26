@@ -11,4 +11,3 @@ target_include_directories(fft
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(fft pico_stdlib)
