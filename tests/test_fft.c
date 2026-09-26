@@ -89,6 +89,61 @@ static void test_dif_d_matches_dft(size_t n) {
     fft_deinit_d(&fft);
 }
 
+static void test_dit_matches_dft(size_t n) {
+    static double complex signal[MAX_N], expected[MAX_N];
+    static float complex samples[MAX_N];
+    static float bins[MAX_N / 2];
+    fft_t fft;
+
+    fill_random(signal, n);
+    naive_dft(signal, expected, n);
+
+    for (size_t i = 0; i < n; i++)
+        samples[i] = (float complex)signal[i];
+
+    CHECK(fft_init(&fft, n) == 1);
+    fft_rad2_dit(&fft, samples, bins);
+
+    // DIT works in place on the bit-reversed view, so the spectrum ends up
+    // in bit-reversed memory order too
+    for (size_t k = 0; k < n; k++) {
+        float complex actual = samples[fft.reversed_indices[k]];
+        CHECK_NEAR(crealf(actual), creal(expected[k]), 1e-3 * n);
+        CHECK_NEAR(cimagf(actual), cimag(expected[k]), 1e-3 * n);
+    }
+
+    for (size_t k = 0; k < n / 2; k++)
+        CHECK_NEAR(bins[k], cabs(expected[k]) / (n / 2.0), 1e-3);
+
+    fft_deinit(&fft);
+}
+
+static void test_dit_d_matches_dft(size_t n) {
+    static double complex signal[MAX_N], expected[MAX_N], samples[MAX_N];
+    static double bins[MAX_N / 2];
+    fft_d_t fft;
+
+    fill_random(signal, n);
+    naive_dft(signal, expected, n);
+
+    for (size_t i = 0; i < n; i++)
+        samples[i] = signal[i];
+
+    CHECK(fft_init_d(&fft, n) == 1);
+    fft_rad2_dit_d(&fft, samples, bins);
+
+    for (size_t k = 0; k < n; k++) {
+        double complex actual = samples[fft.reversed_indices[k]];
+        CHECK_NEAR(creal(actual), creal(expected[k]), 1e-9 * n);
+        CHECK_NEAR(cimag(actual), cimag(expected[k]), 1e-9 * n);
+    }
+
+    for (size_t k = 0; k < n / 2; k++)
+        CHECK_NEAR(bins[k], cabs(expected[k]) / (n / 2.0), 1e-9);
+
+    fft_deinit_d(&fft);
+}
+
 // A pure tone of amplitude A at bin k0 must show up as a single bin of
 // height A, everything else ~0
 static void test_dif_tone(size_t n, size_t k0, float amplitude) {
@@ -116,6 +171,8 @@ int main(void) {
     for (size_t n = 2; n <= MAX_N; n <<= 1) {
         test_dif_matches_dft(n);
         test_dif_d_matches_dft(n);
+        test_dit_matches_dft(n);
+        test_dit_d_matches_dft(n);
     }
 
     test_dif_tone(64, 5, 1.f);

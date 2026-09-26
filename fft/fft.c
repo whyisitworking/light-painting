@@ -175,7 +175,8 @@ void fft_rad2_dit(fft_t *this, float complex *samples, float *frequency_bins) {
 
     if (frequency_bins != NULL) {
         for (size_t i = 0; i < halfN; i++) {
-            float complex sample = samples[i];
+            // Butterflies ran on the bit-reversed view, so is the output
+            float complex sample = samples[this->reversed_indices[i]];
             frequency_bins[i] = cabsf(sample) / halfN;
         }
     }
@@ -317,7 +318,8 @@ void fft_rad2_dit_d(fft_d_t *this, double complex *samples,
 
     if (frequency_bins != NULL) {
         for (size_t i = 0; i < halfN; i++) {
-            double complex sample = samples[i];
+            // Butterflies ran on the bit-reversed view, so is the output
+            double complex sample = samples[this->reversed_indices[i]];
             frequency_bins[i] = cabs(sample) / halfN;
         }
     }
