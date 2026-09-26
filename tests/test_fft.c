@@ -7,6 +7,12 @@
 
 #define MAX_N 1024
 
+// Float tolerances, ~15-30x the worst error measured against the double
+// precision reference (complex values grow with N, bins are normalized)
+#define FLOAT_VALUE_TOLERANCE(n) (5e-6 * sqrt((double)(n)))
+#define FLOAT_BIN_TOLERANCE 1e-6
+#define FLOAT_TONE_TOLERANCE 5e-6
+
 // Reference: O(N^2) DFT straight from the definition, in double precision
 static void naive_dft(const double complex *input, double complex *output,
                       size_t n) {
@@ -68,13 +74,15 @@ static void test_dif_matches_dft(size_t n) {
     // DIF leaves the spectrum in bit-reversed order
     for (size_t k = 0; k < n; k++) {
         float complex actual = samples[fft.reversed_indices[k]];
-        CHECK_NEAR(crealf(actual), creal(expected[k]), 1e-3 * n);
-        CHECK_NEAR(cimagf(actual), cimag(expected[k]), 1e-3 * n);
+        CHECK_NEAR(crealf(actual), creal(expected[k]),
+                   FLOAT_VALUE_TOLERANCE(n));
+        CHECK_NEAR(cimagf(actual), cimag(expected[k]),
+                   FLOAT_VALUE_TOLERANCE(n));
     }
 
     // Bins are the magnitudes of the first half, normalized by N/2
     for (size_t k = 0; k < n / 2; k++)
-        CHECK_NEAR(bins[k], cabs(expected[k]) / (n / 2.0), 1e-3);
+        CHECK_NEAR(bins[k], cabs(expected[k]) / (n / 2.0), FLOAT_BIN_TOLERANCE);
 
     fft_deinit(&fft);
 }
@@ -124,12 +132,14 @@ static void test_dit_matches_dft(size_t n) {
     // in bit-reversed memory order too
     for (size_t k = 0; k < n; k++) {
         float complex actual = samples[fft.reversed_indices[k]];
-        CHECK_NEAR(crealf(actual), creal(expected[k]), 1e-3 * n);
-        CHECK_NEAR(cimagf(actual), cimag(expected[k]), 1e-3 * n);
+        CHECK_NEAR(crealf(actual), creal(expected[k]),
+                   FLOAT_VALUE_TOLERANCE(n));
+        CHECK_NEAR(cimagf(actual), cimag(expected[k]),
+                   FLOAT_VALUE_TOLERANCE(n));
     }
 
     for (size_t k = 0; k < n / 2; k++)
-        CHECK_NEAR(bins[k], cabs(expected[k]) / (n / 2.0), 1e-3);
+        CHECK_NEAR(bins[k], cabs(expected[k]) / (n / 2.0), FLOAT_BIN_TOLERANCE);
 
     fft_deinit(&fft);
 }
@@ -189,7 +199,7 @@ static void test_real_matches_dft(size_t n) {
 
     // Same bins, same normalization as the complex FFTs, k = 0 included
     for (size_t k = 0; k < n / 2; k++) {
-        CHECK_NEAR(bins[k], cabs(expected[k]) / (n / 2.0), 1e-3);
+        CHECK_NEAR(bins[k], cabs(expected[k]) / (n / 2.0), FLOAT_BIN_TOLERANCE);
         CHECK_NEAR(bins_d[k], cabs(expected[k]) / (n / 2.0), 1e-9);
     }
 
@@ -222,7 +232,7 @@ static void test_real_tone(size_t n, size_t k0, float amplitude) {
     fft_real(&fft, packed, bins);
 
     for (size_t k = 0; k < n / 2; k++)
-        CHECK_NEAR(bins[k], k == k0 ? amplitude : 0.f, 1e-3);
+        CHECK_NEAR(bins[k], k == k0 ? amplitude : 0.f, FLOAT_TONE_TOLERANCE);
 
     fft_real_deinit(&fft);
 }
@@ -241,7 +251,7 @@ static void test_dif_tone(size_t n, size_t k0, float amplitude) {
     fft_rad2_dif(&fft, samples, bins);
 
     for (size_t k = 0; k < n / 2; k++)
-        CHECK_NEAR(bins[k], k == k0 ? amplitude : 0.f, 1e-3);
+        CHECK_NEAR(bins[k], k == k0 ? amplitude : 0.f, FLOAT_TONE_TOLERANCE);
 
     fft_deinit(&fft);
 }
