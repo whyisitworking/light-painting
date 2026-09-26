@@ -72,10 +72,11 @@ static void pio_irq_handler() {
     if (!driver.is_transmitting)
         return;
 
-    // A latch while DMA is still busy means DMA fell behind for longer than
+    // A latch with data still to send means DMA fell behind for longer than
     // the FIFO lasts: the rest of the frame still needs its buffer and will
-    // latch again when done
-    if (dma_channel_is_busy(driver.dma_channel))
+    // latch again when done. DMA may already be idle with the tail in the FIFO
+    if (dma_channel_is_busy(driver.dma_channel) ||
+        !pio_sm_is_tx_fifo_empty(driver.pio, driver.pio_sm))
         return;
 
     send_fresh_frame();
