@@ -10,6 +10,12 @@
 
 size_t i2s_required_buffer_size(size_t sample_count);
 
+/**
+ * sample_count: 32-bit words per buffer, a non-zero even number (whole
+ * stereo frames, left word first)
+ * sck_pin, ws_pin: consecutive, driven by the state machine
+ * data_pin: sampled, distinct from sck_pin and ws_pin
+ */
 bool i2s_init(swapchain_t *swapchain, size_t sample_count, uint sck_pin,
               uint ws_pin, uint data_pin);
 

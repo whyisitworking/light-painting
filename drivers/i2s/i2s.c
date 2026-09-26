@@ -88,6 +88,15 @@ bool i2s_init(swapchain_t *swapchain, size_t sample_count, uint sck_pin,
     if (sck_pin + 1 != ws_pin)
         return false;
 
+    // Data is sampled, SCK and WS are driven: they must not share a pin
+    if (data_pin == sck_pin || data_pin == ws_pin)
+        return false;
+
+    // Whole stereo frames (a left and a right word) per buffer, so that
+    // every buffer starts with a left word
+    if (sample_count == 0 || sample_count % 2 != 0)
+        return false;
+
     // Range of GPIOs the state machine drives or samples
     gpio_start = MIN(sck_pin, data_pin);
     gpio_end = MAX(ws_pin, data_pin);
