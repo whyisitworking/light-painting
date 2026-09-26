@@ -5,7 +5,6 @@
 #include "pico/stdlib.h"
 #include "pico/sync.h"
 #include "swapchain.h"
-#include <stdio.h>
 #include <stdlib.h>
 
 typedef struct {
@@ -24,8 +23,8 @@ typedef struct {
     // DMA channel used to receive burst data
     uint dma_channel;
 
-    // The swapchain to use
-    swapchain_t *swapchain;
+    // Hands the frames over from the main loop
+    swapchain_t swapchain;
 
     // Whether the driver is initialized
     bool is_init;
@@ -38,7 +37,6 @@ typedef struct {
 } neopixel_t;
 
 static neopixel_t driver = {
-    .swapchain = NULL,
     .is_init = false,
     .is_transmitting = false,
     .is_sending = false,
@@ -52,7 +50,7 @@ static volatile size_t irq_hit = 0;
  * Must run with interrupts disabled or from the PIO interrupt.
  */
 static void send_fresh_frame() {
-    if (!swapchain_consumer_swap(driver.swapchain)) {
+    if (!swapchain_consumer_swap(&driver.swapchain)) {
         // Nothing new, the LEDs keep showing the last frame
         driver.is_sending = false;
         return;
@@ -60,7 +58,7 @@ static void send_fresh_frame() {
 
     driver.is_sending = true;
     dma_channel_set_read_addr(
-        driver.dma_channel, swapchain_consumer_buffer(driver.swapchain), true);
+        driver.dma_channel, swapchain_consumer_buffer(&driver.swapchain), true);
 }
 
 // The state machine raises its IRQ once a frame has been latched
@@ -82,11 +80,11 @@ static void pio_irq_handler() {
     send_fresh_frame();
 }
 
-size_t neopixel_required_buffer_size(size_t led_count) {
+static size_t neopixel_required_buffer_size(size_t led_count) {
     return led_count * sizeof(uint32_t);
 }
 
-bool neopixel_init(swapchain_t *swapchain, size_t count, uint pin) {
+bool neopixel_init(size_t count, uint pin) {
     PIO pio;
     uint pio_sm, pio_offset;
     int dma_channel;
@@ -95,15 +93,22 @@ bool neopixel_init(swapchain_t *swapchain, size_t count, uint pin) {
     if (driver.is_init)
         return false;
 
+    if (!swapchain_init(&driver.swapchain,
+                        neopixel_required_buffer_size(count)))
+        return false;
+
     // Find any PIO (3 on RP2350) with room for the program and a free State
     // Machine, and load the program there
     if (!pio_claim_free_sm_and_add_program_for_gpio_range(
-            &neopixel_program, &pio, &pio_sm, &pio_offset, pin, 1, true))
+            &neopixel_program, &pio, &pio_sm, &pio_offset, pin, 1, true)) {
+        swapchain_deinit(&driver.swapchain);
         return false;
+    }
 
     if ((dma_channel = dma_claim_unused_channel(false)) == -1) {
         pio_remove_program_and_unclaim_sm(&neopixel_program, pio, pio_sm,
                                           pio_offset);
+        swapchain_deinit(&driver.swapchain);
         return false;
     }
 
@@ -130,17 +135,12 @@ bool neopixel_init(swapchain_t *swapchain, size_t count, uint pin) {
     driver.pio_offset = pio_offset;
     driver.count = count;
     driver.dma_channel = (uint)dma_channel;
-    driver.swapchain = swapchain;
     driver.is_init = true;
 
     return true;
 }
 
-bool neopixel_is_init() { return driver.is_init; }
-
-size_t neopixel_led_count() { return driver.count; }
-
-void neopixel_start_transmission() {
+void neopixel_start_transmission(void) {
     uint32_t saved_irq;
 
     if (!driver.is_init || driver.is_transmitting)
@@ -160,22 +160,30 @@ void neopixel_start_transmission() {
     restore_interrupts(saved_irq);
 }
 
-void neopixel_frame_ready() {
+uint32_t *neopixel_frame(void) {
+    // Only this side swaps the producer buffer, no need to lock
+    return (uint32_t *)swapchain_producer_buffer(&driver.swapchain);
+}
+
+void neopixel_submit(void) {
     uint32_t saved_irq;
 
-    if (!driver.is_transmitting)
+    if (!driver.is_init)
         return;
 
+    // The PIO interrupt swaps the other side of the chain: never both at once
     saved_irq = save_and_disable_interrupts();
 
+    swapchain_producer_swap(&driver.swapchain);
+
     // If busy, the frame goes out as soon as the current one is latched
-    if (!driver.is_sending)
+    if (driver.is_transmitting && !driver.is_sending)
         send_fresh_frame();
 
     restore_interrupts(saved_irq);
 }
 
-void neopixel_stop_transmission() {
+void neopixel_stop_transmission(void) {
     uint32_t saved_irq;
     uint32_t tx_stall = 1u << (PIO_FDEBUG_TXSTALL_LSB + driver.pio_sm);
 
@@ -207,22 +215,22 @@ void neopixel_stop_transmission() {
     driver.is_sending = false;
 }
 
-size_t neopixel_get_pixel_count() { return driver.count; }
-
-void neopixel_print_irq_hits() {
-    size_t hits;
+neopixel_stats_t neopixel_take_stats(void) {
+    neopixel_stats_t stats;
     uint32_t saved_irq;
 
-    // Take and reset in one go: printf can block and interrupts keep counting
+    // Take and reset in one go, interrupts keep counting
     saved_irq = save_and_disable_interrupts();
-    hits = irq_hit;
+    stats.frames_latched = irq_hit;
+    stats.dropped = driver.swapchain.dropped;
     irq_hit = 0;
+    driver.swapchain.dropped = 0;
     restore_interrupts(saved_irq);
 
-    printf("Frames latched %zu\n", hits);
+    return stats;
 }
 
-void neopixel_deinit() {
+void neopixel_deinit(void) {
     if (!driver.is_init)
         return;
 
@@ -236,9 +244,9 @@ void neopixel_deinit() {
     // PIO ciao, this also unclaims the State Machine
     neopixel_program_deinit(driver.pio, driver.pio_sm);
     pio_remove_program(driver.pio, &neopixel_program, driver.pio_offset);
+    swapchain_deinit(&driver.swapchain);
 
     driver = (neopixel_t){
-        .swapchain = NULL,
         .is_init = false,
         .is_transmitting = false,
         .is_sending = false,

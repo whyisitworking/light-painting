@@ -1,29 +1,48 @@
-#ifndef WS2812_PIO_H
-#define WS2812_PIO_H
-
-#include "swapchain.h"
-#include <pico/types.h>
-
-size_t neopixel_required_buffer_size(size_t led_count);
-
-bool neopixel_init(swapchain_t *swapchain, size_t count, uint pin);
-
-size_t neopixel_get_pixel_count();
-
-void neopixel_start_transmission();
+#ifndef NEOPIXEL_H
+#define NEOPIXEL_H
 
 /**
- * Tells the driver a new frame was published with swapchain_producer_swap.
- * It is sent right away if the strip is idle, otherwise as soon as the
- * current frame is latched. Frames are only sent when new, the LEDs hold
- * the last one.
+ * PIO based WS2812 output. The main loop fills neopixel_frame() and
+ * publishes it with neopixel_submit(); the driver sends the newest frame
+ * each time the previous one is latched
  */
-void neopixel_frame_ready();
 
-void neopixel_stop_transmission();
+#include <pico/types.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
-void neopixel_print_irq_hits();
+typedef struct {
+    // Frames sent and latched by the LEDs
+    size_t frames_latched;
+    // Frames replaced by newer ones before they could be sent
+    size_t dropped;
+} neopixel_stats_t;
 
-void neopixel_deinit();
+bool neopixel_init(size_t count, uint pin);
+
+void neopixel_start_transmission(void);
+
+/**
+ * The frame to fill next: count color_neopixel_t words. Valid until
+ * neopixel_submit()
+ */
+uint32_t *neopixel_frame(void);
+
+/**
+ * Publishes the frame from neopixel_frame(). It is sent right away if the
+ * strip is idle, otherwise as soon as the current frame is latched. Frames
+ * are only sent when new, the LEDs hold the last one.
+ */
+void neopixel_submit(void);
+
+void neopixel_stop_transmission(void);
+
+/**
+ * The counts since the previous call
+ */
+neopixel_stats_t neopixel_take_stats(void);
+
+void neopixel_deinit(void);
 
 #endif

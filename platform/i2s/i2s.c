@@ -6,11 +6,8 @@
 #include "pico/stdlib.h"
 #include "pico/sync.h"
 #include "swapchain.h"
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#define SWAPCHAIN_LENGTH 3
 
 typedef struct {
     // Number of samples each buffer will contain
@@ -47,8 +44,8 @@ typedef struct {
     // GPIO connected to the SD(Serial Data) pin
     uint data_pin;
 
-    // Swapchain used to circle the buffers
-    swapchain_t *swapchain;
+    // Hands the completed chunks over to the main loop
+    swapchain_t swapchain;
 
     // Whether the driver is initialized
     bool is_init;
@@ -58,13 +55,16 @@ typedef struct {
 } i2s_t;
 
 static i2s_t driver = {
-    .swapchain = NULL,
     .is_init = false,
     .is_sampling = false,
 };
 
 // Updated from the DMA interrupt
 static volatile size_t irq_hit = 0;
+
+static size_t i2s_required_buffer_size(size_t sample_count) {
+    return sample_count * sizeof(uint32_t);
+}
 
 // A ring chunk is full. The DMA already streams into the other one
 static void dma_irq_handler() {
@@ -90,16 +90,11 @@ static void dma_irq_handler() {
                ? driver.ring + driver.sample_count
                : driver.ring;
 
-    memcpy(swapchain_producer_buffer(driver.swapchain), full, chunk_bytes);
-    swapchain_producer_swap(driver.swapchain);
+    memcpy(swapchain_producer_buffer(&driver.swapchain), full, chunk_bytes);
+    swapchain_producer_swap(&driver.swapchain);
 }
 
-size_t i2s_required_buffer_size(size_t sample_count) {
-    return sample_count * sizeof(uint32_t);
-}
-
-bool i2s_init(swapchain_t *swapchain, size_t sample_count, uint sck_pin,
-              uint ws_pin, uint data_pin) {
+bool i2s_init(size_t sample_count, uint sck_pin, uint ws_pin, uint data_pin) {
     PIO pio;
     uint pio_sm, pio_offset, gpio_start, gpio_end, ring_bits;
     int dma_channel;
@@ -142,10 +137,16 @@ bool i2s_init(swapchain_t *swapchain, size_t sample_count, uint sck_pin,
     if (((size_t)1 << ring_bits) != ring_bytes)
         return false;
 
+    if (!swapchain_init(&driver.swapchain,
+                        i2s_required_buffer_size(sample_count)))
+        return false;
+
     ring_mem = malloc(ring_bytes + ring_bytes - 1);
 
-    if (ring_mem == NULL)
+    if (ring_mem == NULL) {
+        swapchain_deinit(&driver.swapchain);
         return false;
+    }
 
     ring = ((uintptr_t)ring_mem + ring_bytes - 1) &
            ~(uintptr_t)(ring_bytes - 1);
@@ -160,6 +161,7 @@ bool i2s_init(swapchain_t *swapchain, size_t sample_count, uint sck_pin,
             &i2s_program, &pio, &pio_sm, &pio_offset, gpio_start,
             gpio_end - gpio_start + 1, true)) {
         free(ring_mem);
+        swapchain_deinit(&driver.swapchain);
         return false;
     }
 
@@ -169,7 +171,7 @@ bool i2s_init(swapchain_t *swapchain, size_t sample_count, uint sck_pin,
         pio_remove_program_and_unclaim_sm(&i2s_program, pio, pio_sm,
                                           pio_offset);
         free(ring_mem);
-        // Guard if not
+        swapchain_deinit(&driver.swapchain);
         return false;
     }
 
@@ -198,7 +200,6 @@ bool i2s_init(swapchain_t *swapchain, size_t sample_count, uint sck_pin,
     driver.dma_channel = (uint)dma_channel;
     driver.ring = (uint32_t *)ring;
     driver.ring_mem = ring_mem;
-    driver.swapchain = swapchain;
     driver.sck_pin = sck_pin;
     driver.ws_pin = ws_pin;
     driver.data_pin = data_pin;
@@ -214,11 +215,9 @@ bool i2s_init(swapchain_t *swapchain, size_t sample_count, uint sck_pin,
     return true;
 }
 
-size_t i2s_sample_count() { return driver.sample_count; }
+float i2s_sample_rate(void) { return driver.sample_rate; }
 
-float i2s_sample_rate() { return driver.sample_rate; }
-
-void i2s_start_sampling() {
+void i2s_start_sampling(void) {
     if (!driver.is_init || driver.is_sampling)
         return;
 
@@ -231,7 +230,7 @@ void i2s_start_sampling() {
     driver.is_sampling = true;
 }
 
-void i2s_stop_sampling() {
+void i2s_stop_sampling(void) {
     if (!driver.is_init || !driver.is_sampling)
         return;
 
@@ -252,20 +251,36 @@ void i2s_stop_sampling() {
     driver.is_sampling = false;
 }
 
-void i2s_print_irq_hits() {
-    size_t hits;
+const int32_t *i2s_wait_buffer(void) {
     uint32_t saved_irq;
+    bool fresh;
 
-    // Take and reset in one go: printf can block and interrupts keep counting
-    saved_irq = save_and_disable_interrupts();
-    hits = irq_hit;
-    irq_hit = 0;
-    restore_interrupts(saved_irq);
+    // The DMA interrupt swaps the other side of the chain: never both at once
+    do {
+        saved_irq = save_and_disable_interrupts();
+        fresh = swapchain_consumer_swap(&driver.swapchain);
+        restore_interrupts(saved_irq);
+    } while (!fresh);
 
-    printf("IRQ hits %zu\n", hits);
+    return (const int32_t *)swapchain_consumer_buffer(&driver.swapchain);
 }
 
-void i2s_deinit() {
+i2s_stats_t i2s_take_stats(void) {
+    i2s_stats_t stats;
+    uint32_t saved_irq;
+
+    // Take and reset in one go, interrupts keep counting
+    saved_irq = save_and_disable_interrupts();
+    stats.irq_hits = irq_hit;
+    stats.dropped = driver.swapchain.dropped;
+    irq_hit = 0;
+    driver.swapchain.dropped = 0;
+    restore_interrupts(saved_irq);
+
+    return stats;
+}
+
+void i2s_deinit(void) {
     // Check if valid in memory
     if (!driver.is_init)
         return;
@@ -278,13 +293,13 @@ void i2s_deinit() {
     irq_remove_handler(DMA_IRQ_0, dma_irq_handler);
     dma_channel_unclaim(driver.dma_channel);
     free(driver.ring_mem);
+    swapchain_deinit(&driver.swapchain);
 
     // This also unclaims the State Machine
     i2s_program_deinit(driver.pio, driver.pio_sm);
     pio_remove_program(driver.pio, &i2s_program, driver.pio_offset);
 
     driver = (i2s_t){
-        .swapchain = NULL,
         .is_init = false,
         .is_sampling = false,
     };
