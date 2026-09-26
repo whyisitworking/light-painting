@@ -79,6 +79,23 @@ static void render_spectrum_mirrored(effects_t *this,
     }
 }
 
+// The colour of the sound enters at the centre and flows outward
+static void render_river(effects_t *this, const features_t *features) {
+    size_t speed =
+        EFFECTS_RIVER_SPEED < this->half ? EFFECTS_RIVER_SPEED : this->half;
+    rgb_t fresh = scale(color_at(this, features, features->centroid),
+                        features->loudness);
+
+    memmove(this->river + speed, this->river,
+            (this->half - speed) * sizeof(rgb_t));
+
+    for (size_t d = 0; d < speed; d++)
+        this->river[d] = fresh;
+
+    for (size_t d = 0; d < this->half; d++)
+        put_mirrored(this, d, this->river[d]);
+}
+
 bool effects_init(effects_t *this, size_t led_count, size_t band_count,
                   float hop_seconds, uint32_t seed) {
     size_t half = (led_count + 1) / 2;
@@ -136,6 +153,9 @@ void effects_render(effects_t *this, const features_t *features,
         break;
     case EFFECTS_SPECTRUM_MIRRORED:
         render_spectrum_mirrored(this, features);
+        break;
+    case EFFECTS_RIVER:
+        render_river(this, features);
         break;
     default:
         break;

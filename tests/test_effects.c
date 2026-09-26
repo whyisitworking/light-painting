@@ -122,6 +122,31 @@ static void test_beat_flash(void) {
     effects_deinit(&effects);
 }
 
+// A sound enters at the centre and flows outward one LED per frame
+static void test_river_flows_outward(void) {
+    effects_t effects;
+    features_t features = quiet();
+
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
+    effects_set_mode(&effects, EFFECTS_RIVER);
+
+    features.loudness = 1.f;
+    features.centroid = 0.5f;
+    effects_render(&effects, &features, pixels);
+    CHECK(brightest(LEDS / 2, LEDS) == LEDS / 2);
+
+    features = quiet();
+    for (int frame = 0; frame < 10; frame++)
+        effects_render(&effects, &features, pixels);
+
+    CHECK(brightest(LEDS / 2, LEDS) == LEDS / 2 + 10 * EFFECTS_RIVER_SPEED);
+    CHECK(brightest(0, LEDS / 2) ==
+          LEDS / 2 - 1 - 10 * EFFECTS_RIVER_SPEED);
+    CHECK(brightness(pixels[LEDS / 2]) == 0);
+
+    effects_deinit(&effects);
+}
+
 int main(void) {
     test_rejects_invalid();
     check_silence_is_dark(EFFECTS_SPECTRUM);
@@ -129,6 +154,8 @@ int main(void) {
     test_spectrum_band_position();
     test_mirrored_spectrum_band_position();
     test_beat_flash();
+    check_silence_is_dark(EFFECTS_RIVER);
+    test_river_flows_outward();
 
     return CHECK_REPORT();
 }
