@@ -43,20 +43,10 @@ static void test_interpolates_between_stops(void) {
     check_rgb(palette_color(PALETTE_FIRE, 0.125f), 0.475f, 0.025f, 0.f);
 }
 
-static void test_gamma(void) {
-    CHECK(palette_gamma(0.f) == 0);
-    CHECK(palette_gamma(1.f) == 255);
-    CHECK(palette_gamma(0.5f) == 56);  // 127.5 rounds to entry 128
-    CHECK(palette_gamma(-1.f) == 0);
-    CHECK(palette_gamma(2.f) == 255);
-    CHECK(palette_gamma(NAN) == 0);
-}
-
 int main(void) {
     test_endpoints();
     test_wrap_and_reflect();
     test_interpolates_between_stops();
-    test_gamma();
 
     return CHECK_REPORT();
 }

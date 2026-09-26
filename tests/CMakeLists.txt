@@ -15,8 +15,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/modules.cmake)
 # Test sources themselves: warnings, not errors
 add_compile_options(
     -Wall
-    -Wextra
-    -Wno-unused-function)
+    -Wextra)
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../lib lib)
 

@@ -334,9 +334,9 @@ void effects_render(effects_t *this, const features_t *features,
         rgb_t color = this->frame[i];
 
         pixels[i] = color_neopixel_add(
-                        color_neopixel_from_rgb(palette_gamma(color.r),
-                                                palette_gamma(color.g),
-                                                palette_gamma(color.b)),
+                        color_neopixel_from_rgb(color_gamma(color.r),
+                                                color_gamma(color.g),
+                                                color_gamma(color.b)),
                         flash)
                         .value;
     }

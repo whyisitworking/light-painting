@@ -9,7 +9,6 @@ set(PROJECT_WARNINGS
     -Wall
     -Wextra
     -Werror
-    -Wno-unused-function
     -Wpointer-arith
     -Wcast-align)
 # GCC only, clang rejects unknown warning options under -Werror

@@ -3,8 +3,6 @@
 #include <math.h>
 #include <stdbool.h>
 
-#define GAMMA 2.2f
-
 typedef struct {
     const rgb_t *stops;
     unsigned count;
@@ -71,24 +69,4 @@ rgb_t palette_color(palette_id_t palette, float position) {
 
     return (rgb_t){a.r + (b.r - a.r) * fraction, a.g + (b.g - a.g) * fraction,
                    a.b + (b.b - a.b) * fraction};
-}
-
-uint8_t palette_gamma(float value) {
-    static uint8_t table[256];
-    static bool ready = false;
-
-    if (!ready) {
-        for (unsigned i = 0; i < 256; i++)
-            table[i] = (uint8_t)lroundf(255.f * powf(i / 255.f, GAMMA));
-        ready = true;
-    }
-
-    // Also catches NaN
-    if (!(value > 0.f))
-        return 0;
-
-    if (value >= 1.f)
-        return table[255];
-
-    return table[lroundf(value * 255.f)];
 }
