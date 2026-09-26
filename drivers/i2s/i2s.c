@@ -37,8 +37,6 @@ typedef struct {
     // What malloc returned for the ring
     void *ring_mem;
 
-    // log2 of the ring size in bytes
-    uint ring_bits;
 
     // GPIO connected to the SCK(Serial ClocK) pin
     uint sck_pin;
@@ -200,7 +198,6 @@ bool i2s_init(swapchain_t *swapchain, size_t sample_count, uint sck_pin,
     driver.dma_channel = (uint)dma_channel;
     driver.ring = (uint32_t *)ring;
     driver.ring_mem = ring_mem;
-    driver.ring_bits = ring_bits;
     driver.swapchain = swapchain;
     driver.sck_pin = sck_pin;
     driver.ws_pin = ws_pin;
