@@ -198,6 +198,62 @@ static void test_sparkles_deterministic(void) {
     effects_deinit(&b);
 }
 
+// Twin meters from both ends, peak dot holds then falls
+static void test_vu(void) {
+    effects_t effects;
+    features_t features = quiet();
+    size_t half = LEDS / 2, length = half / 2;
+
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
+    effects_set_mode(&effects, EFFECTS_VU);
+
+    features.loudness = 0.5f;
+    effects_render(&effects, &features, pixels);
+
+    for (size_t d = 0; d < length; d++) {
+        CHECK(brightness(pixels[d]) > 0);
+        CHECK(brightness(pixels[LEDS - 1 - d]) > 0);
+    }
+    // The peak dot right after the bar, then dark
+    CHECK(brightness(pixels[length]) > 0);
+    for (size_t d = length + 1; d < half; d++)
+        CHECK(brightness(pixels[d]) == 0);
+
+    // Held a while after the sound stopped
+    features = quiet();
+    for (int frame = 0; frame < 10; frame++)
+        effects_render(&effects, &features, pixels);
+    CHECK(brightness(pixels[length]) > 0);
+    CHECK(brightness(pixels[0]) == 0);
+
+    // Then falling
+    for (int frame = 0; frame < 90; frame++)
+        effects_render(&effects, &features, pixels);
+    CHECK(brightness(pixels[length]) == 0);
+    CHECK(brightest(0, half) > 0);
+    CHECK(brightest(0, half) < length);
+
+    effects_deinit(&effects);
+}
+
+// The whole strip breathes with the bass
+static void test_glow_follows_bass(void) {
+    effects_t effects;
+    features_t features = quiet();
+
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
+    effects_set_mode(&effects, EFFECTS_GLOW);
+
+    for (size_t band = 0; band < EFFECTS_BASS_BANDS; band++)
+        bands[band] = 1.f;
+    effects_render(&effects, &features, pixels);
+
+    for (size_t i = 0; i < LEDS; i++)
+        CHECK(brightness(pixels[i]) > 0);
+
+    effects_deinit(&effects);
+}
+
 int main(void) {
     test_rejects_invalid();
     check_silence_is_dark(EFFECTS_SPECTRUM);
@@ -210,6 +266,10 @@ int main(void) {
     check_silence_is_dark(EFFECTS_RIPPLES);
     test_ripple_travels();
     test_sparkles_deterministic();
+    check_silence_is_dark(EFFECTS_VU);
+    check_silence_is_dark(EFFECTS_GLOW);
+    test_vu();
+    test_glow_follows_bass();
 
     return CHECK_REPORT();
 }

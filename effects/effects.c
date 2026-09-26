@@ -197,6 +197,53 @@ static void render_ripples(effects_t *this, const features_t *features) {
     render_sparkles(this, features);
 }
 
+// Twin meters filling from both ends, with peak dots that hold then fall
+static void render_vu(effects_t *this, const features_t *features) {
+    float length = features->loudness * (float)this->half;
+
+    if (length >= this->peak) {
+        this->peak = length;
+        this->peak_hold_s = EFFECTS_PEAK_HOLD_MS / 1000.f;
+    } else if (this->peak_hold_s > 0.f) {
+        this->peak_hold_s -= this->hop_seconds;
+    } else {
+        this->peak = fmaxf(length, this->peak - EFFECTS_PEAK_FALL);
+    }
+
+    for (size_t d = 0; d < this->half && (float)d < length; d++) {
+        rgb_t color = color_at(this, features, (float)d / (float)this->half);
+
+        add(&this->frame[d], color);
+        if (this->led_count - 1 - d != d)
+            add(&this->frame[this->led_count - 1 - d], color);
+    }
+
+    if (this->peak >= 1.f) {
+        size_t d = (size_t)this->peak;
+
+        if (d >= this->half)
+            d = this->half - 1;
+
+        add(&this->frame[d], (rgb_t){1.f, 1.f, 1.f});
+        if (this->led_count - 1 - d != d)
+            add(&this->frame[this->led_count - 1 - d], (rgb_t){1.f, 1.f, 1.f});
+    }
+}
+
+// The whole strip breathes with the bass, the treble sparkles
+static void render_glow(effects_t *this, const features_t *features) {
+    size_t bass_bands = EFFECTS_BASS_BANDS < this->band_count
+                            ? EFFECTS_BASS_BANDS
+                            : this->band_count;
+    rgb_t color = scale(color_at(this, features, features->centroid),
+                        band_mean(features, 0, bass_bands));
+
+    for (size_t i = 0; i < this->led_count; i++)
+        this->frame[i] = color;
+
+    render_sparkles(this, features);
+}
+
 bool effects_init(effects_t *this, size_t led_count, size_t band_count,
                   float hop_seconds, uint32_t seed) {
     size_t half = (led_count + 1) / 2;
@@ -260,6 +307,12 @@ void effects_render(effects_t *this, const features_t *features,
         break;
     case EFFECTS_RIPPLES:
         render_ripples(this, features);
+        break;
+    case EFFECTS_VU:
+        render_vu(this, features);
+        break;
+    case EFFECTS_GLOW:
+        render_glow(this, features);
         break;
     default:
         break;
