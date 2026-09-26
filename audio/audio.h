@@ -2,7 +2,9 @@
 #define AUDIO_H
 
 #include "fft.h"
-#include <pico/types.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 typedef struct {
     size_t audio_sample_count;
