@@ -31,7 +31,6 @@ set(PROJECT_WARNINGS
     -Wall
     -Wextra
     -Werror
-    -Wno-format
     -Wno-unused-function
     -Wno-maybe-uninitialized
     -Wpointer-arith
