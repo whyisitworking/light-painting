@@ -58,6 +58,13 @@ static void fill_reversed_indices(unsigned int *reversed_indices,
         reversed_indices[i] = reverse_bits(i, bit_depth);
 }
 
+/**
+ * @brief Fills the N/2 twiddle factors W_N^i = e^(-2*pi*i/N) needed by an
+ * N-point radix-2 FFT.
+ *
+ * @param twiddles Output, must hold N/2 entries
+ * @param N The FFT size (not the number of twiddles)
+ */
 static void fill_twiddles(float complex *twiddles, unsigned int N) {
     float angle_per_sample;
     unsigned int i;
@@ -68,10 +75,16 @@ static void fill_twiddles(float complex *twiddles, unsigned int N) {
     // Cache the twiddle factors
     // Compromise some space for HUGE performance gain
     // Cache locality baby!
-    for (i = 0; i < N; i++)
-        twiddles[i] = cexp(angle_per_sample * i * I);
+    for (i = 0; i < N / 2; i++)
+        twiddles[i] = cexpf(angle_per_sample * i * I);
 }
 
+/**
+ * @brief Double precision variant of fill_twiddles.
+ *
+ * @param twiddles Output, must hold N/2 entries
+ * @param N The FFT size (not the number of twiddles)
+ */
 static void fill_twiddles_d(double complex *twiddles, unsigned int N) {
     double angle_per_sample;
     unsigned int i;
@@ -82,7 +95,7 @@ static void fill_twiddles_d(double complex *twiddles, unsigned int N) {
     // Cache the twiddle factors
     // Compromise some space for HUGE performance gain
     // Cache locality baby!
-    for (i = 0; i < N; i++)
+    for (i = 0; i < N / 2; i++)
         twiddles[i] = cexp(angle_per_sample * i * I);
 }
 
@@ -103,7 +116,7 @@ int fft_init(fft_t *this, size_t count) {
     }
 
     fill_reversed_indices(reversed_indices, count);
-    fill_twiddles(twiddles, count / 2);
+    fill_twiddles(twiddles, count);
 
     this->count = count;
     this->reversed_indices = reversed_indices;
@@ -244,7 +257,7 @@ int fft_init_d(fft_d_t *this, size_t count) {
     }
 
     fill_reversed_indices(reversed_indices, count);
-    fill_twiddles_d(twiddles, count / 2);
+    fill_twiddles_d(twiddles, count);
 
     this->count = count;
     this->reversed_indices = reversed_indices;
