@@ -133,52 +133,7 @@ static void test_aligned_rejects_bad_alignment(void) {
     CHECK(!swapchain_init_aligned(&chain, 16, 48));
 }
 
-// Ping-pong producer: two buffers in flight, published alternately
-static void test_exchange_ping_pong(void) {
-    swapchain_t chain;
-    uint32_t extra;
-    uint32_t *in_flight[2];
-    uint32_t value = 0;
-
-    CHECK(swapchain_init(&chain, sizeof(uint32_t)));
-
-    in_flight[0] = swapchain_producer_buffer(&chain);
-    in_flight[1] = &extra;
-
-    for (int round = 0; round < 40; round++) {
-        int done = round % 2;
-        const uint32_t *consumer;
-
-        *in_flight[done] = ++value;
-        in_flight[done] =
-            swapchain_producer_exchange(&chain, in_flight[done]);
-
-        // The consumer takes a buffer every third round only
-        if (round % 3 == 0) {
-            CHECK(swapchain_consumer_swap(&chain));
-            CHECK(consumed(&chain) == value);
-        }
-
-        // Four distinct buffers: two in flight, shared and consumer's
-        consumer = swapchain_consumer_buffer(&chain);
-        CHECK(in_flight[0] != in_flight[1]);
-        CHECK((void *)in_flight[0] != chain.buffer_chain[1]);
-        CHECK((void *)in_flight[1] != chain.buffer_chain[1]);
-        CHECK(in_flight[0] != consumer && in_flight[1] != consumer);
-        CHECK(chain.buffer_chain[1] != (void *)consumer);
-    }
-
-    // Newest wins, in-between publications were dropped and counted
-    publish(&chain, 1000);
-    CHECK(swapchain_consumer_swap(&chain));
-    CHECK(consumed(&chain) == 1000);
-    CHECK(chain.dropped > 0);
-
-    swapchain_deinit(&chain);
-}
-
 int main(void) {
-    test_exchange_ping_pong();
     test_aligned_buffers();
     test_aligned_rejects_bad_alignment();
     test_buffers_are_distinct();

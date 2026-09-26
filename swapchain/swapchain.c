@@ -61,16 +61,6 @@ void swapchain_producer_swap(swapchain_t *this) {
     this->fresh = true;
 }
 
-void *swapchain_producer_exchange(swapchain_t *this, void *filled) {
-    // Publish filled through the producer slot. The buffer that was there
-    // stays with the producer, still in flight
-    this->buffer_chain[PRODUCER_INDEX] = filled;
-    swapchain_producer_swap(this);
-
-    // The previously shared buffer, now free
-    return this->buffer_chain[PRODUCER_INDEX];
-}
-
 const void *swapchain_consumer_buffer(swapchain_t *this) {
     return this->buffer_chain[CONSUMER_INDEX];
 }
