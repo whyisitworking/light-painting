@@ -20,6 +20,8 @@ enable_testing()
 add_library(fft_host STATIC ${ROOT}/fft/fft.c)
 target_include_directories(fft_host PUBLIC ${ROOT}/fft)
 target_link_libraries(fft_host PUBLIC m)
+# Same as the firmware build
+target_compile_options(fft_host PRIVATE -fcx-limited-range)
 
 add_executable(test_fft test_fft.c)
 target_link_libraries(test_fft fft_host)
