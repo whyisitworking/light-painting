@@ -1,5 +1,7 @@
 # Visualizer design
 
+> Historical record: paths and names are from before the lib/, platform/, app/ restructuring, see the README for the current layout.
+
 Date: 2026-09-26
 Status: approved in discussion, pending spec review
 

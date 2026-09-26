@@ -88,12 +88,26 @@ static void test_newest_wins_and_drops_counted(void) {
     swapchain_deinit(&chain);
 }
 
+// Nothing points into the freed buffers, e.g. after a driver failed to init
+static void test_deinit_forgets_buffers(void) {
+    swapchain_t chain;
+
+    CHECK(swapchain_init(&chain, sizeof(int)));
+    publish(&chain, 1);
+    swapchain_deinit(&chain);
+
+    CHECK(swapchain_producer_buffer(&chain) == NULL);
+    CHECK(swapchain_consumer_buffer(&chain) == NULL);
+    CHECK(!swapchain_consumer_swap(&chain));
+}
+
 int main(void) {
     test_buffers_are_distinct();
     test_nothing_published();
     test_in_order();
     test_never_goes_back_in_time();
     test_newest_wins_and_drops_counted();
+    test_deinit_forgets_buffers();
 
     return CHECK_REPORT();
 }

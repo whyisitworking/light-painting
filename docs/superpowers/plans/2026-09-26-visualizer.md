@@ -1,5 +1,7 @@
 # Visualizer Implementation Plan
 
+> Historical record: paths and names are from before the lib/, platform/, app/ restructuring, see the README for the current layout.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace `main.c`'s linear bin-to-hue mapping with a two-stage visualizer:

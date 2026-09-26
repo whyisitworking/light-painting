@@ -55,4 +55,9 @@ bool swapchain_consumer_swap(swapchain_t *this) {
     return true;
 }
 
-void swapchain_deinit(swapchain_t *this) { free(this->mem); }
+void swapchain_deinit(swapchain_t *this) {
+    free(this->mem);
+
+    // No buffer pointer outlives the memory
+    *this = (swapchain_t){0};
+}

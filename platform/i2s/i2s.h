@@ -41,7 +41,9 @@ void i2s_stop_sampling(void);
 /**
  * Waits until a buffer arrived that was not taken yet, and takes it:
  * sample_count words, pairs of left and right. Valid until the next call.
- * Sampling must be started, or this waits forever
+ * Sampling must be running: before i2s_start_sampling(), after
+ * i2s_stop_sampling() or without a successful i2s_init() this waits
+ * forever
  */
 const int32_t *i2s_wait_buffer(void);
 

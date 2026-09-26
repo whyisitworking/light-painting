@@ -49,6 +49,7 @@ void swapchain_producer_swap(swapchain_t *this);
 const void *swapchain_consumer_buffer(swapchain_t *this);
 bool swapchain_consumer_swap(swapchain_t *this);
 
+// Frees the buffers, the buffer getters return NULL afterwards
 void swapchain_deinit(swapchain_t *this);
 
 #endif
