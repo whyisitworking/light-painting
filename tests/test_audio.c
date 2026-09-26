@@ -1,14 +1,10 @@
 #include "audio.h"
 #include "check.h"
+#include "signals.h"
 
 #include <math.h>
 
 #define N 64
-
-// The I2S word of a 24-bit sample: one delay bit, 24 data bits, 7 unused
-static int32_t i2s_word(int32_t sample) {
-    return (int32_t)((uint32_t)sample << 7);
-}
 
 // Stereo frames with a tone of the given 24-bit amplitudes at bin k0
 static void make_frames(int32_t *frames, size_t k0, double left_amplitude,
