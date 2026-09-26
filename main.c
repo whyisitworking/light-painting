@@ -13,9 +13,10 @@
 #define AUDIO_SAMPLE_COUNT 64
 #define LED_COUNT 300
 
-#define MIC_SCK_PIN 27
-#define MIC_WS_PIN 28
-#define MIC_DATA_PIN 29
+// Pico 2 header pins, SCK and WS must be consecutive
+#define MIC_SCK_PIN 26
+#define MIC_WS_PIN 27
+#define MIC_DATA_PIN 28
 
 #define LED_DATA_PIN 8
 
