@@ -119,14 +119,21 @@ static color_neopixel_t color_neopixel_from_hsv_f(float h, float s, float v) {
                                    (uint8_t)(b * 255));
 }
 
+static inline uint8_t color_saturating_add(uint8_t left, uint8_t right) {
+    unsigned int sum = (unsigned int)left + right;
+
+    return sum > UINT8_MAX ? UINT8_MAX : (uint8_t)sum;
+}
+
 static color_neopixel_t color_neopixel_add(color_neopixel_t left,
                                            color_neopixel_t right) {
+    // Saturate, a plain uint8_t sum would wrap bright colors to dark ones
     return (color_neopixel_t){
         .grba =
             {
-                .r = left.grba.r + right.grba.r,
-                .g = left.grba.g + right.grba.g,
-                .b = left.grba.b + right.grba.b,
+                .r = color_saturating_add(left.grba.r, right.grba.r),
+                .g = color_saturating_add(left.grba.g, right.grba.g),
+                .b = color_saturating_add(left.grba.b, right.grba.b),
                 .a = 0,
             },
     };

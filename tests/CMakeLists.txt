@@ -31,3 +31,9 @@ target_include_directories(swapchain_host PUBLIC ${ROOT}/swapchain)
 add_executable(test_swapchain test_swapchain.c)
 target_link_libraries(test_swapchain swapchain_host)
 add_test(NAME swapchain COMMAND test_swapchain)
+
+add_executable(test_color test_color.c)
+target_include_directories(test_color PRIVATE ${ROOT}/util)
+# color.h defines non-inline static helpers, as does the firmware build
+target_compile_options(test_color PRIVATE -Wno-unused-function)
+add_test(NAME color COMMAND test_color)
