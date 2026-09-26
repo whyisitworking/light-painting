@@ -1,6 +1,7 @@
 #include "fft.h"
 
 #include <complex.h>
+#include <limits.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,7 +17,12 @@
  * @return The log base-2 result, -1 if not a power of two
  */
 static inline int log2N(unsigned int N) {
-    int value, n;
+    unsigned int n;
+    int value;
+
+    // Zero has no '1' bit, the loop below would never end
+    if (N == 0)
+        return -1;
 
     // Keep shifting right until we find a '1' at the LSB
     // and that's when we know we hit the jackpot!
@@ -99,9 +105,20 @@ static void fill_twiddles_d(double complex *twiddles, unsigned int N) {
         twiddles[i] = cexp(angle_per_sample * i * I);
 }
 
+/**
+ * @brief Whether an FFT of this size can be performed: a power of two, at
+ * least 2, and addressable by the unsigned int index tables.
+ */
+static inline int is_valid_count(size_t count) {
+    return count >= 2 && count <= UINT_MAX && log2N((unsigned int)count) >= 0;
+}
+
 int fft_init(fft_t *this, size_t count) {
     unsigned int *reversed_indices;
     float complex *twiddles;
+
+    if (!is_valid_count(count))
+        return -1;
 
     reversed_indices = (unsigned int *)malloc(count * sizeof(unsigned int));
 
@@ -244,6 +261,9 @@ void fft_deinit(fft_t *this) {
 int fft_init_d(fft_d_t *this, size_t count) {
     unsigned int *reversed_indices;
     double complex *twiddles;
+
+    if (!is_valid_count(count))
+        return -1;
 
     reversed_indices = (unsigned int *)malloc(count * sizeof(unsigned int));
 

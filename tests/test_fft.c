@@ -34,6 +34,22 @@ static void test_init(void) {
     fft_deinit(&fft);
 }
 
+static void test_init_rejects_invalid_sizes(void) {
+    const size_t invalid[] = {0, 1, 3, 6, 48, 1000};
+    fft_t fft;
+    fft_d_t fft_d;
+
+    for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); i++) {
+        CHECK(fft_init(&fft, invalid[i]) != 1);
+        CHECK(fft_init_d(&fft_d, invalid[i]) != 1);
+    }
+
+    CHECK(fft_init(&fft, 2) == 1);
+    fft_deinit(&fft);
+    CHECK(fft_init_d(&fft_d, 2) == 1);
+    fft_deinit_d(&fft_d);
+}
+
 static void test_dif_matches_dft(size_t n) {
     static double complex signal[MAX_N], expected[MAX_N];
     static float complex samples[MAX_N];
@@ -167,6 +183,7 @@ int main(void) {
     srand(1);
 
     test_init();
+    test_init_rejects_invalid_sizes();
 
     for (size_t n = 2; n <= MAX_N; n <<= 1) {
         test_dif_matches_dft(n);
