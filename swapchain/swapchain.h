@@ -50,6 +50,15 @@ void swapchain_producer_swap(swapchain_t *this);
  * Takes the newest published buffer. Returns false, and keeps the current
  * consumer buffer, when nothing new was published since the last swap.
  */
+/**
+ * Producer side, for producers keeping two buffers in flight (e.g. ping-pong
+ * DMA): the producer buffer plus one more buffer of the same size and
+ * alignment that the producer owns. Publishes filled, one of the two, and
+ * returns a free buffer in exchange: never the other one in flight, the
+ * published one or the consumer's.
+ */
+void *swapchain_producer_exchange(swapchain_t *this, void *filled);
+
 const void *swapchain_consumer_buffer(swapchain_t *this);
 bool swapchain_consumer_swap(swapchain_t *this);
 
