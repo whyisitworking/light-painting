@@ -10,9 +10,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// Mono samples per FFT, each from one stereo frame (a left and a right word)
-#define AUDIO_SAMPLE_COUNT 64
+// Each analysis covers the last AUDIO_FFT_SIZE mono samples and runs every
+// AUDIO_FFT_HOP new ones. At fs = 48828 Hz, 512 / 256:
+//   window 10.5 ms, bin width fs / size = 95 Hz, a new analysis every 5.2 ms
+// Larger sizes resolve lower frequencies, smaller ones react faster
+#define AUDIO_FFT_SIZE 512
+#define AUDIO_FFT_HOP 256
+
+// One mono sample per stereo frame: a left and a right word
 #define AUDIO_WORDS_PER_FRAME 2
+
+_Static_assert(AUDIO_FFT_SIZE >= 4 &&
+                   (AUDIO_FFT_SIZE & (AUDIO_FFT_SIZE - 1)) == 0,
+               "AUDIO_FFT_SIZE must be a power of two >= 4");
+_Static_assert(AUDIO_FFT_HOP >= 1 && AUDIO_FFT_HOP <= AUDIO_FFT_SIZE,
+               "AUDIO_FFT_HOP must be between 1 and AUDIO_FFT_SIZE");
 #define LED_COUNT 300
 
 // Pico 2 header pins, SCK and WS must be consecutive
@@ -74,7 +86,7 @@ int main() {
     stdio_usb_init();
 
     if (!swapchain_init(&audio_swapchain,
-                        i2s_required_buffer_size(AUDIO_SAMPLE_COUNT *
+                        i2s_required_buffer_size(AUDIO_FFT_HOP *
                                                  AUDIO_WORDS_PER_FRAME))) {
         printf("Could not initialize audio swapchain\n");
         return EXIT_FAILURE;
@@ -90,7 +102,7 @@ int main() {
 
     printf("LED swapchain init!\n");
 
-    if (!i2s_init(&audio_swapchain, AUDIO_SAMPLE_COUNT * AUDIO_WORDS_PER_FRAME,
+    if (!i2s_init(&audio_swapchain, AUDIO_FFT_HOP * AUDIO_WORDS_PER_FRAME,
                   MIC_SCK_PIN, MIC_WS_PIN, MIC_DATA_PIN)) {
         printf("Could not initialize i2s driver");
         return EXIT_FAILURE;
@@ -105,7 +117,7 @@ int main() {
 
     printf("WS2812 init!\n");
 
-    if (!audio_init(&audio, AUDIO_SAMPLE_COUNT)) {
+    if (!audio_init(&audio, AUDIO_FFT_SIZE, AUDIO_FFT_HOP)) {
         printf("Could not initialize audio");
         return EXIT_FAILURE;
     }

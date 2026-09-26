@@ -9,7 +9,11 @@
 typedef struct {
     // FFT size: the number of mono samples analyzed at once
     size_t audio_sample_count;
-    // Mono samples being analyzed
+    // New mono samples per feed, analyses overlap by the rest
+    size_t hop_count;
+    // The last audio_sample_count mono samples, oldest first
+    float *history;
+    // Mono samples being analyzed, a copy of the history
     float *audio_sample_buffer;
     // Scratch space of the real FFT, audio_sample_count / 2 entries
     float complex *packed_buffer;
@@ -20,10 +24,15 @@ typedef struct {
     fft_real_t fft;
 } audio_t;
 
-bool audio_init(audio_t *this, size_t audio_sample_count);
 /**
- * Feeds audio_sample_count stereo frames straight from the I2S driver: pairs
- * of left and right words. Both microphones are summed to mono.
+ * audio_sample_count: FFT size, a power of two >= 4
+ * hop_count: new samples per feed, 1 to audio_sample_count
+ */
+bool audio_init(audio_t *this, size_t audio_sample_count, size_t hop_count);
+/**
+ * Feeds hop_count stereo frames straight from the I2S driver: pairs of left
+ * and right words. Both microphones are summed to mono and appended to the
+ * history, which is then ready to be analyzed.
  */
 void audio_feed_i2s(audio_t *context, const int32_t *frames);
 
