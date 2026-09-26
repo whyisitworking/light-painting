@@ -11,8 +11,8 @@
 size_t i2s_required_buffer_size(size_t sample_count);
 
 /**
- * sample_count: 32-bit words per buffer, a non-zero even number (whole
- * stereo frames, left word first)
+ * sample_count: 32-bit words per buffer, a power of two from 2 to 4096
+ * (whole stereo frames, left word first; the DMA ring holds two)
  * sck_pin, ws_pin: consecutive, driven by the state machine
  * data_pin: sampled, distinct from sck_pin and ws_pin
  */

@@ -25,6 +25,11 @@ _Static_assert(AUDIO_FFT_SIZE >= 4 &&
                "AUDIO_FFT_SIZE must be a power of two >= 4");
 _Static_assert(AUDIO_FFT_HOP >= 1 && AUDIO_FFT_HOP <= AUDIO_FFT_SIZE,
                "AUDIO_FFT_HOP must be between 1 and AUDIO_FFT_SIZE");
+// The audio DMA streams into a hardware ring of two hops: a power of two, at
+// most 32 KB
+_Static_assert((AUDIO_FFT_HOP & (AUDIO_FFT_HOP - 1)) == 0 &&
+                   AUDIO_FFT_HOP <= 2048,
+               "AUDIO_FFT_HOP must be a power of two, at most 2048");
 #define LED_COUNT 300
 
 // Pico 2 header pins, SCK and WS must be consecutive
