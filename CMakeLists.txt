@@ -55,6 +55,8 @@ add_subdirectory(fft)
 add_subdirectory(swapchain)
 add_subdirectory(drivers)
 add_subdirectory(audio)
+add_subdirectory(features)
+add_subdirectory(effects)
 
 target_sources(light-painting
     PRIVATE
@@ -67,6 +69,8 @@ target_link_libraries(light-painting
         neopixel
         util
         audio
+        features
+        effects
         swapchain
         pico_stdlib)
 

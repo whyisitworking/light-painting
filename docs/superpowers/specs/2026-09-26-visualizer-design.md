@@ -94,7 +94,7 @@ void effects_render(effects_t *this, const features_t *features,
 void effects_deinit(effects_t *this);
 ```
 
-### Modes (`EFFECTS_MODE`, default `EFFECTS_RIVER`)
+### Modes (`VISUALIZER_MODE` in main.c, default `EFFECTS_RIVER`)
 
 | Mode | Behaviour |
 |---|---|
@@ -107,7 +107,7 @@ void effects_deinit(effects_t *this);
 
 ### Colour layer (all modes)
 
-- **Palettes** (`EFFECTS_PALETTE`, default `EFFECTS_SYNTHWAVE`): Rainbow, Synthwave, Fire, Ocean. Each is a list of RGB stops interpolated linearly. Rainbow wraps around; the others reflect at their ends when shifted.
+- **Palettes** (`VISUALIZER_PALETTE` in main.c, default `PALETTE_SYNTHWAVE`): Rainbow, Synthwave, Fire, Ocean. Each is a list of RGB stops interpolated linearly. Rainbow wraps around; the others reflect at their ends when shifted.
 - **Drift:** the palette position is offset by `t / EFFECTS_DRIFT_PERIOD_S` (default 60 s; 0 disables it).
 - **Warmth:** the position is offset towards the hot end by `loudness × EFFECTS_WARMTH` (default 0.25; 0 disables it).
 - **Beat flash:** on a beat, white × strength × `EFFECTS_FLASH_LEVEL` (default 0.35) is added to every pixel, fading exponentially over `EFFECTS_FLASH_MS` (default 80 ms). It uses the saturating add in `util/color.h`.

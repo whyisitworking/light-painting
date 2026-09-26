@@ -1,6 +1,7 @@
 #include "async.h"
 #include "audio.h"
-#include "color.h"
+#include "effects.h"
+#include "features.h"
 #include "i2s.h"
 #include "neopixel.h"
 #include "swapchain.h"
@@ -39,6 +40,10 @@ _Static_assert((AUDIO_FFT_HOP & (AUDIO_FFT_HOP - 1)) == 0 &&
 
 #define LED_DATA_PIN 8
 
+// Visualizer look, see effects/effects.h and effects/palette.h
+#define VISUALIZER_MODE EFFECTS_RIVER
+#define VISUALIZER_PALETTE PALETTE_SYNTHWAVE
+
 #ifdef PERF_STATS
 // Timing of one main loop stage, reported and reset about once per second
 typedef struct {
@@ -62,52 +67,11 @@ static void perf_print(const char *name, perf_stat_t *stat) {
 }
 #endif
 
-static color_neopixel_t magnitude_to_color(float magnitude) {
-    if (magnitude < 0.f) {
-        magnitude = 0.f;
-    }
-
-    if (magnitude > 1.f) {
-        magnitude = 1.f;
-    }
-
-    return color_neopixel_from_hsv_f(magnitude * 360.f, 1.f, 1.f);
-}
-
-static void visualizer_map_frequency_bins_to_pixels(const float *frequency_bins,
-                                                    size_t frequency_bin_count,
-                                                    uint32_t *pixel_buffer,
-                                                    size_t pixel_count) {
-    if (frequency_bin_count > pixel_count) {
-        float pitch = (float)frequency_bin_count / pixel_count;
-
-        for (size_t pixel = 0; pixel < pixel_count; pixel++) {
-            float index = pixel * pitch;
-            size_t index_i = (size_t)index;
-            float index_f = index - index_i;
-
-            pixel_buffer[pixel] =
-                color_neopixel_add(
-                    magnitude_to_color((1.f - index_f) *
-                                       frequency_bins[index_i]),
-                    magnitude_to_color(index_f * frequency_bins[index_i + 1]))
-                    .value;
-        }
-    } else if (frequency_bin_count < pixel_count) {
-        float pitch = (float)frequency_bin_count / pixel_count;
-
-        for (size_t i = 0; i < pixel_count; i++) {
-            size_t bin = i * pitch;
-            pixel_buffer[i] = magnitude_to_color(frequency_bins[bin]).value;
-        }
-    } else {
-        for (size_t i = 0; i < pixel_count; i++)
-            pixel_buffer[i] = magnitude_to_color(frequency_bins[i]).value;
-    }
-}
-
 int main() {
     audio_t audio;
+    features_state_t features;
+    effects_t effects;
+    float hop_seconds;
     swapchain_t audio_swapchain;
     swapchain_t led_swapchain;
 
@@ -151,6 +115,25 @@ int main() {
     }
 
     printf("Audio init!\n");
+
+    hop_seconds = AUDIO_FFT_HOP / i2s_sample_rate();
+
+    if (!features_init(&features, audio_get_frequency_bin_count(&audio),
+                       i2s_sample_rate() / AUDIO_FFT_SIZE, hop_seconds)) {
+        printf("Could not initialize features\n");
+        return EXIT_FAILURE;
+    }
+
+    if (!effects_init(&effects, LED_COUNT, FEATURES_BAND_COUNT, hop_seconds,
+                      1)) {
+        printf("Could not initialize effects\n");
+        return EXIT_FAILURE;
+    }
+
+    effects_set_mode(&effects, VISUALIZER_MODE);
+    effects_set_palette(&effects, VISUALIZER_PALETTE);
+
+    printf("Visualizer init!\n");
 
     i2s_start_sampling();
     neopixel_start_transmission();
@@ -196,11 +179,10 @@ int main() {
         t3 = time_us_32();
 #endif
 
-        visualizer_map_frequency_bins_to_pixels(
-            audio_get_frequency_bins(&audio),
-            audio_get_frequency_bin_count(&audio),
-            swapchain_producer_buffer(&led_swapchain),
-            neopixel_get_pixel_count());
+        effects_render(
+            &effects,
+            features_update(&features, audio_get_frequency_bins(&audio)),
+            swapchain_producer_buffer(&led_swapchain));
 
         synchronized(swapchain_producer_swap(&led_swapchain));
         neopixel_frame_ready();
