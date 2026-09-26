@@ -1,14 +1,6 @@
-add_library(audio)
-
-target_sources(audio
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/audio.c)
-
-set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/audio.c
-    PROPERTIES COMPILE_OPTIONS "${PROJECT_WARNINGS}")
-
-target_include_directories(audio
-    PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR})
-
-target_link_libraries(audio fft pico_stdlib)
+lp_add_module(audio
+    SOURCES audio.c
+    DEPS fft
+    MATH)
+# Changes the layout of audio_t: every user must see the same definition
+target_compile_definitions(audio PUBLIC AUDIO_ENVELOPE)

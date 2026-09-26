@@ -24,19 +24,7 @@ set(PICO_BOARD pico2 CACHE STRING "Board Type")
 include(pico_sdk_import.cmake)
 
 project(light-painting C CXX ASM)
-# Warnings for our own sources only, as errors. Pico SDK libraries are
-# INTERFACE libraries whose sources compile inside our targets, so this is set
-# per source file (set_source_files_properties) rather than per target
-set(PROJECT_WARNINGS
-    -Wall
-    -Wextra
-    -Werror
-    -Wno-unused-function
-    -Wno-maybe-uninitialized
-    -Wpointer-arith
-    -Wcast-align)
-add_definitions(
-    -DAUDIO_ENVELOPE)
+include(cmake/modules.cmake)
 
 # Opt-in, e.g. -DWAIT_FOR_USB_HOST=ON: at startup, wait up to 2 s for a USB
 # serial host so the startup and error messages can be read. Leave it off for
