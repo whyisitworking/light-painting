@@ -2,7 +2,8 @@
 #define EFFECTS_H
 
 /**
- * Effects: turns audio features into LED pixels, one render per hop
+ * Effects: turns audio features into LED pixels, one render per hop.
+ * Each mode is a renderer in its own mode_*.c file, see effects_internal.h
  */
 
 #include "features.h"
@@ -80,20 +81,31 @@ typedef struct {
 
     // Colours being rendered, led_count
     rgb_t *frame;
-    // River history, half, index 0 at the centre
-    rgb_t *river;
-    // Sparkle levels, led_count
-    float *sparkle;
 
-    effects_ripple_t ripples[EFFECTS_RIPPLE_MAX];
-    unsigned beat_count;
+    // Per mode state
+    struct {
+        // History, half, index 0 at the centre
+        rgb_t *history;
+    } river;
 
-    // VU peak, in LEDs from the ends, and its remaining hold time
-    float peak;
-    float peak_hold_s;
+    struct {
+        effects_ripple_t pulses[EFFECTS_RIPPLE_MAX];
+        unsigned beat_count;
+    } ripples;
 
-    // xorshift32 state, never 0
-    uint32_t random;
+    struct {
+        // Peak, in LEDs from the ends, and its remaining hold time
+        float peak;
+        float hold_s;
+    } vu;
+
+    // Shared by the modes that sparkle
+    struct {
+        // Levels, led_count
+        float *levels;
+        // xorshift32 state, never 0
+        uint32_t random;
+    } sparkles;
 } effects_t;
 
 /**
