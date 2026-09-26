@@ -90,5 +90,5 @@ uint8_t palette_gamma(float value) {
     if (value >= 1.f)
         return table[255];
 
-    return table[(unsigned)floorf(value * 255.f)];
+    return table[lroundf(value * 255.f)];
 }

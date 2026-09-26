@@ -46,7 +46,7 @@ static void test_interpolates_between_stops(void) {
 static void test_gamma(void) {
     CHECK(palette_gamma(0.f) == 0);
     CHECK(palette_gamma(1.f) == 255);
-    CHECK(palette_gamma(0.5f) == 55);
+    CHECK(palette_gamma(0.5f) == 56);  // 127.5 rounds to entry 128
     CHECK(palette_gamma(-1.f) == 0);
     CHECK(palette_gamma(2.f) == 255);
     CHECK(palette_gamma(NAN) == 0);
