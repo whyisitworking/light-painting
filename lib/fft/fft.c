@@ -1,3 +1,11 @@
+/**
+ * Iterative radix-2 FFTs. Decimation in time (dit) runs the butterflies on
+ * the bit-reversed view of the input, decimation in frequency (dif) on the
+ * input as it is: both leave the spectrum in bit-reversed order, which the
+ * magnitude loops undo through reversed_indices. The real FFT (at the end)
+ * rides on a half size dif transform.
+ */
+
 #include "fft.h"
 
 #include <complex.h>

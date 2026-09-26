@@ -1,3 +1,13 @@
+/**
+ * The PIO state machine clocks the microphones (SCK, WS) and shifts the data
+ * pin into its RX FIFO, a 32-bit word per channel. One DMA channel drains
+ * the FIFO into a ring of two chunks, endlessly: it re-triggers itself
+ * after each chunk (TRIGGER_SELF) and its writes wrap around the ring. Each
+ * completed chunk raises DMA_IRQ_0, whose handler copies it into the
+ * swapchain for the main loop. The only state shared with the handler is
+ * `driver` and `irq_hit`.
+ */
+
 #include "i2s.h"
 #include "hardware/dma.h"
 #include "hardware/gpio.h"
@@ -94,6 +104,7 @@ static void dma_irq_handler() {
     swapchain_producer_swap(&driver.swapchain);
 }
 
+// Validates everything first, then claims resources, releasing them on failure
 bool i2s_init(size_t sample_count, uint sck_pin, uint ws_pin, uint data_pin) {
     PIO pio;
     uint pio_sm, pio_offset, gpio_start, gpio_end, ring_bits;

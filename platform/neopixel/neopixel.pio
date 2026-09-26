@@ -35,6 +35,10 @@ sync_loop:
 % c-sdk {
 #include "hardware/clocks.h"
 
+/**
+ * Configures the pin and the state machine, a cycle every 3 / baud (0.3 us),
+ * and starts it. Autopull takes 24 bits per word, from the top: G, R, B
+ */
 static inline void neopixel_program_init(PIO pio, uint sm, uint offset, uint pin) {
     pio_gpio_init(pio, pin);
     pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);

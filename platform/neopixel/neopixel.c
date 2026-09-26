@@ -1,3 +1,12 @@
+/**
+ * The PIO state machine turns each 24-bit GRB word of its TX FIFO into the
+ * WS2812 bit timing, and when the FIFO runs dry holds the line low for the
+ * latch and raises an interrupt. A DMA channel feeds it one frame at a
+ * time from the swapchain. The latch interrupt starts the next frame, if a
+ * newer one was submitted, so frames never tear and the CPU only steps in
+ * once per frame.
+ */
+
 #include "neopixel.h"
 #include "hardware/dma.h"
 #include "hardware/pio.h"

@@ -18,6 +18,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// Everything the pipeline needs, read by visualizer_init() only
 typedef struct {
     // Actual I2S sample rate in Hz
     float sample_rate;
@@ -33,6 +34,7 @@ typedef struct {
     uint32_t seed;
 } visualizer_config_t;
 
+// The pipeline stages, public for inspection (e.g. features.ceiling_db)
 typedef struct {
     float gain;
     audio_t audio;
@@ -40,6 +42,10 @@ typedef struct {
     effects_t effects;
 } visualizer_t;
 
+/**
+ * Sets up all stages from the config. False if any rejects it or memory
+ * runs out, with nothing left allocated
+ */
 bool visualizer_init(visualizer_t *this, const visualizer_config_t *config);
 
 /**
@@ -54,6 +60,7 @@ void visualizer_analyze(visualizer_t *this, const int32_t *frames);
  */
 const features_t *visualizer_render(visualizer_t *this, uint32_t *pixels);
 
+// Only after a successful visualizer_init()
 void visualizer_deinit(visualizer_t *this);
 
 #endif

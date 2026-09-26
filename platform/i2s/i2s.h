@@ -35,8 +35,15 @@ bool i2s_init(size_t sample_count, uint sck_pin, uint ws_pin, uint data_pin);
  */
 float i2s_sample_rate(void);
 
+/**
+ * Starts the DMA, a buffer arrives every sample_count / 2 frames. The state
+ * machine runs from i2s_init() on. After i2s_stop_sampling() and a restart,
+ * a buffer may start with a right word: audio sums both to mono, which
+ * does not change that sum
+ */
 void i2s_start_sampling(void);
 
+// Stops the DMA and waits until it is safe to restart
 void i2s_stop_sampling(void);
 
 /**
@@ -53,6 +60,7 @@ const int32_t *i2s_wait_buffer(void);
  */
 i2s_stats_t i2s_take_stats(void);
 
+// Stops sampling and releases the PIO, DMA channel, interrupt and memory
 void i2s_deinit(void);
 
 #endif

@@ -2,6 +2,12 @@
 
 #include <math.h>
 
+/*
+ * Per hop: bin power → band power → dB → auto-gain ceiling → 0..1 target
+ * level → attack/decay smoothing → loudness and centroid → beat detection
+ * on the bass bands. All time constants become per hop factors at init.
+ */
+
 // Added to band powers so silence has a finite dB value
 #define SILENCE_POWER 1e-12f
 
@@ -14,6 +20,7 @@ static float clamp01(float value) {
     return value < 0.f ? 0.f : value > 1.f ? 1.f : value;
 }
 
+// Precomputes the band edges and the per hop factors, starts silent
 bool features_init(features_state_t *this, size_t bin_count, float bin_hz,
                    float hop_seconds) {
     float ratio;
@@ -120,6 +127,7 @@ static void detect_beat(features_state_t *this, const float *power) {
         (this->bass_smooth - this->bass_average) * this->average_k;
 }
 
+// Levels first, then beats, which use the fresh bass levels
 const features_t *features_update(features_state_t *this, const float *bins) {
     float power[FEATURES_BAND_COUNT], db[FEATURES_BAND_COUNT];
     float loudest = -1000.f, floor_db, sum = 0.f, weighted = 0.f;

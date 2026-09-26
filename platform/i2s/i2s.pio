@@ -11,6 +11,8 @@
 ;     |   |         |     |    
 ;    31  30 samples 7     0 
 
+; Side-set: bit 0 is SCK, bit 1 is WS. Data is sampled on the rising edge
+; of SCK, WS changes on the falling one (INMP441 datasheet timing)
 .program i2s
 .side_set 2
 
@@ -61,6 +63,13 @@ static inline float i2s_program_sample_rate(uint32_t sys_hz) {
                             i2s_sck_per_frame);
 }
 
+/**
+ * Configures the pins and the state machine at the integer divider, and
+ * starts it: the RX FIFO fills until the DMA drains it. Both pulls on the
+ * data pin make a bus keeper, holding the level while a microphone
+ * tri-states it (each drives only its own channel), and the pin bypasses
+ * the input synchronizer, which would delay it by 2 cycles
+ */
 static inline void i2s_program_init(PIO pio, uint sm, uint offset,
                                             uint sck_pin, uint ws_pin,
                                             uint data_pin) {

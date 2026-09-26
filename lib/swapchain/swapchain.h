@@ -1,6 +1,17 @@
 #ifndef SWAPCHAIN_H
 #define SWAPCHAIN_H
 
+/**
+ * Swapchain: a triple buffer handing data from a producer to a consumer.
+ *
+ *   producer ──fills──► [producer] ⇄ [shared] ⇄ [consumer] ──reads──► consumer
+ *
+ * Each side owns one buffer and swaps it with the shared one: the producer
+ * never waits and never overwrites what the consumer reads, and the
+ * consumer always gets the newest complete buffer. A buffer the consumer
+ * missed is counted as dropped. Nothing is copied, only pointers swap.
+ */
+
 #include <stdbool.h>
 #include <stdlib.h>
 

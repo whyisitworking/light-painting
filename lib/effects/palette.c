@@ -10,6 +10,7 @@ typedef struct {
     bool cyclic;
 } palette_t;
 
+// Stops, in linear 0..1 RGB before gamma
 static const rgb_t rainbow[] = {{1.f, 0.f, 0.f}, {1.f, 1.f, 0.f},
                                 {0.f, 1.f, 0.f}, {0.f, 1.f, 1.f},
                                 {0.f, 0.f, 1.f}, {1.f, 0.f, 1.f}};

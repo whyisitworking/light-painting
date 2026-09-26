@@ -19,8 +19,11 @@ typedef struct {
     size_t dropped;
 } neopixel_stats_t;
 
+// count LEDs on the data pin. False if already initialized, or if no PIO,
+// DMA channel or memory is free
 bool neopixel_init(size_t count, uint pin);
 
+// Frames go out from now on, starting with any already submitted
 void neopixel_start_transmission(void);
 
 /**
@@ -36,6 +39,8 @@ uint32_t *neopixel_frame(void);
  */
 void neopixel_submit(void);
 
+// Aborts the frame in flight: the pixels already in the FIFO still go out
+// and latch, and the LEDs keep what they got
 void neopixel_stop_transmission(void);
 
 /**
@@ -43,6 +48,7 @@ void neopixel_stop_transmission(void);
  */
 neopixel_stats_t neopixel_take_stats(void);
 
+// Stops and releases the PIO, DMA channel, interrupt and memory
 void neopixel_deinit(void);
 
 #endif

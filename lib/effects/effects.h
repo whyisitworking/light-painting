@@ -42,6 +42,7 @@
 #define EFFECTS_BASS_BANDS 5
 #define EFFECTS_TREBLE_FRACTION 0.25f
 
+// What the strip shows, see the README for each mode
 typedef enum {
     EFFECTS_SPECTRUM,
     EFFECTS_SPECTRUM_MIRRORED,
@@ -52,21 +53,28 @@ typedef enum {
     EFFECTS_MODE_COUNT
 } effects_mode_t;
 
+// A palette from palette.h
 typedef palette_id_t effects_palette_t;
 
+// One pulse of the ripples mode, launched from the centre by a beat
 typedef struct {
     // Distance from the centre of the leading edge, in LEDs
     float position;
+    // Beat strength 0..1, sets width and brightness
     float strength;
+    // Palette position, steps by 1/8 per beat
     float color_position;
+    // False once it left the strip, the slot is free
     bool active;
 } effects_ripple_t;
 
+// Render state. Allocated by effects_init(), the render path never allocates
 typedef struct {
     size_t led_count;
     size_t band_count;
     // LEDs from the centre to one end, (led_count + 1) / 2
     size_t half;
+    // Time between two renders
     float hop_seconds;
 
     effects_mode_t mode;
@@ -111,12 +119,17 @@ typedef struct {
 /**
  * band_count: length of features_t.bands (>= 2)
  * seed: for the sparkles, renders are deterministic for a seed
+ *
+ * Starts in EFFECTS_RIVER with PALETTE_SYNTHWAVE. False if a count is too
+ * small, hop_seconds is not positive or memory runs out
  */
 bool effects_init(effects_t *this, size_t led_count, size_t band_count,
                   float hop_seconds, uint32_t seed);
 
+// Takes effect on the next render. Out of range values are ignored
 void effects_set_mode(effects_t *this, effects_mode_t mode);
 
+// Takes effect on the next render. Out of range values are ignored
 void effects_set_palette(effects_t *this, effects_palette_t palette);
 
 /**
@@ -125,6 +138,7 @@ void effects_set_palette(effects_t *this, effects_palette_t palette);
 void effects_render(effects_t *this, const features_t *features,
                     uint32_t *pixels);
 
+// Only after a successful effects_init()
 void effects_deinit(effects_t *this);
 
 #endif

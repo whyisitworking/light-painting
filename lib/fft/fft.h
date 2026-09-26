@@ -1,14 +1,26 @@
 #ifndef FFT_H
 #define FFT_H
 
+/**
+ * Radix-2 FFTs in single precision, for the audio analysis.
+ *
+ * All tables (bit-reversed indices, twiddle factors) are computed once by
+ * the *_init functions, so the transforms themselves never allocate and
+ * run in O(N log N). The spectrum is left in bit-reversed order: read it
+ * through reversed_indices, or let the transforms fill frequency_bins.
+ */
+
 #include <complex.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 typedef struct {
+    // Bit reversal of each index 0..count - 1, maps natural to FFT order
     unsigned int *reversed_indices;
+    // W_N^k = e^(-2*pi*i*k/N) for k < count / 2
     float complex *twiddles;
+    // N, the transform size
     size_t count;
 } fft_t;
 
@@ -53,8 +65,11 @@ typedef struct {
     size_t count;
 } fft_real_t;
 
+// count: N, a power of two >= 4. False if invalid or out of memory
 bool fft_real_init(fft_real_t *this, size_t count);
+// Packs count real samples into count / 2 complex ones, even + i * odd
 void fft_real_pack(const float *samples, float complex *packed, size_t count);
+// Transforms packed in place, then writes the count / 2 magnitude bins
 void fft_real(fft_real_t *this, float complex *packed, float *frequency_bins);
 void fft_real_deinit(fft_real_t *this);
 

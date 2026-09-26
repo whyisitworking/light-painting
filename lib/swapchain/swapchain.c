@@ -1,5 +1,6 @@
 #include "swapchain.h"
 
+// The role of each slot of buffer_chain
 #define PRODUCER_INDEX 0
 #define SHARED_INDEX 1
 #define CONSUMER_INDEX 2

@@ -1,3 +1,9 @@
+/**
+ * Light Painting firmware: brings up the drivers and the visualizer, then
+ * runs one analysis and one frame per hop of new audio, forever. See the
+ * README for the architecture, app/config.h for the settings.
+ */
+
 #include "config.h"
 #include "i2s.h"
 #include "neopixel.h"

@@ -12,6 +12,9 @@
 // 0.05 of full scale. Boost it 8x, i.e. scale samples by 2^20 instead of 2^23
 #define AUDIO_INPUT_GAIN 8.f
 
+// Sine window: sin(pi * i / count), 0 at the start, 1 in the middle. The
+// ends of the analysis fade out, so a tone that does not fit a whole number
+// of periods does not smear over the whole spectrum
 static inline void generate_envelope(float *samples, size_t count) {
     float aDelta = (float)M_PI / count;
 

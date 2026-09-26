@@ -15,6 +15,8 @@ typedef struct {
     float b;
 } rgb_t;
 
+// The word the neopixel driver shifts out, MSB first: G, R, B, then 8
+// unused bits
 typedef union {
     struct {
         // Little endian
@@ -31,6 +33,7 @@ typedef union {
  */
 uint8_t color_gamma(float value);
 
+// 0..255 channels, after gamma
 static inline color_neopixel_t color_neopixel_from_rgb(uint8_t r, uint8_t g,
                                                        uint8_t b) {
     return (color_neopixel_t){
@@ -44,12 +47,14 @@ static inline color_neopixel_t color_neopixel_from_rgb(uint8_t r, uint8_t g,
     };
 }
 
+// left + right, at most 255
 static inline uint8_t color_saturating_add(uint8_t left, uint8_t right) {
     unsigned int sum = (unsigned int)left + right;
 
     return sum > UINT8_MAX ? UINT8_MAX : (uint8_t)sum;
 }
 
+// Channel by channel, saturating
 static inline color_neopixel_t color_neopixel_add(color_neopixel_t left,
                                                   color_neopixel_t right) {
     // Saturate, a plain uint8_t sum would wrap bright colors to dark ones

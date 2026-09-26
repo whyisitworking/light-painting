@@ -60,7 +60,9 @@ typedef struct {
     float beat_strength;
 } features_t;
 
+// Internal state, features_update() returns the public part, out
 typedef struct {
+    // Input: bin k is centred at k * bin_hz, one update per hop_seconds
     size_t bin_count;
     float bin_hz;
     float hop_seconds;
