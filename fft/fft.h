@@ -18,6 +18,15 @@ typedef struct {
     size_t count;
 } fft_d_t;
 
+/**
+ * Complex FFT, radix-2 decimation in time (dit) or in frequency (dif)
+ *
+ * count must be a power of two >= 2. The transforms work in place: samples
+ * ends up holding the spectrum in bit-reversed order, and frequency_bins
+ * (may be NULL) receives |X[k]| / (N/2) for k < N/2.
+ *
+ * The *_deinit functions may only be called after a successful *_init.
+ */
 bool fft_init(fft_t *this, size_t count);
 void fft_rad2_dit(fft_t *this, float complex *samples, float *frequency_bins);
 void fft_rad2_dif(fft_t *this, float complex *samples, float *frequency_bins);
@@ -42,6 +51,11 @@ void fft_deinit_d(fft_d_t *this);
  * Usage:
  *   fft_real_pack(real_samples, packed, N);   // packed holds N/2 entries
  *   fft_real(&fft, packed, frequency_bins);   // N/2 bins
+ *
+ * count must be a power of two >= 4. frequency_bins receives the same
+ * |X[k]| / (N/2) for k < N/2 as the complex transforms. packed is used as
+ * scratch: afterwards it holds the half size spectrum Z (bit-reversed), not
+ * X, even when frequency_bins is NULL.
  */
 typedef struct {
     // N/2-point complex FFT that does the heavy lifting

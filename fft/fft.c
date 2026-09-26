@@ -8,14 +8,13 @@
 #include <stdlib.h>
 
 /**
- * @brief Ultra fast log base-2 of only 2^n numbers. For others, the
- * result/behavior is invalid/undefined.
+ * @brief Ultra fast log base-2 of 2^n numbers.
  *
  * Since 2^n numbers will have only one '1' bit, we just need to shift
  * right until we find it, and that's log2N
  *
- * @param N The input. *MUST BE A POWER OF 2*
- * @return The log base-2 result, -1 if not a power of two
+ * @param N The input
+ * @return The log base-2 result, -1 if not a power of two (including 0)
  */
 static inline int log2N(unsigned int N) {
     unsigned int n;
@@ -409,6 +408,7 @@ void fft_deinit_d(fft_d_t *this) {
     free(this->twiddles);
     free(this->reversed_indices);
 }
+
 /**
  * Real input FFT
  *
