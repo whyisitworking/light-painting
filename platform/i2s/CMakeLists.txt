@@ -1,9 +1,7 @@
 add_library(i2s)
 
 pico_generate_pio_header(i2s
-    ${CMAKE_CURRENT_SOURCE_DIR}/i2s.pio
-    OUTPUT_DIR
-        ${CMAKE_CURRENT_SOURCE_DIR})
+    ${CMAKE_CURRENT_SOURCE_DIR}/i2s.pio)
 
 target_sources(i2s
     PRIVATE

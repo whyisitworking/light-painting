@@ -1,9 +1,7 @@
 add_library(neopixel)
 
 pico_generate_pio_header(neopixel
-    ${CMAKE_CURRENT_SOURCE_DIR}/neopixel.pio
-    OUTPUT_DIR 
-        ${CMAKE_CURRENT_SOURCE_DIR})
+    ${CMAKE_CURRENT_SOURCE_DIR}/neopixel.pio)
 
 target_sources(neopixel
     PRIVATE

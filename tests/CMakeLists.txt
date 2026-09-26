@@ -9,7 +9,7 @@ project(light-painting-tests C)
 
 set(CMAKE_C_STANDARD 17)
 
-set(ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
+set(ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../lib)
 
 add_compile_options(
     -Wall
@@ -35,7 +35,7 @@ target_link_libraries(test_swapchain swapchain_host)
 add_test(NAME swapchain COMMAND test_swapchain)
 
 add_executable(test_color test_color.c)
-target_include_directories(test_color PRIVATE ${ROOT}/util)
+target_include_directories(test_color PRIVATE ${ROOT}/color)
 # color.h defines non-inline static helpers, as does the firmware build
 target_compile_options(test_color PRIVATE -Wno-unused-function)
 add_test(NAME color COMMAND test_color)
@@ -64,7 +64,7 @@ set_tests_properties(features PROPERTIES TIMEOUT 30)
 
 add_library(effects_host STATIC ${ROOT}/effects/effects.c
                                 ${ROOT}/effects/palette.c)
-target_include_directories(effects_host PUBLIC ${ROOT}/effects ${ROOT}/util)
+target_include_directories(effects_host PUBLIC ${ROOT}/effects ${ROOT}/color)
 # util/color.h defines non-inline static helpers, as does the firmware build
 target_compile_options(effects_host PUBLIC -Wno-unused-function)
 target_link_libraries(effects_host PUBLIC features_host m)

@@ -14,4 +14,4 @@ target_include_directories(effects
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_link_libraries(effects features util)
+target_link_libraries(effects features color)

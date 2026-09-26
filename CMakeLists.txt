@@ -50,24 +50,22 @@ pico_sdk_init()
 
 add_executable(light-painting)
 
-add_subdirectory(util)
-add_subdirectory(fft)
-add_subdirectory(swapchain)
-add_subdirectory(drivers)
-add_subdirectory(audio)
-add_subdirectory(features)
-add_subdirectory(effects)
+# lib/ is portable, platform/ is the Pico hardware, app/ puts them together
+add_subdirectory(lib)
+add_subdirectory(platform)
 
 target_sources(light-painting
     PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/main.c)
-set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/main.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/app/main.c)
+set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/app/main.c
     PROPERTIES COMPILE_OPTIONS "${PROJECT_WARNINGS}")
+target_include_directories(light-painting
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/app)
 target_link_libraries(light-painting
     PRIVATE
         i2s
         neopixel
-        util
         audio
         features
         effects
