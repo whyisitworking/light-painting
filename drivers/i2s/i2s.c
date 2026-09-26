@@ -1,3 +1,4 @@
+#include "i2s.h"
 #include "hardware/dma.h"
 #include "hardware/gpio.h"
 #include "hardware/pio.h"
