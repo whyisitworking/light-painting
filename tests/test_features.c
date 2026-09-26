@@ -2,6 +2,7 @@
 #include "features.h"
 
 #include <math.h>
+#include <stdint.h>
 #include <string.h>
 
 #define BINS 256
@@ -10,10 +11,28 @@
 #define HOP (256.f / FS)
 
 static float bins[BINS];
+static uint32_t random_state = 1;
 
 static void fill(float magnitude) {
     for (size_t k = 0; k < BINS; k++)
         bins[k] = magnitude;
+}
+
+// xorshift32, 0 (exclusive) to 1 (inclusive)
+static float random_unit(void) {
+    random_state ^= random_state << 13;
+    random_state ^= random_state >> 17;
+    random_state ^= random_state << 5;
+    return (float)((random_state >> 8) + 1) / 16777216.f;
+}
+
+// Noise as the FFT sees it: Rayleigh magnitudes, so exponentially
+// distributed bin power with the given mean in dB
+static void fill_noise(float power_db) {
+    float power = powf(10.f, power_db / 10.f);
+
+    for (size_t k = 0; k < BINS; k++)
+        bins[k] = sqrtf(-power * logf(random_unit()));
 }
 
 static size_t band_of(const features_state_t *state, float hz) {
@@ -149,32 +168,65 @@ static void test_loudness_and_centroid(void) {
     features_deinit(&state);
 }
 
-// Kicks at 120 BPM: one beat per kick, on the kick
+// Kicks at 120 BPM: one beat per kick, on the kick. With noise mixed in
+// 20 dB below the kicks too
 static void test_beat_per_kick(void) {
-    features_state_t state;
-    int beats = 0;
+    for (int noisy = 0; noisy < 2; noisy++) {
+        features_state_t state;
+        int beats = 0;
 
-    CHECK(features_init(&state, BINS, BIN_HZ, HOP));
+        CHECK(features_init(&state, BINS, BIN_HZ, HOP));
 
-    for (int n = 0; n * HOP < 5.f; n++) {
-        float t = n * HOP, since_kick = fmodf(t, 0.5f);
-        const features_t *features;
+        for (int n = 0; n * HOP < 5.f; n++) {
+            float t = n * HOP, since_kick = fmodf(t, 0.5f);
+            const features_t *features;
 
-        fill(1e-5f);
-        bins[0] = bins[1] = 0.5f * expf(-since_kick / 0.05f);
-        features = features_update(&state, bins);
+            if (noisy)
+                fill_noise(10.f * log10f(0.5f * 0.5f) - 20.f);
+            else
+                fill(1e-5f);
+            bins[0] += 0.5f * expf(-since_kick / 0.05f);
+            bins[1] += 0.5f * expf(-since_kick / 0.05f);
+            features = features_update(&state, bins);
 
-        if (features->beat && t >= 1.f) {
-            beats++;
-            CHECK(since_kick < 0.02f);
-            CHECK(features->beat_strength > 0.f);
-            CHECK(features->beat_strength <= 1.f);
+            if (features->beat && t >= 1.f) {
+                beats++;
+                CHECK(since_kick < 0.02f);
+                CHECK(features->beat_strength > 0.f);
+                CHECK(features->beat_strength <= 1.f);
+            }
         }
+
+        CHECK(beats == 8);
+
+        features_deinit(&state);
     }
+}
 
-    CHECK(beats == 8);
+// Steady noise is not a beat at any level, however it fluctuates: fewer
+// than 0.2 per second once settled
+static void test_no_beat_on_noise(void) {
+    const float levels_db[] = {-60.f, -40.f, -20.f};
 
-    features_deinit(&state);
+    for (size_t l = 0; l < 3; l++) {
+        features_state_t state;
+        int beats = 0;
+
+        CHECK(features_init(&state, BINS, BIN_HZ, HOP));
+
+        for (int n = 0; n * HOP < 22.f; n++) {
+            fill_noise(levels_db[l]);
+            if (features_update(&state, bins)->beat && n * HOP >= 2.f)
+                beats++;
+        }
+
+        CHECK(beats < 4);
+        if (beats >= 4)
+            printf("noise at %.0f dB: %d beats in 20 s\n", levels_db[l],
+                   beats);
+
+        features_deinit(&state);
+    }
 }
 
 // A steady bass tone is not a beat, nor is silence
@@ -213,6 +265,7 @@ int main(void) {
     test_loudness_and_centroid();
     test_beat_per_kick();
     test_no_beat_without_onsets();
+    test_no_beat_on_noise();
 
     return CHECK_REPORT();
 }

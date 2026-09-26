@@ -44,7 +44,10 @@ bool features_init(features_state_t *this, size_t bin_count, float bin_hz,
     this->attack_k = smoothing_factor(hop_seconds, FEATURES_ATTACK_MS);
     this->decay_k = smoothing_factor(hop_seconds, FEATURES_DECAY_MS);
     this->average_k = smoothing_factor(hop_seconds, FEATURES_BEAT_AVERAGE_MS);
+    this->smooth_k = smoothing_factor(hop_seconds, FEATURES_BEAT_SMOOTH_MS);
+    this->bass_smooth = 0.f;
     this->bass_average = 0.f;
+    this->beat_armed = true;
     this->since_beat_s = FEATURES_BEAT_REFRACTORY_MS / 1000.f;
     this->out = (features_t){.bands = this->levels};
 
@@ -81,31 +84,40 @@ static float band_power(const features_state_t *this, const float *bins,
     return p0 + (p1 - p0) * fraction;
 }
 
-// Bass energy above its moving average, once per refractory time, and only
-// when audible above the auto-gain floor
-static void detect_beat(features_state_t *this, const float *power,
-                        float floor_db) {
-    float bass = 0.f, trigger;
+// Smoothed bass energy well above its moving average, once per onset and
+// refractory time, and only when the bass is audible
+static void detect_beat(features_state_t *this, const float *power) {
+    float bass = 0.f, level = 0.f, trigger;
 
-    for (size_t b = 0; b < this->bass_band_count; b++)
+    for (size_t b = 0; b < this->bass_band_count; b++) {
         bass += power[b];
+        level += this->levels[b];
+    }
     bass /= (float)this->bass_band_count;
+    level /= (float)this->bass_band_count;
+
+    this->bass_smooth += (bass - this->bass_smooth) * this->smooth_k;
 
     this->since_beat_s += this->hop_seconds;
     this->out.beat = false;
     this->out.beat_strength = 0.f;
     trigger = this->bass_average * FEATURES_BEAT_THRESHOLD;
 
-    if (this->since_beat_s >= FEATURES_BEAT_REFRACTORY_MS / 1000.f &&
-        bass > trigger && 10.f * log10f(bass + SILENCE_POWER) > floor_db) {
+    if (this->bass_smooth <= trigger) {
+        this->beat_armed = true;
+    } else if (this->beat_armed &&
+               this->since_beat_s >= FEATURES_BEAT_REFRACTORY_MS / 1000.f &&
+               level > FEATURES_BEAT_MIN_LEVEL) {
         this->out.beat = true;
         this->out.beat_strength =
-            trigger > 0.f ? clamp01(bass / trigger - 1.f) : 1.f;
+            trigger > 0.f ? clamp01(this->bass_smooth / trigger - 1.f) : 1.f;
         this->since_beat_s = 0.f;
+        this->beat_armed = false;
     }
 
     // Updated after the comparison, so a kick does not raise its own bar
-    this->bass_average += (bass - this->bass_average) * this->average_k;
+    this->bass_average +=
+        (this->bass_smooth - this->bass_average) * this->average_k;
 }
 
 const features_t *features_update(features_state_t *this, const float *bins) {
@@ -139,7 +151,7 @@ const features_t *features_update(features_state_t *this, const float *bins) {
     this->out.centroid =
         sum > 1e-6f ? weighted / sum / (FEATURES_BAND_COUNT - 1) : 0.f;
 
-    detect_beat(this, power, floor_db);
+    detect_beat(this, power);
 
     return &this->out;
 }

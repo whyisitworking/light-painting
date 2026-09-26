@@ -56,7 +56,10 @@ void features_deinit(features_state_t *this);
 | `FEATURES_CEILING_FALL_DB_PER_S` | 6 | auto-gain release |
 | `FEATURES_MIN_CEILING_DB` | −50 | lowest auto-gain ceiling (band power dB of the normalized bins). Estimate: the INMP441 noise floor of −87 dBFS plus the ×12 input gain is about −65 dB. Tune on hardware so that a quiet room reads dark |
 | `FEATURES_ATTACK_MS` / `FEATURES_DECAY_MS` | 10 / 120 | per-band smoothing |
-| `FEATURES_BEAT_THRESHOLD` | 1.4 | bass energy vs its 1 s average |
+| `FEATURES_BEAT_SMOOTH_MS` | 30 | smoothing of the bass energy before detection |
+| `FEATURES_BEAT_THRESHOLD` | 2.8 | smoothed bass energy vs its average |
+| `FEATURES_BEAT_AVERAGE_MS` | 1000 | time constant of that average |
+| `FEATURES_BEAT_MIN_LEVEL` | 0.3 | mean smoothed level of the bass bands for a beat |
 | `FEATURES_BEAT_REFRACTORY_MS` | 150 | minimum time between beats |
 | `FEATURES_BEAT_MAX_HZ` | 150 | bands counted as bass |
 
@@ -77,10 +80,16 @@ Edges are geometric from `LOW_HZ` to `HIGH_HZ`.
 
 ### Beat
 
-- **Bass energy:** the mean linear power of the bands up to `BEAT_MAX_HZ`.
-- **Average:** an exponential moving average of the bass energy with a 1 s time constant.
-- **Trigger:** a beat fires when the energy exceeds `average × BEAT_THRESHOLD`, the refractory time has passed, and the level is above the silence floor.
-- **Strength:** `(energy / (average × threshold) − 1)`, clamped to 0..1.
+- **Bass energy:** the mean linear power of the bands up to `BEAT_MAX_HZ`. These bands all interpolate the lowest ~2 bins, so per hop the energy is a single, very noisy draw (for steady noise it exceeds 1.4× its mean in about a quarter of the hops).
+- **Smoothing:** the energy is smoothed with a `BEAT_SMOOTH_MS` time constant (about 6 hops). Measured through the real audio chain, smoothed steady white noise exceeds 2.6× its average in only 0.01 % of hops, while 120 BPM kicks peak about 6.5× above theirs.
+- **Average:** an exponential moving average of the smoothed energy with a `BEAT_AVERAGE_MS` time constant, updated after the comparison so that a kick does not raise its own bar.
+- **Trigger:** a beat fires when the smoothed energy exceeds `average × BEAT_THRESHOLD`, all of:
+  - the refractory time has passed since the last beat;
+  - the smoothed energy has fallen back below the trigger since the last beat, so a sustained rise gives one beat, not one per refractory time;
+  - the bass is audible: the mean smoothed level of the bass bands is above `BEAT_MIN_LEVEL`. A dB comparison with the auto-gain floor would always pass for a real microphone, whose self-noise is above it.
+- **Strength:** `(smoothed energy / (average × threshold) − 1)`, clamped to 0..1.
+- **Not variance adaptive:** a `mean + k·σ` trigger was tried. A kick train is sparse, so its own σ is about 1.7× its mean and `mean + 3σ` sits at the smoothed kick peak: it missed three kicks in four.
+- **Measured** (white noise as I²S words through audio, features and effects, 300 s after 2 s settling): 0.01 beats/s at −80 to −30 dBFS and none at −87 dBFS. 120 BPM kicks, alone or with white noise 20 dB below them, give 40 beats for 40 kicks, all within 15 ms of the kick. A steady 50 or 80 Hz tone and silence give none.
 
 ## effects/
 
@@ -125,7 +134,8 @@ void effects_deinit(effects_t *this);
 - **features:**
   - A 1 kHz tone peaks in the band containing 1 kHz.
   - Silence, and low noise below the absolute floor, stay at 0.
-  - Synthetic kicks at 120 BPM give one beat per kick with no extra beats, and a steady tone gives none.
+  - Synthetic kicks at 120 BPM give one beat per kick with no extra beats, also with noise 20 dB below them, and a steady tone gives none.
+  - Steady noise (Rayleigh distributed bins) at any level gives fewer than 0.2 beats/s.
   - A −20 dB signal refills the range once the auto-gain settles.
   - Attack is faster than decay, per the constants.
 - **effects:**

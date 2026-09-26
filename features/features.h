@@ -26,12 +26,21 @@
 #define FEATURES_ATTACK_MS 10.f
 #define FEATURES_DECAY_MS 120.f
 
-// A beat is bass energy (bands up to FEATURES_BEAT_MAX_HZ) above its moving
-// average times FEATURES_BEAT_THRESHOLD, at most once per refractory time
-#define FEATURES_BEAT_THRESHOLD 1.4f
+// A beat is a jump of the bass energy (bands up to FEATURES_BEAT_MAX_HZ).
+// The bass bands all come from the lowest ~2 bins, one noisy draw per hop,
+// so the energy is first smoothed over FEATURES_BEAT_SMOOTH_MS: smoothed
+// steady noise exceeds 2.6 times its average in only 0.01 % of hops, while
+// 120 BPM kicks peak ~6.5 times above theirs. A beat fires when the
+// smoothed energy exceeds FEATURES_BEAT_THRESHOLD times its average over
+// FEATURES_BEAT_AVERAGE_MS and the bass is audible, its bands' mean
+// smoothed level above FEATURES_BEAT_MIN_LEVEL. At most one beat per
+// refractory time, and the energy must fall back below the trigger first
+#define FEATURES_BEAT_SMOOTH_MS 30.f
+#define FEATURES_BEAT_THRESHOLD 2.8f
+#define FEATURES_BEAT_AVERAGE_MS 1000.f
+#define FEATURES_BEAT_MIN_LEVEL 0.3f
 #define FEATURES_BEAT_REFRACTORY_MS 150.f
 #define FEATURES_BEAT_MAX_HZ 150.f
-#define FEATURES_BEAT_AVERAGE_MS 1000.f
 
 typedef struct {
     // FEATURES_BAND_COUNT levels, 0..1, smoothed
@@ -67,9 +76,13 @@ typedef struct {
 
     // Beat detection
     size_t bass_band_count;
+    float bass_smooth;
     float bass_average;
+    float smooth_k;
     float average_k;
     float since_beat_s;
+    // The energy fell below the trigger since the last beat
+    bool beat_armed;
 
     features_t out;
 } features_state_t;
