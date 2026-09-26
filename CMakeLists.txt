@@ -36,11 +36,6 @@ set(PROJECT_WARNINGS
     -Wno-maybe-uninitialized
     -Wpointer-arith
     -Wcast-align)
-add_link_options(
-    -Wall
-    -Wextra
-    -Werror
-    -flto)
 add_definitions(
     -DAUDIO_ENVELOPE)
 
