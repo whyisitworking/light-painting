@@ -41,7 +41,8 @@ static void test_init(void) {
 }
 
 static void test_init_rejects_invalid_sizes(void) {
-    const size_t invalid[] = {0, 1, 3, 6, 48, 1000};
+    // (size_t)1 << 32 is a power of two, but truncates to 0 as unsigned int
+    const size_t invalid[] = {0, 1, 3, 6, 48, 1000, (size_t)1 << 32};
     fft_t fft;
     fft_d_t fft_d;
 

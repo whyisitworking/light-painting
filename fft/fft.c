@@ -2,6 +2,7 @@
 
 #include <complex.h>
 #include <limits.h>
+#include <stdint.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -107,10 +108,14 @@ static void fill_twiddles_d(double complex *twiddles, unsigned int N) {
 
 /**
  * @brief Whether an FFT of this size can be performed: a power of two, at
- * least 2, and addressable by the unsigned int index tables.
+ * least 2, addressable by the unsigned int index tables, and small enough
+ * that no table size computation (at most count * sizeof(double complex))
+ * overflows size_t.
  */
 static inline int is_valid_count(size_t count) {
-    return count >= 2 && count <= UINT_MAX && log2N((unsigned int)count) >= 0;
+    return count >= 2 && count <= UINT_MAX &&
+           count <= SIZE_MAX / sizeof(double complex) &&
+           log2N((unsigned int)count) >= 0;
 }
 
 bool fft_init(fft_t *this, size_t count) {
