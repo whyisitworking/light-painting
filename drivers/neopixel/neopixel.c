@@ -67,6 +67,11 @@ static void send_fresh_frame() {
 static void pio_irq_handler() {
     pio_interrupt_clear(driver.pio, driver.pio_sm);
     irq_hit++;
+
+    // Stopping, the frame in flight is being drained
+    if (!driver.is_transmitting)
+        return;
+
     send_fresh_frame();
 }
 
@@ -164,17 +169,35 @@ void neopixel_frame_ready() {
 }
 
 void neopixel_stop_transmission() {
+    uint32_t saved_irq;
+    uint32_t tx_stall = 1u << (PIO_FDEBUG_TXSTALL_LSB + driver.pio_sm);
+
     if (!driver.is_init || !driver.is_transmitting)
         return;
 
+    saved_irq = save_and_disable_interrupts();
+
+    driver.is_transmitting = false;
     pio_set_irq0_source_enabled(
         driver.pio, (pio_interrupt_source_t)(pis_interrupt0 + driver.pio_sm),
         false);
     dma_channel_abort(driver.dma_channel);
-    pio_interrupt_clear(driver.pio, driver.pio_sm);
 
+    restore_interrupts(saved_irq);
+
+    // The words already in the FIFO still go out and get latched. Only when
+    // the state machine stalls on the empty FIFO again can a new frame start
+    // cleanly (up to 8 + 1 pixels and the reset, ~250us). TXSTALL, unlike the
+    // latch IRQ, also comes when the abort left nothing to send
+    if (driver.is_sending) {
+        driver.pio->fdebug = tx_stall;
+
+        while (!(driver.pio->fdebug & tx_stall))
+            tight_loop_contents();
+    }
+
+    pio_interrupt_clear(driver.pio, driver.pio_sm);
     driver.is_sending = false;
-    driver.is_transmitting = false;
 }
 
 size_t neopixel_get_pixel_count() { return driver.count; }
