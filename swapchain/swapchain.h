@@ -29,6 +29,13 @@ typedef struct {
 bool swapchain_init(swapchain_t *this, size_t buffer_size);
 
 /**
+ * Same, with every buffer starting on a multiple of alignment (a power of
+ * two), e.g. for DMA ring buffers that must be aligned to their size.
+ */
+bool swapchain_init_aligned(swapchain_t *this, size_t buffer_size,
+                            size_t alignment);
+
+/**
  * Producer side
  *
  * Publishes the producer buffer as the newest data. If the consumer has not
