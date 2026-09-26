@@ -1,71 +1,258 @@
+<div align="center">
+
 # Light Painting
 
-Simple and ultra fast music visualizer using RP2350 (Raspberry Pi Pico 2). It uses the trustworthy MEMS microphone i2s and outputs the visualization into an RGB addressable LED strip WS2812
+**A real-time music visualizer for the Raspberry Pi Pico 2: two MEMS microphones in, 300 WS2812 LEDs out.**
 
-## Architecture
+> Simple and ultra fast music visualizer using RP2040 (Raspberry Pi Pico). It uses the trustworthy MEMS microphone i2s and outputs the visualization into an RGB addressable LED strip WS2812
+>
+> <sub>— the original pitch. It has since moved up to the RP2350.</sub>
 
-```
-I2S mic ─► platform/i2s ─frames─► lib/visualizer ─pixels─► platform/neopixel ─► WS2812
-                                   audio ─bins─► features ─features_t─► effects
-```
+[![C17](https://img.shields.io/badge/C-17-00599C?logo=c&logoColor=white)](https://en.cppreference.com/w/c/17)
+[![RP2350](https://img.shields.io/badge/RP2350-Pico%202-C51A4A?logo=raspberrypi&logoColor=white)](https://www.raspberrypi.com/products/raspberry-pi-pico-2/)
+[![Pico SDK](https://img.shields.io/badge/Pico%20SDK-2.3.1-C51A4A)](https://github.com/raspberrypi/pico-sdk)
+[![CMake](https://img.shields.io/badge/CMake-%E2%89%A5%203.25-064F8C?logo=cmake&logoColor=white)](https://cmake.org)
+[![Tests](https://img.shields.io/badge/tests-host%20%C2%B7%20CTest-2EA44F)](#testing)
 
-Once per hop (256 samples, about 5 ms) the main loop waits for new audio, analyzes it and renders a frame:
+[Features](#features) · [Hardware](#hardware) · [Quick start](#quick-start) · [Modes](#modes-and-palettes) · [Configuration](#configuration) · [How it works](#how-it-works) · [Architecture](#architecture) · [Development](#development)
 
-```c
-frames = i2s_wait_buffer();
-visualizer_analyze(&visualizer, frames);
-visualizer_render(&visualizer, neopixel_frame());
-neopixel_submit();
-```
+</div>
 
-| Directory | What | Depends on |
+---
+
+## Features
+
+- **Fast.** A fresh analysis every 5.2 ms (about 190 per second): a 512-point FFT with 50 % overlap, on the RP2350's single precision FPU.
+- **Hands-off I/O.** PIO state machines generate the I²S and WS2812 signals, and DMA moves every sample and pixel. Interrupts fire only once per audio buffer and once per LED frame, leaving the CPU to the analysis.
+- **Musical, not just loud.** 32 log-spaced bands from 60 Hz to 12 kHz, an auto-gain that follows the room, attack/decay smoothing, and beat detection on the bass.
+- **Six effects, four palettes.** Spectrum, mirrored spectrum, river, ripples, VU meters and glow, with a slow palette drift, loudness warmth, a beat flash and gamma correction.
+- **Dark when it's quiet.** Silence and microphone self-noise stay black, by design.
+- **Tested off the board.** Everything that isn't hardware is plain C17 with unit tests on your computer, including a golden snapshot of the whole pipeline.
+
+## Hardware
+
+| Part | Qty | Notes |
 |---|---|---|
-| `lib/` | Portable C17, no Pico SDK, unit tested on the host | `lib/` only |
-| `platform/` | Pico drivers: PIO + DMA, interrupts, the critical sections | `lib/swapchain`, Pico SDK |
-| `app/` | `main.c`, the build time configuration (`config.h`) and the opt-in statistics (`perf.c`) | everything |
+| Raspberry Pi Pico 2 (RP2350) | 1 | `PICO_BOARD pico2` |
+| INMP441 I²S MEMS microphone | 2 | a left and a right one on the same bus, summed to mono |
+| WS2812B LED strip | 300 LEDs | GRB order, 5 V |
+| 5 V power supply | 1 | sized for the strip: 300 LEDs at full white draw about 18 A |
 
-Dependencies point one way only, `app → platform → lib`. Anything that can run without hardware belongs in `lib/`, so the host tests can cover it.
+### Wiring
 
-| Module | Role |
-|---|---|
-| `lib/fft` | Radix-2 complex FFT and a real input FFT built on it |
-| `lib/audio` | I2S words to mono samples, the sliding window, gain and FFT |
-| `lib/features` | Log bands, auto-gain, smoothing, loudness, centroid and beats |
-| `lib/effects` | Features to pixels: one renderer per mode, palettes, flash, gamma |
-| `lib/color` | Linear RGB, gamma, the WS2812 word |
-| `lib/swapchain` | Triple buffer handing data between an interrupt and the main loop |
-| `lib/visualizer` | audio, features and effects put together |
-| `platform/i2s` | INMP441 input, DMA into a ring, published per hop |
-| `platform/neopixel` | WS2812 output, sends the newest frame |
+| Signal | Pico 2 pin | INMP441 (both) | WS2812B |
+|---|---|---|---|
+| SCK (bit clock) | **GP26** | SCK | |
+| WS (word select) | **GP27** | WS | |
+| SD (data) | **GP28** | SD | |
+| LED data | **GP8** | | DIN |
+| 3.3 V | 3V3(OUT) | VDD | |
+| Ground | GND | GND | GND |
+| Channel select | | L/R: **GND** on one, **3.3 V** on the other | |
 
-Each module is defined once, with `lp_add_module()` from `cmake/modules.cmake`, and built the same way by the firmware and the tests.
+- SCK and WS must be on **consecutive** pins, in that order (one PIO side-set drives both). All pins are set in [`app/config.h`](app/config.h).
+- Power the strip from the 5 V supply, not from the Pico, and connect all grounds.
+- The Pico drives the LED data at 3.3 V. Many strips accept it; if yours flickers, a 3.3 → 5 V level shifter (e.g. a 74AHCT125) on the data line is the usual fix.
 
-### Adding an effect mode
+## Quick start
 
-1. Add a value to `effects_mode_t` in `lib/effects/effects.h`.
-2. Write its renderer in a new `lib/effects/mode_<name>.c`, using the helpers in `effects_internal.h`, and declare it there.
-3. Add it to the `renderers` table in `effects.c`, and the file to `lib/effects/CMakeLists.txt`.
-4. Test it in `tests/test_effects.c`, and record the golden hashes again (see below).
+### 1. Get the toolchain
 
-Select it with `VISUALIZER_MODE` in `app/config.h`.
+Easiest: VS Code with the [Raspberry Pi Pico extension](https://marketplace.visualstudio.com/items?itemName=raspberry-pi.raspberry-pi-pico). Open this folder and it installs the Pico SDK 2.3.1, the Arm toolchain, CMake, Ninja and picotool under `~/.pico-sdk`. The recommended extensions and build/flash tasks are in [`.vscode/`](.vscode).
 
-## Building
+Or bring your own Pico SDK and point `PICO_SDK_PATH` at it.
 
-The firmware, with the Pico SDK (the VS Code Pico extension sets it up):
+### 2. Build
 
 ```bash
 cmake -S . -B build -G Ninja
 ```
 
 ```bash
-ninja -C build
+cmake --build build
 ```
 
-Options: `-DPERF_STATS=ON` prints stage timings and driver counters once per second over USB. `-DWAIT_FOR_USB_HOST=ON` waits up to 2 s at startup for a serial host.
+This produces `build/light-painting.uf2` (and `.elf`, `.bin`, `.hex`).
 
-## Testing
+<details>
+<summary>Building in a container instead</summary>
 
-The host tests build `lib/` with the native compiler:
+The [`Dockerfile`](Dockerfile) sets up the Arm toolchain, the latest Pico SDK and picotool on Alpine, and [`docker-compose.yaml`](docker-compose.yaml) mounts this folder. The compose file keeps `build/` inside the container, so build into another directory to get the `.uf2` on your machine:
+
+```bash
+docker compose run --rm pico sh -c "cmake -S . -B build-docker && cmake --build build-docker"
+```
+
+The image tracks the SDK's latest release rather than the pinned 2.3.1.
+
+</details>
+
+### 3. Flash
+
+Hold **BOOTSEL** while plugging the Pico in, then copy `build/light-painting.uf2` onto the `RP2350` drive that appears. Or, with picotool:
+
+```bash
+picotool load build/light-painting.uf2 -fx
+```
+
+### 4. Watch
+
+The strip lights up as soon as there is sound. Startup messages go to USB serial:
+
+```
+INMP441 i2s driver init!
+Sample rate 48828.125 Hz
+WS2812 driver init!
+Visualizer init!
+Started sampling
+```
+
+The lights start right away, so a serial monitor attached late misses these lines. Build with `-DWAIT_FOR_USB_HOST=ON` to wait up to 2 s for one.
+
+## Modes and palettes
+
+Pick a mode with `VISUALIZER_MODE` and a palette with `VISUALIZER_PALETTE` in [`app/config.h`](app/config.h).
+
+| Mode | What you see |
+|---|---|
+| `EFFECTS_SPECTRUM` | The 32 bands along the strip, bass to treble. Colour from the palette, brightness from the level |
+| `EFFECTS_SPECTRUM_MIRRORED` | The same, bass in the centre and treble towards both ends |
+| `EFFECTS_RIVER` *(default)* | The colour of the sound enters at the centre and flows outward, one LED per frame |
+| `EFFECTS_RIPPLES` | Every beat launches a pulse from the centre (up to 8 at once), sized by its strength, with treble sparkles |
+| `EFFECTS_VU` | Twin meters filling from both ends with loudness, and peak dots that hold, then fall |
+| `EFFECTS_GLOW` | The whole strip breathes with the bass, with treble sparkles |
+
+| Palette | Stops |
+|---|---|
+| `PALETTE_RAINBOW` | red → yellow → green → cyan → blue → magenta, wrapping around |
+| `PALETTE_SYNTHWAVE` *(default)* | deep indigo → violet → hot pink → orange → cyan |
+| `PALETTE_FIRE` | ember → red → orange → gold → white-hot |
+| `PALETTE_OCEAN` | abyss → deep blue → teal → aqua → foam |
+
+These apply to every mode:
+
+| Layer | Effect | Constant (`lib/effects/effects.h`) |
+|---|---|---|
+| Drift | The palette slowly shifts, one full span per minute | `EFFECTS_DRIFT_PERIOD_S` (0 disables it) |
+| Warmth | Louder music shifts colours towards the palette's end | `EFFECTS_WARMTH` (0 disables it) |
+| Beat flash | A white flash on each beat, fading with an 80 ms time constant | `EFFECTS_FLASH_LEVEL`, `EFFECTS_FLASH_MS` |
+| Gamma | 2.2, so fades look even to the eye | `GAMMA` in `lib/color/color.c` |
+
+## Configuration
+
+### Board and look: [`app/config.h`](app/config.h)
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `LED_COUNT` | `300` | LEDs on the strip |
+| `MIC_SCK_PIN`, `MIC_WS_PIN`, `MIC_DATA_PIN` | `26`, `27`, `28` | Microphone bus |
+| `LED_DATA_PIN` | `8` | Strip data |
+| `AUDIO_FFT_SIZE` | `512` | Samples per analysis. Larger resolves lower notes, smaller reacts faster |
+| `AUDIO_FFT_HOP` | `256` | New samples per analysis |
+| `VISUALIZER_MODE` | `EFFECTS_RIVER` | See [modes](#modes-and-palettes) |
+| `VISUALIZER_PALETTE` | `PALETTE_SYNTHWAVE` | See [palettes](#modes-and-palettes) |
+| `VISUALIZER_GAIN` | `1.5f` | Input gain on top of the microphone's ×8 |
+| `VISUALIZER_SEED` | `1` | Sparkle pattern |
+
+### Tuning
+
+The sound analysis and the effects each have their constants at the top of their header, with the reasoning behind every default:
+
+- [`lib/features/features.h`](lib/features/features.h): the band range, auto-gain (`FEATURES_RANGE_DB`, `FEATURES_MIN_CEILING_DB`), smoothing, and beat detection (`FEATURES_BEAT_THRESHOLD`, `FEATURES_BEAT_MIN_LEVEL`, …).
+- [`lib/effects/effects.h`](lib/effects/effects.h): river and ripple speeds, the VU peak hold, drift, warmth, flash and sparkles.
+
+### Build options
+
+| Option | Default | Effect |
+|---|---|---|
+| `-DPERF_STATS=ON` | off | Prints stage timings and driver counters once per second over USB |
+| `-DWAIT_FOR_USB_HOST=ON` | off | Waits up to 2 s at startup for a USB serial host |
+| `-DPICO_BOARD=…` | `pico2` | Target board |
+
+## How it works
+
+```mermaid
+flowchart TB
+    subgraph capture ["Capture · platform/i2s"]
+        direction LR
+        MIC["2 × INMP441"] -- "I²S, 48.8 kHz" --> PIOI["PIO + DMA ring"]
+    end
+    subgraph analysis ["Analysis · lib/visualizer"]
+        direction LR
+        AUDIO["audio<br/>mono · window · FFT"] -- "256 bins" --> FEAT["features<br/>bands · gain · beats"] -- "features_t" --> FX["effects<br/>mode · palette · gamma"]
+    end
+    subgraph output ["Output · platform/neopixel"]
+        direction LR
+        PION["DMA + PIO"] -- "~1.1 Mbit/s" --> STRIP["300 × WS2812B"]
+    end
+    capture -- "256 frames every 5.2 ms" --> analysis
+    analysis -- "300 GRB words" --> output
+```
+
+1. **Capture.** A PIO state machine clocks both microphones at the fastest integer divider under the INMP441's 3.2 MHz maximum: 48 828.125 Hz at 150 MHz. A self-triggering DMA channel streams the words into a two-chunk ring, and each completed chunk (256 stereo frames) is handed to the main loop through a triple buffer.
+2. **Spectrum.** The two channels are summed to mono and appended to a 512-sample sliding window. The window is multiplied by a sine window and transformed with a real FFT, done as a 256-point complex FFT: 256 bins, 95.4 Hz apart.
+3. **Features.** The bins become 32 log-spaced bands. Their power in dB is normalized under an auto-gain ceiling that jumps up to the loudest band and falls back 6 dB/s, but never below a minimum that keeps a quiet room dark. Each band is then smoothed (10 ms attack, 120 ms decay). A beat is the smoothed bass energy jumping above 2.8× its one-second average, while the bass is audible, at most once per 150 ms.
+4. **Effects.** The current mode draws into a linear RGB frame. Gamma correction, the beat flash and the packing into WS2812 words follow, for every mode.
+5. **Output.** DMA feeds the frame to a second PIO state machine, which generates the WS2812 timing and the latch, and raises an interrupt. That interrupt starts the newest frame, so the strip always shows the latest render and never a torn one (about 150 frames/s at 300 LEDs).
+
+All memory is allocated once at startup, and the loop never allocates. The firmware takes about 54 KB of flash.
+
+## Architecture
+
+```
+.
+├── app/                 firmware entry point (Pico)
+│   ├── main.c           startup, then the loop: wait → analyze → render → submit
+│   ├── config.h         board wiring and visualizer settings
+│   └── perf.c/.h        opt-in statistics, no-ops unless PERF_STATS
+├── platform/            Pico drivers: PIO programs, DMA, interrupts, locking
+│   ├── i2s/             INMP441 input
+│   └── neopixel/        WS2812 output
+├── lib/                 portable C17, no Pico SDK, unit tested on the host
+│   ├── visualizer/      the pipeline: audio → features → effects
+│   ├── audio/           I2S words to a magnitude spectrum
+│   ├── features/        bands, auto-gain, smoothing, beats
+│   ├── effects/         one mode_*.c per mode, palettes, sparkles
+│   ├── fft/             radix-2 complex and real FFTs
+│   ├── color/           linear RGB, gamma, the WS2812 word
+│   └── swapchain/       triple buffer between an interrupt and the loop
+├── cmake/modules.cmake  lp_add_module(): one definition per module, for both builds
+└── tests/               host tests (CTest)
+```
+
+```mermaid
+flowchart TB
+    subgraph app ["app/"]
+        main["main.c"]
+    end
+    subgraph platform ["platform/ (Pico)"]
+        i2s
+        neopixel
+    end
+    subgraph lib ["lib/ (portable)"]
+        visualizer --> audio & features & effects
+        audio --> fft
+        effects --> features & color
+        swapchain
+    end
+    main --> i2s & neopixel & visualizer
+    i2s & neopixel --> swapchain
+```
+
+**The rule:** dependencies only point down (`app → platform → lib`), and anything that can run without hardware goes in `lib/` so the host tests can cover it. Each module has a header with an overview and its API documented. The main loop is four calls:
+
+```c
+frames = i2s_wait_buffer();                              // the newest audio
+visualizer_analyze(&visualizer, frames);                 // spectrum
+sound = visualizer_render(&visualizer, neopixel_frame()); // features, pixels
+neopixel_submit();                                       // out on the next latch
+```
+
+## Development
+
+### Testing
+
+The host tests build all of `lib/` with your native compiler, the same way the firmware does, warnings as errors:
 
 ```bash
 cmake -S tests -B build-tests
@@ -79,4 +266,102 @@ cmake --build build-tests
 ctest --test-dir build-tests --output-on-failure
 ```
 
-`test_golden` hashes the pixels of every mode for a fixed input, and fails if a change alters them. When a change is meant to alter the look, check the other tests still pass, then record the new hashes from `build-tests/test_golden --print` into `tests/test_golden.c`.
+| Test | Covers |
+|---|---|
+| `fft` | Every size against a naive DFT, the real FFT, tones |
+| `swapchain` | Ordering, newest wins, drop counting |
+| `color` | The WS2812 word layout, saturation, gamma |
+| `audio` | Scaling, the stereo sum, the sliding window, tones in their bin |
+| `features` | Bands, silence, self-noise, auto-gain, beats on kicks and none on noise |
+| `palette` | Stops, interpolation, wrapping and reflecting |
+| `effects` | Every mode: silence, positions, motion, the flash, determinism |
+| `visualizer` | End to end from I²S words: silence, a tone, kicks |
+| `golden` | The exact pixels of every mode for a fixed input |
+
+`test_golden` is a tripwire: it fails on **any** change to the pixels. When a change is meant to alter the look, check that the other tests still pass, then record the new hashes into [`tests/test_golden.c`](tests/test_golden.c):
+
+```bash
+build-tests/test_golden --print
+```
+
+The hashes depend on the host's math library, so another platform may need its own recording.
+
+### Profiling
+
+Build with `-DPERF_STATS=ON`. Once per second, the USB serial output shows each loop stage's average and worst time (`wait`, `analyze`, `render`), the audio buffers and LED frames dropped, the auto-gain ceiling, loudness and beat count, and the interrupt counters. In a quiet room, loudness should read about 0 with no beats. If it doesn't, raise `FEATURES_MIN_CEILING_DB`.
+
+### Adding an effect mode
+
+1. Add a value to `effects_mode_t` in [`lib/effects/effects.h`](lib/effects/effects.h), before `EFFECTS_MODE_COUNT`.
+2. Write its renderer in a new `lib/effects/mode_<name>.c`. It draws into `this->frame`, which starts black, using the helpers in [`effects_internal.h`](lib/effects/effects_internal.h). Declare it there.
+3. Add it to the `renderers` table in [`effects.c`](lib/effects/effects.c), and the file to [`lib/effects/CMakeLists.txt`](lib/effects/CMakeLists.txt).
+4. Test it in `tests/test_effects.c`, and record the golden hashes again.
+
+### Adding a palette
+
+1. Add a value to `palette_id_t` in [`lib/effects/palette.h`](lib/effects/palette.h), before `PALETTE_COUNT`.
+2. Add its stops (linear RGB, 0..1) and its entry in the `palettes` table in [`palette.c`](lib/effects/palette.c): `true` wraps around like the rainbow, `false` reflects at the ends.
+
+### Conventions
+
+- C17, 4-space indent, 80 columns. Functions are `<module>_<verb>` and take the module state as `this`.
+- Everything is allocated in `*_init()` and freed in `*_deinit()`.
+- The firmware and the tests build with `-Wall -Wextra -Werror`.
+- Commits are small, one change each, titled `module: what it does`.
+
+## Troubleshooting
+
+<details>
+<summary><b>The strip stays dark</b></summary>
+
+- In a quiet room that is by design. Play some music.
+- Check the startup messages over USB serial (`-DWAIT_FOR_USB_HOST=ON`). An init failure names the part that failed.
+- Check the strip's power, the shared ground and the data pin (GP8).
+
+</details>
+
+<details>
+<summary><b>"Could not initialize INMP441 i2s driver"</b></summary>
+
+SCK and WS must be consecutive pins (WS = SCK + 1), and the data pin distinct from both. It also fails if no PIO state machine or DMA channel is free.
+
+</details>
+
+<details>
+<summary><b>It flickers or shows colours in silence</b></summary>
+
+The microphones' self-noise is getting above the auto-gain floor. Raise `FEATURES_MIN_CEILING_DB` in `lib/features/features.h` a few dB, and check with `-DPERF_STATS=ON` that a quiet room reads loudness about 0.
+
+</details>
+
+<details>
+<summary><b>Random colours or glitches near the start of the strip</b></summary>
+
+The data signal is too weak for the strip at 3.3 V, or the grounds aren't shared. Add a level shifter and keep the data wire short.
+
+</details>
+
+<details>
+<summary><b>Colours are swapped</b></summary>
+
+The driver sends GRB, the WS2812B order. For another order, change the byte layout of `color_neopixel_t` in `lib/color/color.h`.
+
+</details>
+
+<details>
+<summary><b>Beats are missed, or fire on everything</b></summary>
+
+Tune `FEATURES_BEAT_THRESHOLD` (lower is more sensitive) and `FEATURES_BEAT_MIN_LEVEL` in `lib/features/features.h`. Each constant's comment explains the measurements behind its default.
+
+</details>
+
+## Roadmap
+
+- [ ] An on-device menu (LCD) to switch modes and palettes at runtime. The setters are already in place.
+- [ ] Stereo effects, using the two microphones separately.
+- [ ] Stopping and restarting sampling at runtime.
+
+## Acknowledgements
+
+- The [Raspberry Pi Pico SDK](https://github.com/raspberrypi/pico-sdk), and the RP2350, INMP441 and WS2812B datasheets.
+- The [`Dockerfile`](Dockerfile) builds on [lukstep/raspberry-pi-pico-docker-sdk](https://github.com/lukstep/raspberry-pi-pico-docker-sdk).
