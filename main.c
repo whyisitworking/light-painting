@@ -140,6 +140,7 @@ int main() {
             neopixel_get_pixel_count());
 
         synchronized(swapchain_producer_swap(&led_swapchain));
+        neopixel_frame_ready();
 
         // const int32_t *source =
         //     (const int32_t *)swapchain_consumer_buffer(&audio_swapchain);

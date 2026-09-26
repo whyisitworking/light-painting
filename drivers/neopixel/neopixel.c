@@ -3,6 +3,7 @@
 #include "hardware/pio.h"
 #include "neopixel.pio.h"
 #include "pico/stdlib.h"
+#include "pico/sync.h"
 #include "swapchain.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,21 +32,38 @@ typedef struct {
 
     // Whether the driver is transmitting
     bool is_transmitting;
+
+    // Whether a frame is in flight, from DMA start until it is latched
+    volatile bool is_sending;
 } neopixel_t;
 
 static neopixel_t driver = {
     .swapchain = NULL,
     .is_init = false,
     .is_transmitting = false,
+    .is_sending = false,
 };
 
-static void dma_irq_handler() {
-    swapchain_consumer_swap(driver.swapchain);
-    dma_channel_acknowledge_irq1(driver.dma_channel);
-    pio_sm_exec(driver.pio, driver.pio_sm,
-                pio_encode_jmp(driver.pio_offset + neopixel_offset_sync));
+/**
+ * Starts sending the newest frame, if there is one we have not sent yet.
+ * Must run with interrupts disabled or from the PIO interrupt.
+ */
+static void send_fresh_frame() {
+    if (!swapchain_consumer_swap(driver.swapchain)) {
+        // Nothing new, the LEDs keep showing the last frame
+        driver.is_sending = false;
+        return;
+    }
+
+    driver.is_sending = true;
     dma_channel_set_read_addr(
         driver.dma_channel, swapchain_consumer_buffer(driver.swapchain), true);
+}
+
+// The state machine raises its IRQ once a frame has been latched
+static void pio_irq_handler() {
+    pio_interrupt_clear(driver.pio, driver.pio_sm);
+    send_fresh_frame();
 }
 
 size_t neopixel_required_buffer_size(size_t led_count) {
@@ -95,13 +113,14 @@ bool neopixel_init(swapchain_t *swapchain, size_t count, uint pin) {
     channel_config_set_write_increment(&dma_config, false);
     channel_config_set_transfer_data_size(&dma_config, DMA_SIZE_32);
     channel_config_set_dreq(&dma_config, pio_get_dreq(pio, pio_sm, true));
-    channel_config_set_irq_quiet(&dma_config, false);
     dma_channel_configure(dma_channel, &dma_config, &pio->txf[pio_sm], NULL,
                           count, false);
 
-    dma_channel_set_irq1_enabled(dma_channel, true);
-    irq_set_exclusive_handler(DMA_IRQ_1, dma_irq_handler);
-    irq_set_enabled(DMA_IRQ_1, true);
+    // Frame latched interrupt, 'irq 0 rel' raises the flag numbered after
+    // the state machine
+    pio_interrupt_clear(pio, pio_sm);
+    irq_set_exclusive_handler(pio_get_irq_num(pio, 0), pio_irq_handler);
+    irq_set_enabled(pio_get_irq_num(pio, 0), true);
 
     driver.pio = pio;
     driver.pio_sm = (uint)pio_sm;
@@ -119,23 +138,51 @@ bool neopixel_is_init() { return driver.is_init; }
 size_t neopixel_led_count() { return driver.count; }
 
 void neopixel_start_transmission() {
+    uint32_t saved_irq;
+
     if (!driver.is_init || driver.is_transmitting)
         return;
 
-    dma_channel_set_read_addr(
-        driver.dma_channel, swapchain_consumer_buffer(driver.swapchain), true);
+    saved_irq = save_and_disable_interrupts();
+
+    pio_interrupt_clear(driver.pio, driver.pio_sm);
+    pio_set_irq0_source_enabled(
+        driver.pio, (pio_interrupt_source_t)(pis_interrupt0 + driver.pio_sm),
+        true);
     driver.is_transmitting = true;
+
+    // A frame may already be waiting
+    send_fresh_frame();
+
+    restore_interrupts(saved_irq);
+}
+
+void neopixel_frame_ready() {
+    uint32_t saved_irq;
+
+    if (!driver.is_transmitting)
+        return;
+
+    saved_irq = save_and_disable_interrupts();
+
+    // If busy, the frame goes out as soon as the current one is latched
+    if (!driver.is_sending)
+        send_fresh_frame();
+
+    restore_interrupts(saved_irq);
 }
 
 void neopixel_stop_transmission() {
     if (!driver.is_init || !driver.is_transmitting)
         return;
 
-    dma_channel_set_irq1_enabled(driver.dma_channel, false);
+    pio_set_irq0_source_enabled(
+        driver.pio, (pio_interrupt_source_t)(pis_interrupt0 + driver.pio_sm),
+        false);
     dma_channel_abort(driver.dma_channel);
-    dma_channel_acknowledge_irq1(driver.dma_channel);
-    dma_channel_set_irq1_enabled(driver.dma_channel, true);
+    pio_interrupt_clear(driver.pio, driver.pio_sm);
 
+    driver.is_sending = false;
     driver.is_transmitting = false;
 }
 
@@ -156,5 +203,6 @@ void neopixel_deinit() {
         .swapchain = NULL,
         .is_init = false,
         .is_transmitting = false,
+        .is_sending = false,
     };
 }
