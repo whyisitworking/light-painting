@@ -181,6 +181,7 @@ void i2s_deinit() {
 
     // Release the interrupt and the DMA channel
     dma_channel_set_irq0_enabled(driver.dma_channel, false);
+    irq_set_enabled(DMA_IRQ_0, false);
     irq_remove_handler(DMA_IRQ_0, dma_irq_handler);
     dma_channel_unclaim(driver.dma_channel);
 
