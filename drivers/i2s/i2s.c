@@ -70,13 +70,16 @@ static volatile size_t irq_hit = 0;
 
 // A ring chunk is full. The DMA already streams into the other one
 static void dma_irq_handler() {
-    uintptr_t writing =
-        (uintptr_t)dma_channel_hw_addr(driver.dma_channel)->write_addr;
     size_t chunk_bytes = i2s_required_buffer_size(driver.sample_count);
+    uintptr_t writing;
     uint32_t *full;
 
+    // Acknowledge before looking where the DMA writes: a chunk completing
+    // meanwhile raises the interrupt again instead of being cleared unseen
     dma_channel_acknowledge_irq0(driver.dma_channel);
     irq_hit++;
+
+    writing = (uintptr_t)dma_channel_hw_addr(driver.dma_channel)->write_addr;
 
     // The chunk the DMA is not writing, found from where it writes rather
     // than by counting interrupts, so a late or merged interrupt still picks
