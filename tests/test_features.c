@@ -77,29 +77,58 @@ static void test_tone_lands_in_its_band(void) {
     features_deinit(&state);
 }
 
-static void test_silence_and_noise_stay_dark(void) {
-    const float levels[] = {0.f, 1e-5f};
+static void test_silence_stays_dark(void) {
+    features_state_t state;
+    const features_t *features = NULL;
 
-    for (size_t l = 0; l < 2; l++) {
-        features_state_t state;
-        const features_t *features = NULL;
+    CHECK(features_init(&state, BINS, BIN_HZ, HOP));
 
-        CHECK(features_init(&state, BINS, BIN_HZ, HOP));
+    fill(0.f);
+    for (int i = 0; i < 500; i++)
+        features = features_update(&state, bins);
 
-        fill(levels[l]);
-        for (int i = 0; i < 500; i++)
-            features = features_update(&state, bins);
+    for (size_t b = 0; b < FEATURES_BAND_COUNT; b++)
+        CHECK(features->bands[b] == 0.f);
+    CHECK(features->loudness == 0.f);
+    CHECK(features->centroid == 0.f);
 
-        for (size_t b = 0; b < FEATURES_BAND_COUNT; b++)
-            CHECK(features->bands[b] == 0.f);
-        CHECK(features->loudness == 0.f);
-        CHECK(features->centroid == 0.f);
-
-        features_deinit(&state);
-    }
+    features_deinit(&state);
 }
 
-// A signal 20 dB quieter fills the range again once the ceiling fell
+// A quiet room: the INMP441 self-noise (-87 dBFS) through the audio chain
+// is about -88 dB of power per bin. Levels and loudness below 0.05 light
+// nothing, the gamma table maps anything under 14.5 / 255 to 0
+static void test_microphone_noise_stays_dark(void) {
+    features_state_t state;
+    float brightest = 0.f;
+    int beats = 0;
+
+    CHECK(features_init(&state, BINS, BIN_HZ, HOP));
+
+    for (int n = 0; n * HOP < 22.f; n++) {
+        const features_t *features;
+
+        fill_noise(-88.f);
+        features = features_update(&state, bins);
+
+        if (n * HOP < 2.f)
+            continue;
+
+        if (features->beat)
+            beats++;
+        brightest = fmaxf(brightest, features->loudness);
+        for (size_t b = 0; b < FEATURES_BAND_COUNT; b++)
+            brightest = fmaxf(brightest, features->bands[b]);
+    }
+
+    CHECK(brightest < 0.05f);
+    CHECK(beats == 0);
+
+    features_deinit(&state);
+}
+
+// A signal 20 dB quieter fills the range again once the ceiling fell, both
+// above FEATURES_MIN_CEILING_DB
 static void test_auto_gain(void) {
     features_state_t state;
     const features_t *features = NULL;
@@ -109,12 +138,12 @@ static void test_auto_gain(void) {
     band = band_of(&state, 10 * BIN_HZ);
 
     fill(1e-6f);
-    bins[10] = 0.1f;
+    bins[10] = 1.f;
     for (int i = 0; i < 1000; i++)
         features = features_update(&state, bins);
     CHECK(features->bands[band] > 0.95f);
 
-    bins[10] = 0.01f;
+    bins[10] = 0.1f;
     for (int i = 0; i < 1000; i++)
         features = features_update(&state, bins);
     CHECK(features->bands[band] > 0.95f);
@@ -259,7 +288,8 @@ static void test_no_beat_without_onsets(void) {
 int main(void) {
     test_rejects_invalid();
     test_tone_lands_in_its_band();
-    test_silence_and_noise_stay_dark();
+    test_silence_stays_dark();
+    test_microphone_noise_stays_dark();
     test_auto_gain();
     test_attack_faster_than_decay();
     test_loudness_and_centroid();

@@ -144,11 +144,13 @@ int main() {
     perf_stat_t perf_wait = {0}, perf_feed = {0}, perf_fft = {0},
                 perf_render = {0};
     size_t audio_dropped = 0, led_dropped = 0;
+    uint32_t perf_beats = 0;
     uint32_t perf_report_us = time_us_32();
     uint32_t t0, t1, t2, t3, t4;
 #endif
 
     while (true) {
+        const features_t *sound;
         bool fresh_audio;
 
 #ifdef PERF_STATS
@@ -179,10 +181,9 @@ int main() {
         t3 = time_us_32();
 #endif
 
-        effects_render(
-            &effects,
-            features_update(&features, audio_get_frequency_bins(&audio)),
-            swapchain_producer_buffer(&led_swapchain));
+        sound = features_update(&features, audio_get_frequency_bins(&audio));
+        effects_render(&effects, sound,
+                       swapchain_producer_buffer(&led_swapchain));
 
         synchronized(swapchain_producer_swap(&led_swapchain));
         neopixel_frame_ready();
@@ -194,6 +195,9 @@ int main() {
         perf_add(&perf_feed, t2 - t1);
         perf_add(&perf_fft, t3 - t2);
         perf_add(&perf_render, t4 - t3);
+
+        if (sound->beat)
+            perf_beats++;
 
         // Report outside the measured stages, printing takes a while
         if (t4 - perf_report_us >= 1000000) {
@@ -208,6 +212,12 @@ int main() {
                    led_swapchain.dropped - led_dropped);
             audio_dropped = audio_swapchain.dropped;
             led_dropped = led_swapchain.dropped;
+            // To tune FEATURES_MIN_CEILING_DB: a quiet room should read
+            // loudness ~0 and no beats
+            printf("Ceiling %.1f dB, loudness %.3f, beats %lu\n",
+                   (double)features.ceiling_db, (double)sound->loudness,
+                   (unsigned long)perf_beats);
+            perf_beats = 0;
             i2s_print_irq_hits();
             neopixel_print_irq_hits();
         }

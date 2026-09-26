@@ -54,7 +54,7 @@ void features_deinit(features_state_t *this);
 | `FEATURES_LOW_HZ` / `FEATURES_HIGH_HZ` | 60 / 12000 | band range |
 | `FEATURES_RANGE_DB` | 45 | floor = ceiling − range |
 | `FEATURES_CEILING_FALL_DB_PER_S` | 6 | auto-gain release |
-| `FEATURES_MIN_CEILING_DB` | −50 | lowest auto-gain ceiling (band power dB of the normalized bins). Estimate: the INMP441 noise floor of −87 dBFS plus the ×12 input gain is about −65 dB. Tune on hardware so that a quiet room reads dark |
+| `FEATURES_MIN_CEILING_DB` | −32 | lowest auto-gain ceiling (band power dB of the normalized bins). Band power is per bin: the INMP441 noise floor of −87 dBFS plus the ×12 input gain is −65 dB in total, spread over N/2 = 256 bins (−24 dB), so a quiet room is about −88 dB per bin. The floor, −32 − 45 = −77 dB, keeps it dark with 11 dB of margin. Tune on hardware so that a quiet room reads dark |
 | `FEATURES_ATTACK_MS` / `FEATURES_DECAY_MS` | 10 / 120 | per-band smoothing |
 | `FEATURES_BEAT_SMOOTH_MS` | 30 | smoothing of the bass energy before detection |
 | `FEATURES_BEAT_THRESHOLD` | 2.8 | smoothed bass energy vs its average |
@@ -89,7 +89,7 @@ Edges are geometric from `LOW_HZ` to `HIGH_HZ`.
   - the bass is audible: the mean smoothed level of the bass bands is above `BEAT_MIN_LEVEL`. A dB comparison with the auto-gain floor would always pass for a real microphone, whose self-noise is above it.
 - **Strength:** `(smoothed energy / (average × threshold) − 1)`, clamped to 0..1.
 - **Not variance adaptive:** a `mean + k·σ` trigger was tried. A kick train is sparse, so its own σ is about 1.7× its mean and `mean + 3σ` sits at the smoothed kick peak: it missed three kicks in four.
-- **Measured** (white noise as I²S words through audio, features and effects, 300 s after 2 s settling): 0.01 beats/s at −80 to −30 dBFS and none at −87 dBFS. 120 BPM kicks, alone or with white noise 20 dB below them, give 40 beats for 40 kicks, all within 15 ms of the kick. A steady 50 or 80 Hz tone and silence give none.
+- **Measured** (white noise as I²S words through audio, features and effects, 300 s after 2 s settling): none at −87 to −70 dBFS, where the bass level stays under `BEAT_MIN_LEVEL`, and 0.01 beats/s at −50 and −30 dBFS. 120 BPM kicks, alone or with white noise 20 dB below them, give 40 beats for 40 kicks, all within 15 ms of the kick. A steady 50 or 80 Hz tone and silence give none.
 
 ## effects/
 
@@ -133,7 +133,7 @@ void effects_deinit(effects_t *this);
 
 - **features:**
   - A 1 kHz tone peaks in the band containing 1 kHz.
-  - Silence, and low noise below the absolute floor, stay at 0.
+  - Silence stays at 0. Microphone self-noise (Rayleigh distributed bins at −88 dB per bin) keeps every level and the loudness below 0.05, which the gamma table maps to 0, and gives no beats.
   - Synthetic kicks at 120 BPM give one beat per kick with no extra beats, also with noise 20 dB below them, and a steady tone gives none.
   - Steady noise (Rayleigh distributed bins) at any level gives fewer than 0.2 beats/s.
   - A −20 dB signal refills the range once the auto-gain settles.
