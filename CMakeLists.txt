@@ -38,6 +38,14 @@ pico_sdk_init()
 
 add_executable(light-painting)
 
+# The SDK adds these through its INTERFACE libraries, which lib/ does not
+# link: without them the portable modules keep their unused functions and
+# cannot inline sqrtf and friends as FPU instructions
+if (NOT PICO_NO_GC_SECTIONS)
+    add_compile_options(-ffunction-sections -fdata-sections)
+endif()
+add_compile_options(-fno-math-errno)
+
 # lib/ is portable, platform/ is the Pico hardware, app/ puts them together
 add_subdirectory(lib)
 add_subdirectory(platform)
