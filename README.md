@@ -13,8 +13,9 @@
 [![Pico SDK](https://img.shields.io/badge/Pico%20SDK-2.3.1-C51A4A)](https://github.com/raspberrypi/pico-sdk)
 [![CMake](https://img.shields.io/badge/CMake-%E2%89%A5%203.25-064F8C?logo=cmake&logoColor=white)](https://cmake.org)
 [![Tests](https://img.shields.io/badge/tests-host%20%C2%B7%20CTest-2EA44F)](#testing)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 
-[Features](#features) · [Hardware](#hardware) · [Quick start](#quick-start) · [Modes](#modes-and-palettes) · [Configuration](#configuration) · [How it works](#how-it-works) · [Architecture](#architecture) · [Development](#development)
+[Features](#features) · [Hardware](#hardware) · [Quick start](#quick-start) · [Modes](#modes-and-palettes) · [Configuration](#configuration) · [How it works](#how-it-works) · [Architecture](#architecture) · [Development](#development) · [License](#license)
 
 </div>
 
@@ -365,3 +366,7 @@ Tune `FEATURES_BEAT_THRESHOLD` (lower is more sensitive) and `FEATURES_BEAT_MIN_
 
 - The [Raspberry Pi Pico SDK](https://github.com/raspberrypi/pico-sdk), and the RP2350, INMP441 and WS2812B datasheets.
 - The [`Dockerfile`](Dockerfile) builds on [lukstep/raspberry-pi-pico-docker-sdk](https://github.com/lukstep/raspberry-pi-pico-docker-sdk).
+
+## License
+
+[MIT](LICENSE) © 2022-2026 Suhel Chakraborty
