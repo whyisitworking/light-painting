@@ -3,7 +3,8 @@
 
 /**
  * Minimal assertion helpers for the host-side unit tests.
- * Each test executable returns the number of failed checks.
+ * Each test executable prints the number of failed checks and exits with
+ * status 1 if there was any.
  */
 
 #include <math.h>
@@ -29,7 +30,9 @@ static int check_failures = 0;
         }                                                                      \
     } while (0)
 
+// Not the raw count: exit statuses are 8 bits, 256 failures would read as 0
 #define CHECK_REPORT()                                                         \
-    (printf("%s: %d failure(s)\n", __FILE__, check_failures), check_failures)
+    (printf("%s: %d failure(s)\n", __FILE__, check_failures),                 \
+     check_failures ? 1 : 0)
 
 #endif

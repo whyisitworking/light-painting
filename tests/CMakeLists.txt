@@ -37,3 +37,6 @@ target_include_directories(test_color PRIVATE ${ROOT}/util)
 # color.h defines non-inline static helpers, as does the firmware build
 target_compile_options(test_color PRIVATE -Wno-unused-function)
 add_test(NAME color COMMAND test_color)
+
+# A hang (e.g. an endless loop) should fail quickly, not at ctest's default
+set_tests_properties(fft swapchain color PROPERTIES TIMEOUT 30)
