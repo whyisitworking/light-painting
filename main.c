@@ -104,21 +104,21 @@ int main() {
 
     if (!i2s_init(&audio_swapchain, AUDIO_FFT_HOP * AUDIO_WORDS_PER_FRAME,
                   MIC_SCK_PIN, MIC_WS_PIN, MIC_DATA_PIN)) {
-        printf("Could not initialize i2s driver");
+        printf("Could not initialize i2s driver\n");
         return EXIT_FAILURE;
     }
 
     printf("INMP init!\n");
 
     if (!neopixel_init(&led_swapchain, LED_COUNT, LED_DATA_PIN)) {
-        printf("Could not initialize WS2812 driver");
+        printf("Could not initialize WS2812 driver\n");
         return EXIT_FAILURE;
     }
 
     printf("WS2812 init!\n");
 
     if (!audio_init(&audio, AUDIO_FFT_SIZE, AUDIO_FFT_HOP)) {
-        printf("Could not initialize audio");
+        printf("Could not initialize audio\n");
         return EXIT_FAILURE;
     }
 
@@ -128,12 +128,6 @@ int main() {
     neopixel_start_transmission();
 
     printf("Started sampling\n");
-
-    // Scratch buffers
-    int32_t scratch_int[8];
-    float scratch_float[8];
-
-    uint32_t max = 0;
 
     while (true) {
         bool fresh_audio;
@@ -157,32 +151,6 @@ int main() {
 
         synchronized(swapchain_producer_swap(&led_swapchain));
         neopixel_frame_ready();
-
-        // const int32_t *source =
-        //     (const int32_t *)swapchain_consumer_buffer(&audio_swapchain);
-        // uint32_t *dest = swapchain_producer_buffer(&led_swapchain);
-
-        // for (size_t i = 0; i < 8; i++) {
-        //     int32_t int_value = ((source[2 * i + 1]) << 1) >> 8;
-        //     uint32_t abs_value = (uint32_t)abs(int_value);
-        //     if (abs_value > max) {
-        //         max = abs_value;
-        //         printf("Highest %u\n", max);
-        //     }
-        //     // scratch_float[i] = (float)int_value;
-        // }
-
-        // printf("%d\n%d\n%d\n%d\n%d\n%d\n%d\n%d\n", scratch_int[0],
-        //        scratch_int[1], scratch_int[2], scratch_int[3],
-        //        scratch_int[4], scratch_int[5], scratch_int[6],
-        //        scratch_int[7]);
-
-        // printf("%.2f\n%.2f\n%.2f\n%.2f\n%.2f\n%.2f\n%.2f\n%.2f\n",
-        //        scratch_float[0], scratch_float[1], scratch_float[2],
-        //        scratch_float[3], scratch_float[4], scratch_float[5],
-        //        scratch_float[6], scratch_float[7]);
-
-        // sleep_ms(500);
     }
 
     return EXIT_SUCCESS;
