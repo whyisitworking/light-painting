@@ -54,7 +54,8 @@ static i2s_t driver = {
     .is_sampling = false,
 };
 
-static size_t irq_hit = 0;
+// Updated from the DMA interrupt
+static volatile size_t irq_hit = 0;
 
 static void dma_irq_handler() {
     swapchain_producer_swap(driver.swapchain);
@@ -71,8 +72,8 @@ size_t i2s_required_buffer_size(size_t sample_count) {
 bool i2s_init(swapchain_t *swapchain, size_t sample_count, uint sck_pin,
               uint ws_pin, uint data_pin) {
     PIO pio;
-    int pio_sm, dma_channel;
-    uint pio_offset;
+    uint pio_sm, pio_offset, gpio_start, gpio_end;
+    int dma_channel;
     dma_channel_config dma_config;
 
     if (driver.is_init)
@@ -87,34 +88,27 @@ bool i2s_init(swapchain_t *swapchain, size_t sample_count, uint sck_pin,
     if (sck_pin + 1 != ws_pin)
         return false;
 
-    // Start with PIO0
-    pio = pio0;
+    // Range of GPIOs the state machine drives or samples
+    gpio_start = MIN(sck_pin, data_pin);
+    gpio_end = MAX(ws_pin, data_pin);
 
-    // Check if the program can be loaded in the pio
-    if (!pio_can_add_program(pio, &i2s_program)) {
-        // Try the next, PIO1
-        pio = pio1;
-
-        if (!pio_can_add_program(pio, &i2s_program)) {
-            // Guard if not
-            return false;
-        }
-    }
-
-    // Try to grab an unused State Machine
-    if ((pio_sm = pio_claim_unused_sm(pio, false)) == -1)
+    // Find any PIO (3 on RP2350) with room for the program and a free State
+    // Machine, and load the program there
+    if (!pio_claim_free_sm_and_add_program_for_gpio_range(
+            &i2s_program, &pio, &pio_sm, &pio_offset, gpio_start,
+            gpio_end - gpio_start + 1, true))
         return false;
 
     // Check if an unused dma channel is available
     if ((dma_channel = dma_claim_unused_channel(false)) == -1) {
-        // Give up the State Machine claimed before returning
-        pio_sm_unclaim(pio, pio_sm);
+        // Give up the State Machine and the program before returning
+        pio_remove_program_and_unclaim_sm(&i2s_program, pio, pio_sm,
+                                          pio_offset);
         // Guard if not
         return false;
     }
 
-    // Load the PIO program in memory and initialize it
-    pio_offset = pio_add_program(pio, &i2s_program);
+    // Initialize the loaded PIO program
     i2s_program_init(pio, pio_sm, pio_offset, sck_pin, ws_pin, data_pin);
 
     // Setup the DMA for data bursts
@@ -135,7 +129,7 @@ bool i2s_init(swapchain_t *swapchain, size_t sample_count, uint sck_pin,
     driver.sample_count = sample_count;
     driver.sample_rate = i2s_program_sample_rate(clock_get_hz(clk_sys));
     driver.pio = pio;
-    driver.pio_sm = (uint)pio_sm;
+    driver.pio_sm = pio_sm;
     driver.pio_offset = pio_offset;
     driver.dma_channel = (uint)dma_channel;
     driver.swapchain = swapchain;
@@ -174,7 +168,7 @@ void i2s_stop_sampling() {
 }
 
 void i2s_print_irq_hits() {
-    printf("IRQ hits %d\n", irq_hit);
+    printf("IRQ hits %zu\n", irq_hit);
     irq_hit = 0;
 }
 
@@ -185,8 +179,13 @@ void i2s_deinit() {
 
     i2s_stop_sampling();
 
-    i2s_program_deinit(driver.pio, driver.pio_sm);
+    // Release the interrupt and the DMA channel
+    dma_channel_set_irq0_enabled(driver.dma_channel, false);
+    irq_remove_handler(DMA_IRQ_0, dma_irq_handler);
+    dma_channel_unclaim(driver.dma_channel);
+
     // This also unclaims the State Machine
+    i2s_program_deinit(driver.pio, driver.pio_sm);
     pio_remove_program(driver.pio, &i2s_program, driver.pio_offset);
 
     driver = (i2s_t){

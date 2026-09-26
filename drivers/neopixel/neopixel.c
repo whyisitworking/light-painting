@@ -44,6 +44,9 @@ static neopixel_t driver = {
     .is_sending = false,
 };
 
+// Latched frames, updated from the PIO interrupt
+static volatile size_t irq_hit = 0;
+
 /**
  * Starts sending the newest frame, if there is one we have not sent yet.
  * Must run with interrupts disabled or from the PIO interrupt.
@@ -63,6 +66,7 @@ static void send_fresh_frame() {
 // The state machine raises its IRQ once a frame has been latched
 static void pio_irq_handler() {
     pio_interrupt_clear(driver.pio, driver.pio_sm);
+    irq_hit++;
     send_fresh_frame();
 }
 
@@ -72,39 +76,26 @@ size_t neopixel_required_buffer_size(size_t led_count) {
 
 bool neopixel_init(swapchain_t *swapchain, size_t count, uint pin) {
     PIO pio;
-    int pio_sm, dma_channel;
-    uint pio_offset;
+    uint pio_sm, pio_offset;
+    int dma_channel;
     dma_channel_config dma_config;
 
     if (driver.is_init)
         return false;
 
-    // Start with PIO0
-    pio = pio0;
-
-    // Check if the program can be loaded in the pio
-    if (!pio_can_add_program(pio, &neopixel_program)) {
-        // Try the next, PIO1
-        pio = pio1;
-
-        if (!pio_can_add_program(pio, &neopixel_program)) {
-            // Guard if not
-            return false;
-        }
-    }
-
-    // Try to grab an unused State Machine
-    if ((pio_sm = pio_claim_unused_sm(pio, false)) == -1) {
+    // Find any PIO (3 on RP2350) with room for the program and a free State
+    // Machine, and load the program there
+    if (!pio_claim_free_sm_and_add_program_for_gpio_range(
+            &neopixel_program, &pio, &pio_sm, &pio_offset, pin, 1, true))
         return false;
-    }
 
     if ((dma_channel = dma_claim_unused_channel(false)) == -1) {
-        pio_sm_unclaim(pio, pio_sm);
+        pio_remove_program_and_unclaim_sm(&neopixel_program, pio, pio_sm,
+                                          pio_offset);
         return false;
     }
 
-    // Load the PIO program in memory and initialize it
-    pio_offset = pio_add_program(pio, &neopixel_program);
+    // Initialize the loaded PIO program
     neopixel_program_init(pio, pio_sm, pio_offset, pin);
 
     // Setup the DMA for data bursts
@@ -123,7 +114,7 @@ bool neopixel_init(swapchain_t *swapchain, size_t count, uint pin) {
     irq_set_enabled(pio_get_irq_num(pio, 0), true);
 
     driver.pio = pio;
-    driver.pio_sm = (uint)pio_sm;
+    driver.pio_sm = pio_sm;
     driver.pio_offset = pio_offset;
     driver.count = count;
     driver.dma_channel = (uint)dma_channel;
@@ -188,15 +179,24 @@ void neopixel_stop_transmission() {
 
 size_t neopixel_get_pixel_count() { return driver.count; }
 
+void neopixel_print_irq_hits() {
+    printf("Frames latched %zu\n", irq_hit);
+    irq_hit = 0;
+}
+
 void neopixel_deinit() {
     if (!driver.is_init)
         return;
 
     neopixel_stop_transmission();
 
-    // PIO ciao
+    // Release the interrupt and the DMA channel
+    irq_set_enabled(pio_get_irq_num(driver.pio, 0), false);
+    irq_remove_handler(pio_get_irq_num(driver.pio, 0), pio_irq_handler);
+    dma_channel_unclaim(driver.dma_channel);
+
+    // PIO ciao, this also unclaims the State Machine
     neopixel_program_deinit(driver.pio, driver.pio_sm);
-    // This also unclaims the State Machine
     pio_remove_program(driver.pio, &neopixel_program, driver.pio_offset);
 
     driver = (neopixel_t){
