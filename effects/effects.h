@@ -71,7 +71,7 @@ typedef struct {
     effects_mode_t mode;
     effects_palette_t palette;
 
-    // Time since init, drives the drift
+    // Time since init modulo two drift periods, drives the drift
     float time_s;
 
     // Current beat flash level and its fade per frame

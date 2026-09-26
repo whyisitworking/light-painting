@@ -2,6 +2,7 @@
 #include "color.h"
 #include "effects.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 #define LEDS 300
@@ -301,6 +302,40 @@ static void test_glow_follows_bass(void) {
     effects_deinit(&effects);
 }
 
+// The drift clock wraps every two drift periods, where the colours repeat
+// for wrapping and reflecting palettes alike, instead of growing until
+// adding a hop no longer changes it (~36 h)
+static void test_drift_clock_wraps(void) {
+    effects_t effects;
+    features_t features = quiet();
+    uint32_t early[LEDS];
+
+    for (size_t b = 0; b < BANDS; b++)
+        bands[b] = 1.f;
+
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
+    effects_set_mode(&effects, EFFECTS_SPECTRUM);
+    effects.time_s = 10.f;
+    effects_render(&effects, &features, early);
+
+    // Same colours, up to float rounding
+    effects.time_s = 10.f + 2.f * EFFECTS_DRIFT_PERIOD_S;
+    effects_render(&effects, &features, pixels);
+    for (size_t i = 0; i < LEDS; i++) {
+        color_neopixel_t a = {.value = early[i]}, b = {.value = pixels[i]};
+
+        CHECK(abs(a.grba.r - b.grba.r) <= 1 && abs(a.grba.g - b.grba.g) <= 1 &&
+              abs(a.grba.b - b.grba.b) <= 1);
+    }
+
+    effects.time_s = 2.f * EFFECTS_DRIFT_PERIOD_S - HOP / 2.f;
+    effects_render(&effects, &features, pixels);
+    CHECK(effects.time_s >= 0.f);
+    CHECK(effects.time_s < HOP);
+
+    effects_deinit(&effects);
+}
+
 int main(void) {
     test_rejects_invalid();
     check_silence_is_dark(EFFECTS_SPECTRUM);
@@ -314,6 +349,7 @@ int main(void) {
     check_silence_is_dark(EFFECTS_RIPPLES);
     test_ripple_travels();
     test_sparkles_deterministic();
+    test_drift_clock_wraps();
     check_silence_is_dark(EFFECTS_VU);
     check_silence_is_dark(EFFECTS_GLOW);
     test_vu();

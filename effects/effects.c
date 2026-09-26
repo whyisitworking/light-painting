@@ -342,7 +342,12 @@ void effects_render(effects_t *this, const features_t *features,
     }
 
     this->flash *= this->flash_k;
+
+    // Wrapped where the drift repeats (two periods, for reflecting palettes
+    // too): a float growing forever loses precision and freezes after ~36 h
     this->time_s += this->hop_seconds;
+    if (EFFECTS_DRIFT_PERIOD_S > 0.f)
+        this->time_s = fmodf(this->time_s, 2.f * EFFECTS_DRIFT_PERIOD_S);
 }
 
 void effects_deinit(effects_t *this) {
