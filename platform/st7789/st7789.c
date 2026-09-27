@@ -54,8 +54,8 @@ typedef struct {
     uint8_t data[14];
 } command_t;
 
-// This panel's settings, sent in Sleep In after MADCTL. The power, voltage
-// and gamma values depend on the panel: Waveshare's, for this one
+// This panel's settings, sent after Sleep Out and MADCTL. The power,
+// voltage and gamma values depend on the panel: Waveshare's, for this one
 static const command_t panel_commands[] = {
     // 16 bits per pixel (datasheet: 55h to write 16-bit pixels)
     {COLMOD, 1, {0x55}},
