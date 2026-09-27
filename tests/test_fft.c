@@ -5,13 +5,13 @@
 #include <math.h>
 #include <stdlib.h>
 
-#define MAX_N 1024
+constexpr size_t MAX_N = 1024;
 
 // Float tolerances, ~15-30x the worst error measured against the double
 // precision reference (complex values grow with N, bins are normalized)
 #define FLOAT_VALUE_TOLERANCE(n) (5e-6 * sqrt((double)(n)))
-#define FLOAT_BIN_TOLERANCE 1e-6
-#define FLOAT_TONE_TOLERANCE 5e-6
+constexpr double FLOAT_BIN_TOLERANCE = 1e-6;
+constexpr double FLOAT_TONE_TOLERANCE = 5e-6;
 
 // Reference: O(N^2) DFT straight from the definition, in double precision
 static void naive_dft(const double complex *input, double complex *output,

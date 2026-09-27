@@ -10,9 +10,9 @@
 #include <stddef.h>
 
 // Log-spaced bands between FEATURES_LOW_HZ and FEATURES_HIGH_HZ
-#define FEATURES_BAND_COUNT 32
-#define FEATURES_LOW_HZ 60.f
-#define FEATURES_HIGH_HZ 12000.f
+constexpr size_t FEATURES_BAND_COUNT = 32;
+constexpr float FEATURES_LOW_HZ = 60.f;
+constexpr float FEATURES_HIGH_HZ = 12000.f;
 
 // Levels span FEATURES_RANGE_DB below an auto-gain ceiling that follows the
 // loudest band up at once, falls back slowly, and never goes below
@@ -23,13 +23,13 @@
 // each, so a quiet room is about -88 dB per bin. Keep that below the floor,
 // ceiling minus range = -77 dB, with 11 dB of margin for its fluctuations:
 // tune on hardware
-#define FEATURES_RANGE_DB 45.f
-#define FEATURES_CEILING_FALL_DB_PER_S 6.f
-#define FEATURES_MIN_CEILING_DB -32.f
+constexpr float FEATURES_RANGE_DB = 45.f;
+constexpr float FEATURES_CEILING_FALL_DB_PER_S = 6.f;
+constexpr float FEATURES_MIN_CEILING_DB = -32.f;
 
 // Per band smoothing time constants
-#define FEATURES_ATTACK_MS 10.f
-#define FEATURES_DECAY_MS 120.f
+constexpr float FEATURES_ATTACK_MS = 10.f;
+constexpr float FEATURES_DECAY_MS = 120.f;
 
 // A beat is a jump of the bass energy (bands up to FEATURES_BEAT_MAX_HZ).
 // The bass bands all come from the lowest ~2 bins, one noisy draw per hop,
@@ -40,12 +40,12 @@
 // FEATURES_BEAT_AVERAGE_MS and the bass is audible, its bands' mean
 // smoothed level above FEATURES_BEAT_MIN_LEVEL. At most one beat per
 // refractory time, and the energy must fall back below the trigger first
-#define FEATURES_BEAT_SMOOTH_MS 30.f
-#define FEATURES_BEAT_THRESHOLD 2.8f
-#define FEATURES_BEAT_AVERAGE_MS 1000.f
-#define FEATURES_BEAT_MIN_LEVEL 0.3f
-#define FEATURES_BEAT_REFRACTORY_MS 150.f
-#define FEATURES_BEAT_MAX_HZ 150.f
+constexpr float FEATURES_BEAT_SMOOTH_MS = 30.f;
+constexpr float FEATURES_BEAT_THRESHOLD = 2.8f;
+constexpr float FEATURES_BEAT_AVERAGE_MS = 1000.f;
+constexpr float FEATURES_BEAT_MIN_LEVEL = 0.3f;
+constexpr float FEATURES_BEAT_REFRACTORY_MS = 150.f;
+constexpr float FEATURES_BEAT_MAX_HZ = 150.f;
 
 // The sound of one hop, what the effects render from
 typedef struct {

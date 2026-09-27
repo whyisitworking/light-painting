@@ -3,7 +3,7 @@
 
 #include <math.h>
 
-#define TOLERANCE 1e-5
+constexpr double TOLERANCE = 1e-5;
 
 static void check_rgb(rgb_t actual, float r, float g, float b) {
     CHECK_NEAR(actual.r, r, TOLERANCE);

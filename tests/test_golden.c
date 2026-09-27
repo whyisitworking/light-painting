@@ -19,12 +19,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#define FFT_SIZE 512
-#define HOP 256
-#define FS 48828.125
-#define LEDS 300
-#define GAIN 1.5f
-#define HOPS 400
+constexpr size_t FFT_SIZE = 512;
+constexpr size_t HOP_SIZE = 256;
+constexpr double FS = 48828.125;
+constexpr size_t LEDS = 300;
+constexpr float GAIN = 1.5f;
+constexpr size_t HOPS = 400;
 
 // Recorded hashes, in effects_mode_t order
 static const uint32_t expected[EFFECTS_MODE_COUNT] = {
@@ -45,8 +45,8 @@ static uint32_t fnv1a(uint32_t hash, const void *data, size_t size) {
 
 // Noise, a 1 kHz tone swelling and fading, and 120 BPM 55 Hz kicks
 static void make_hop(int32_t *frames, size_t hop, uint32_t *noise) {
-    for (size_t i = 0; i < HOP; i++) {
-        double t = (double)(hop * HOP + i) / FS;
+    for (size_t i = 0; i < HOP_SIZE; i++) {
+        double t = (double)(hop * HOP_SIZE + i) / FS;
         double beat_t = fmod(t, 0.5);
         double swell = 0.5 + 0.5 * sin(2.0 * M_PI * 0.7 * t);
         double sample = 20000.0 * signal_noise(noise) +
@@ -59,7 +59,7 @@ static void make_hop(int32_t *frames, size_t hop, uint32_t *noise) {
 }
 
 static uint32_t run_mode(effects_mode_t mode) {
-    static int32_t frames[2 * HOP];
+    static int32_t frames[2 * HOP_SIZE];
     static uint32_t pixels[LEDS];
     visualizer_t visualizer;
     uint32_t noise = 12345, hash = 2166136261u;
@@ -68,7 +68,7 @@ static uint32_t run_mode(effects_mode_t mode) {
                           &(visualizer_config_t){
                               .sample_rate = (float)FS,
                               .fft_size = FFT_SIZE,
-                              .hop_size = HOP,
+                              .hop_size = HOP_SIZE,
                               .led_count = LEDS,
                               .gain = GAIN,
                               .mode = mode,

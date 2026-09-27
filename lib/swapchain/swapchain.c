@@ -1,9 +1,9 @@
 #include "swapchain.h"
 
 // The role of each slot of the buffers array
-#define PRODUCER_INDEX 0
-#define SHARED_INDEX 1
-#define CONSUMER_INDEX 2
+constexpr size_t PRODUCER_INDEX = 0;
+constexpr size_t SHARED_INDEX = 1;
+constexpr size_t CONSUMER_INDEX = 2;
 
 static inline void swap_slots(void *volatile slots[], size_t first,
                               size_t second) {

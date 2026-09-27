@@ -4,7 +4,7 @@
 
 #include <math.h>
 
-#define N 64
+constexpr size_t N = 64;
 
 // Stereo frames with a tone of the given 24-bit amplitudes at bin k0
 static void make_frames(int32_t *frames, size_t k0, double left_amplitude,

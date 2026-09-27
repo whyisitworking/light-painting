@@ -3,19 +3,19 @@
 #include "signals.h"
 #include "visualizer.h"
 
-#define FFT_SIZE 512
-#define HOP 256
-#define FS 48828.125
-#define LEDS 300
+constexpr size_t FFT_SIZE = 512;
+constexpr size_t HOP_SIZE = 256;
+constexpr double FS = 48828.125;
+constexpr size_t LEDS = 300;
 
-static int32_t frames[2 * HOP];
+static int32_t frames[2 * HOP_SIZE];
 static uint32_t pixels[LEDS];
 
 static visualizer_config_t config(effects_mode_t mode) {
     return (visualizer_config_t){
         .sample_rate = (float)FS,
         .fft_size = FFT_SIZE,
-        .hop_size = HOP,
+        .hop_size = HOP_SIZE,
         .led_count = LEDS,
         .gain = 1.5f,
         .mode = mode,
@@ -31,16 +31,16 @@ static unsigned brightness(uint32_t pixel) {
 
 // A tone of a 24-bit amplitude, 0 for silence, continuous across hops
 static void tone_hop(size_t hop, double hz, double amplitude) {
-    for (size_t i = 0; i < HOP; i++)
-        signal_put_mono(
-            frames, i,
-            amplitude * sin(2.0 * M_PI * hz * (double)(hop * HOP + i) / FS));
+    for (size_t i = 0; i < HOP_SIZE; i++)
+        signal_put_mono(frames, i,
+                        amplitude * sin(2.0 * M_PI * hz *
+                                        (double)(hop * HOP_SIZE + i) / FS));
 }
 
 // 55 Hz kicks decaying over 40 ms, one per period
 static void kick_hop(size_t hop, double period_s) {
-    for (size_t i = 0; i < HOP; i++) {
-        double t = fmod((double)(hop * HOP + i) / FS, period_s);
+    for (size_t i = 0; i < HOP_SIZE; i++) {
+        double t = fmod((double)(hop * HOP_SIZE + i) / FS, period_s);
 
         signal_put_mono(frames, i,
                         600000.0 * exp(-t / 0.04) * sin(2.0 * M_PI * 55.0 * t));
@@ -119,7 +119,7 @@ static void test_tone_lights_its_position(void) {
 static void test_kicks_give_beats(void) {
     visualizer_t visualizer;
     visualizer_config_t ripples = config(EFFECTS_MODE_RIPPLES);
-    const size_t hops = (size_t)(4.0 * FS / HOP);
+    const size_t hops = (size_t)(4.0 * FS / HOP_SIZE);
     unsigned beats = 0;
 
     CHECK(visualizer_init(&visualizer, &ripples));

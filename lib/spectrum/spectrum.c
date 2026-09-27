@@ -6,11 +6,11 @@
 #include <string.h>
 
 // INMP441 samples are 24-bit two's complement, full scale 2^23 - 1
-#define SPECTRUM_FULL_SCALE ((float)(1 << 23))
+constexpr float SPECTRUM_FULL_SCALE = 1 << 23;
 
 // The INMP441 sensitivity is -26 dBFS at 94 dB SPL: loud sound peaks around
 // 0.05 of full scale. Boost it 8x, i.e. scale samples by 2^20 instead of 2^23
-#define SPECTRUM_INPUT_GAIN 8.f
+constexpr float SPECTRUM_INPUT_GAIN = 8.f;
 
 // Sine window: sin(pi * i / count), 0 at the start, 1 in the middle. The
 // ends of the analysis fade out, so a tone that does not fit a whole number

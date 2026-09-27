@@ -5,9 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define LEDS 300
-#define BANDS FEATURES_BAND_COUNT
-#define HOP (256.f / 48828.125f)
+constexpr size_t LEDS = 300;
+constexpr size_t BANDS = FEATURES_BAND_COUNT;
+constexpr float HOP_PERIOD_S = 256.f / 48828.125f;
 
 static float bands[BANDS];
 static uint32_t pixels[LEDS];
@@ -42,8 +42,8 @@ static bool all_dark(void) {
 static void test_rejects_invalid(void) {
     effects_t effects;
 
-    CHECK(!effects_init(&effects, 1, BANDS, HOP, 1));
-    CHECK(!effects_init(&effects, LEDS, 1, HOP, 1));
+    CHECK(!effects_init(&effects, 1, BANDS, HOP_PERIOD_S, 1));
+    CHECK(!effects_init(&effects, LEDS, 1, HOP_PERIOD_S, 1));
     CHECK(!effects_init(&effects, LEDS, BANDS, 0.f, 1));
 }
 
@@ -51,7 +51,7 @@ static void check_silence_is_dark(effects_mode_t mode) {
     effects_t effects;
     sound_t sound = quiet();
 
-    CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
     effects_set_mode(&effects, mode);
 
     for (int frame = 0; frame < 50; frame++)
@@ -65,7 +65,7 @@ static void test_spectrum_band_position(void) {
     effects_t effects;
     sound_t sound = quiet();
 
-    CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
     effects_set_mode(&effects, EFFECTS_MODE_SPECTRUM);
 
     // Band 20 of 32 lands at 20 / 31 of the strip
@@ -81,7 +81,7 @@ static void test_mirrored_spectrum_band_position(void) {
     sound_t sound = quiet();
     size_t half = LEDS / 2;
 
-    CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
     effects_set_mode(&effects, EFFECTS_MODE_SPECTRUM_MIRRORED);
 
     bands[20] = 1.f;
@@ -102,7 +102,7 @@ static void test_beat_flash(void) {
     sound_t sound = quiet();
     unsigned first;
 
-    CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
     effects_set_mode(&effects, EFFECTS_MODE_SPECTRUM);
 
     sound.beat = true;
@@ -142,12 +142,12 @@ static void test_beat_flash_saturates(void) {
     for (size_t b = 0; b < BANDS; b++)
         bands[b] = 1.f;
 
-    CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
     effects_set_mode(&effects, EFFECTS_MODE_SPECTRUM);
     effects_render(&effects, &sound, plain);
     effects_deinit(&effects);
 
-    CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
     effects_set_mode(&effects, EFFECTS_MODE_SPECTRUM);
     sound.beat = true;
     sound.beat_strength = 1.f;
@@ -175,7 +175,7 @@ static void test_river_flows_outward(void) {
     effects_t effects;
     sound_t sound = quiet();
 
-    CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
     effects_set_mode(&effects, EFFECTS_MODE_RIVER);
 
     sound.loudness = 1.f;
@@ -200,7 +200,7 @@ static void test_ripple_travels(void) {
     effects_t effects;
     sound_t sound = quiet();
 
-    CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
     effects_set_mode(&effects, EFFECTS_MODE_RIPPLES);
 
     sound.beat = true;
@@ -227,8 +227,8 @@ static void test_sparkles_deterministic(void) {
     for (size_t band = BANDS * 3 / 4; band < BANDS; band++)
         bands[band] = 1.f;
 
-    CHECK(effects_init(&a, LEDS, BANDS, HOP, 7));
-    CHECK(effects_init(&b, LEDS, BANDS, HOP, 7));
+    CHECK(effects_init(&a, LEDS, BANDS, HOP_PERIOD_S, 7));
+    CHECK(effects_init(&b, LEDS, BANDS, HOP_PERIOD_S, 7));
     effects_set_mode(&a, EFFECTS_MODE_RIPPLES);
     effects_set_mode(&b, EFFECTS_MODE_RIPPLES);
 
@@ -252,7 +252,7 @@ static void test_vu(void) {
     sound_t sound = quiet();
     size_t half = LEDS / 2, length = half / 2;
 
-    CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
     effects_set_mode(&effects, EFFECTS_MODE_VU);
 
     sound.loudness = 0.5f;
@@ -289,7 +289,7 @@ static void test_glow_follows_bass(void) {
     effects_t effects;
     sound_t sound = quiet();
 
-    CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
     effects_set_mode(&effects, EFFECTS_MODE_GLOW);
 
     for (size_t band = 0; band < EFFECTS_BASS_BANDS; band++)
@@ -313,7 +313,7 @@ static void test_drift_clock_wraps(void) {
     for (size_t b = 0; b < BANDS; b++)
         bands[b] = 1.f;
 
-    CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
     effects_set_mode(&effects, EFFECTS_MODE_SPECTRUM);
     effects.time_s = 10.f;
     effects_render(&effects, &sound, early);
@@ -328,10 +328,10 @@ static void test_drift_clock_wraps(void) {
               abs(a.grba.b - b.grba.b) <= 1);
     }
 
-    effects.time_s = 2.f * EFFECTS_DRIFT_PERIOD_S - HOP / 2.f;
+    effects.time_s = 2.f * EFFECTS_DRIFT_PERIOD_S - HOP_PERIOD_S / 2.f;
     effects_render(&effects, &sound, pixels);
     CHECK(effects.time_s >= 0.f);
-    CHECK(effects.time_s < HOP);
+    CHECK(effects.time_s < HOP_PERIOD_S);
 
     effects_deinit(&effects);
 }

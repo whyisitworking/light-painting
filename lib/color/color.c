@@ -3,7 +3,7 @@
 #include <math.h>
 #include <stdbool.h>
 
-#define GAMMA 2.2f
+constexpr float GAMMA = 2.2f;
 
 uint8_t color_gamma(float value) {
     static uint8_t table[256];

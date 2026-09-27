@@ -5,15 +5,20 @@
  * Build time configuration: the board wiring and the visualizer settings
  */
 
+#include "effects.h"
+
+#include <stddef.h>
+#include <stdint.h>
+
 // Each analysis covers the last AUDIO_FFT_SIZE mono samples and runs every
 // AUDIO_HOP_SIZE new ones. At fs = 48828 Hz, 512 / 256:
 //   window 10.5 ms, bin width fs / size = 95 Hz, a new analysis every 5.2 ms
 // Larger sizes resolve lower frequencies, smaller ones react faster
-#define AUDIO_FFT_SIZE 512
-#define AUDIO_HOP_SIZE 256
+constexpr size_t AUDIO_FFT_SIZE = 512;
+constexpr size_t AUDIO_HOP_SIZE = 256;
 
 // One mono sample per stereo frame: a left and a right word
-#define AUDIO_WORDS_PER_FRAME 2
+constexpr size_t AUDIO_WORDS_PER_FRAME = 2;
 
 _Static_assert(AUDIO_FFT_SIZE >= 4 &&
                    (AUDIO_FFT_SIZE & (AUDIO_FFT_SIZE - 1)) == 0,
@@ -26,24 +31,27 @@ _Static_assert((AUDIO_HOP_SIZE & (AUDIO_HOP_SIZE - 1)) == 0 &&
                    AUDIO_HOP_SIZE <= 2048,
                "AUDIO_HOP_SIZE must be a power of two, at most 2048");
 
-#define LED_COUNT 300
+constexpr size_t LED_COUNT = 300;
 
 // Pico 2 header pins, SCK and WS must be consecutive
-#define MIC_SCK_PIN 26
-#define MIC_WS_PIN 27
-#define MIC_DATA_PIN 28
+constexpr unsigned MIC_SCK_PIN = 26;
+constexpr unsigned MIC_WS_PIN = 27;
+constexpr unsigned MIC_DATA_PIN = 28;
 
-#define LED_DATA_PIN 8
+_Static_assert(MIC_WS_PIN == MIC_SCK_PIN + 1,
+               "MIC_WS_PIN must follow MIC_SCK_PIN, one side-set drives both");
+
+constexpr unsigned LED_DATA_PIN = 8;
 
 // Visualizer look, see lib/effects/effects.h and lib/effects/palette.h
-#define VISUALIZER_MODE EFFECTS_MODE_RIVER
-#define VISUALIZER_PALETTE PALETTE_SYNTHWAVE
+constexpr effects_mode_t VISUALIZER_MODE = EFFECTS_MODE_RIVER;
+constexpr palette_t VISUALIZER_PALETTE = PALETTE_SYNTHWAVE;
 
 // On top of the microphone's SPECTRUM_INPUT_GAIN, x12 in total: the features'
 // FEATURES_MIN_CEILING_DB is tuned for it
-#define VISUALIZER_GAIN 1.5f
+constexpr float VISUALIZER_GAIN = 1.5f;
 
 // Sparkle pattern, renders are deterministic for a seed
-#define VISUALIZER_SEED 1
+constexpr uint32_t VISUALIZER_SEED = 1;
 
 #endif

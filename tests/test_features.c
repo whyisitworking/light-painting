@@ -4,10 +4,10 @@
 #include <math.h>
 #include <stdint.h>
 
-#define BINS 256
-#define FS 48828.125f
-#define BIN_HZ (FS / 512.f)
-#define HOP (256.f / FS)
+constexpr size_t BINS = 256;
+constexpr float FS = 48828.125f;
+constexpr float BIN_HZ = FS / 512.f;
+constexpr float HOP_PERIOD_S = 256.f / FS;
 
 static float bins[BINS];
 static uint32_t random_state = 1;
@@ -54,8 +54,8 @@ static size_t loudest_band(const sound_t *sound) {
 static void test_rejects_invalid(void) {
     features_t features;
 
-    CHECK(!features_init(&features, 1, BIN_HZ, HOP));
-    CHECK(!features_init(&features, BINS, 0.f, HOP));
+    CHECK(!features_init(&features, 1, BIN_HZ, HOP_PERIOD_S));
+    CHECK(!features_init(&features, BINS, 0.f, HOP_PERIOD_S));
     CHECK(!features_init(&features, BINS, BIN_HZ, 0.f));
 }
 
@@ -63,7 +63,7 @@ static void test_tone_lands_in_its_band(void) {
     features_t features;
     const sound_t *sound = NULL;
 
-    CHECK(features_init(&features, BINS, BIN_HZ, HOP));
+    CHECK(features_init(&features, BINS, BIN_HZ, HOP_PERIOD_S));
 
     fill(1e-6f);
     bins[10] = 0.1f;
@@ -80,7 +80,7 @@ static void test_silence_stays_dark(void) {
     features_t features;
     const sound_t *sound = NULL;
 
-    CHECK(features_init(&features, BINS, BIN_HZ, HOP));
+    CHECK(features_init(&features, BINS, BIN_HZ, HOP_PERIOD_S));
 
     fill(0.f);
     for (int i = 0; i < 500; i++)
@@ -102,15 +102,15 @@ static void test_microphone_noise_stays_dark(void) {
     float brightest = 0.f;
     int beats = 0;
 
-    CHECK(features_init(&features, BINS, BIN_HZ, HOP));
+    CHECK(features_init(&features, BINS, BIN_HZ, HOP_PERIOD_S));
 
-    for (int n = 0; n * HOP < 22.f; n++) {
+    for (int n = 0; n * HOP_PERIOD_S < 22.f; n++) {
         const sound_t *sound;
 
         fill_noise(-88.f);
         sound = features_update(&features, bins);
 
-        if (n * HOP < 2.f)
+        if (n * HOP_PERIOD_S < 2.f)
             continue;
 
         if (sound->beat)
@@ -133,7 +133,7 @@ static void test_auto_gain(void) {
     const sound_t *sound = NULL;
     size_t band;
 
-    CHECK(features_init(&features, BINS, BIN_HZ, HOP));
+    CHECK(features_init(&features, BINS, BIN_HZ, HOP_PERIOD_S));
     band = band_of(&features, 10 * BIN_HZ);
 
     fill(1e-6f);
@@ -155,7 +155,7 @@ static void test_attack_faster_than_decay(void) {
     const sound_t *sound;
     size_t band;
 
-    CHECK(features_init(&features, BINS, BIN_HZ, HOP));
+    CHECK(features_init(&features, BINS, BIN_HZ, HOP_PERIOD_S));
     band = band_of(&features, 10 * BIN_HZ);
 
     fill(1e-6f);
@@ -177,7 +177,7 @@ static void test_loudness_and_centroid(void) {
     features_t features;
     const sound_t *sound = NULL;
 
-    CHECK(features_init(&features, BINS, BIN_HZ, HOP));
+    CHECK(features_init(&features, BINS, BIN_HZ, HOP_PERIOD_S));
 
     // Energy only low: centroid near 0; only high: near 1
     fill(1e-6f);
@@ -203,10 +203,10 @@ static void test_beat_per_kick(void) {
         features_t features;
         int beats = 0;
 
-        CHECK(features_init(&features, BINS, BIN_HZ, HOP));
+        CHECK(features_init(&features, BINS, BIN_HZ, HOP_PERIOD_S));
 
-        for (int n = 0; n * HOP < 5.f; n++) {
-            float t = n * HOP, since_kick = fmodf(t, 0.5f);
+        for (int n = 0; n * HOP_PERIOD_S < 5.f; n++) {
+            float t = n * HOP_PERIOD_S, since_kick = fmodf(t, 0.5f);
             const sound_t *sound;
 
             if (noisy)
@@ -240,11 +240,12 @@ static void test_no_beat_on_noise(void) {
         features_t features;
         int beats = 0;
 
-        CHECK(features_init(&features, BINS, BIN_HZ, HOP));
+        CHECK(features_init(&features, BINS, BIN_HZ, HOP_PERIOD_S));
 
-        for (int n = 0; n * HOP < 22.f; n++) {
+        for (int n = 0; n * HOP_PERIOD_S < 22.f; n++) {
             fill_noise(levels_db[l]);
-            if (features_update(&features, bins)->beat && n * HOP >= 2.f)
+            if (features_update(&features, bins)->beat &&
+                n * HOP_PERIOD_S >= 2.f)
                 beats++;
         }
 
@@ -262,18 +263,18 @@ static void test_no_beat_without_onsets(void) {
     features_t features;
     int beats = 0;
 
-    CHECK(features_init(&features, BINS, BIN_HZ, HOP));
+    CHECK(features_init(&features, BINS, BIN_HZ, HOP_PERIOD_S));
 
     fill(1e-5f);
     bins[1] = 0.3f;
-    for (int n = 0; n * HOP < 5.f; n++)
-        if (features_update(&features, bins)->beat && n * HOP >= 2.f)
+    for (int n = 0; n * HOP_PERIOD_S < 5.f; n++)
+        if (features_update(&features, bins)->beat && n * HOP_PERIOD_S >= 2.f)
             beats++;
     CHECK(beats == 0);
 
     features_deinit(&features);
 
-    CHECK(features_init(&features, BINS, BIN_HZ, HOP));
+    CHECK(features_init(&features, BINS, BIN_HZ, HOP_PERIOD_S));
 
     fill(0.f);
     for (int n = 0; n < 1000; n++)

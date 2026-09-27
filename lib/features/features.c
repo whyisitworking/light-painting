@@ -9,7 +9,7 @@
  */
 
 // Added to band powers so silence has a finite dB value
-#define SILENCE_POWER 1e-12f
+constexpr float SILENCE_POWER = 1e-12f;
 
 // Fraction of the way to the target per hop for a time constant
 static float smoothing_factor(float hop_period_s, float time_constant_ms) {

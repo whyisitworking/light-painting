@@ -16,7 +16,7 @@
 #include <stdlib.h>
 
 // A producer, a shared and a consumer buffer
-#define SWAPCHAIN_BUFFER_COUNT 3
+constexpr size_t SWAPCHAIN_BUFFER_COUNT = 3;
 
 typedef struct {
     // This amazing quote by Herb Sutter guarantees correct alignment for

@@ -15,33 +15,33 @@
 #include <stdint.h>
 
 // River: LEDs the history moves outward per frame
-#define EFFECTS_RIVER_SPEED 1
+constexpr size_t EFFECTS_RIVER_SPEED = 1;
 
 // Ripples: LEDs a pulse travels per frame, pulses alive at once
-#define EFFECTS_RIPPLE_SPEED 2.f
-#define EFFECTS_RIPPLE_MAX_PULSES 8
+constexpr float EFFECTS_RIPPLE_SPEED = 2.f;
+constexpr size_t EFFECTS_RIPPLE_MAX_PULSES = 8;
 
 // VU: peak dot hold time, then LEDs it falls per frame
-#define EFFECTS_PEAK_HOLD_MS 300.f
-#define EFFECTS_PEAK_FALL 1.f
+constexpr float EFFECTS_PEAK_HOLD_MS = 300.f;
+constexpr float EFFECTS_PEAK_FALL = 1.f;
 
 // Palette rotation period, 0 disables
-#define EFFECTS_DRIFT_PERIOD_S 60.f
+constexpr float EFFECTS_DRIFT_PERIOD_S = 60.f;
 
 // Palette shift towards its end at full loudness, 0 disables
-#define EFFECTS_WARMTH 0.25f
+constexpr float EFFECTS_WARMTH = 0.25f;
 
 // White added on a beat of full strength, and its fade time constant
-#define EFFECTS_FLASH_LEVEL 0.35f
-#define EFFECTS_FLASH_MS 80.f
+constexpr float EFFECTS_FLASH_LEVEL = 0.35f;
+constexpr float EFFECTS_FLASH_MS = 80.f;
 
 // Sparkles: chance per LED per frame at full treble, and fade per frame
-#define EFFECTS_SPARKLE_RATE 0.03f
-#define EFFECTS_SPARKLE_DECAY 0.8f
+constexpr float EFFECTS_SPARKLE_RATE = 0.03f;
+constexpr float EFFECTS_SPARKLE_DECAY = 0.8f;
 
 // Bands counted as bass (glow), and the top fraction counted as treble
-#define EFFECTS_BASS_BANDS 5
-#define EFFECTS_TREBLE_FRACTION 0.25f
+constexpr size_t EFFECTS_BASS_BANDS = 5;
+constexpr float EFFECTS_TREBLE_FRACTION = 0.25f;
 
 // What the strip shows, see the README for each mode
 typedef enum {
