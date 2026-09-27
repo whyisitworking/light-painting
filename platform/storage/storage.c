@@ -66,9 +66,17 @@ bool storage_erase(size_t offset) {
                               UINT32_MAX) == PICO_OK;
 }
 
+// Whether data lies in the flash, as mapped for reading
+static bool is_in_flash(const uint8_t *data, size_t size) {
+    uintptr_t start = (uintptr_t)data;
+
+    return start < XIP_BASE + PICO_FLASH_SIZE_BYTES &&
+           start + size > XIP_BASE;
+}
+
 bool storage_program(size_t offset, const uint8_t *data, size_t size) {
     if (!can_write(offset, size) || offset % FLASH_PAGE_SIZE != 0 ||
-        size % FLASH_PAGE_SIZE != 0)
+        size % FLASH_PAGE_SIZE != 0 || is_in_flash(data, size))
         return false;
 
     return flash_safe_execute(program,

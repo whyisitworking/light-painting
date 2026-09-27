@@ -8,7 +8,11 @@
  * Erasing (45 to 400 ms per sector) and programming take the flash away
  * from everything that reads it. The firmware runs from RAM (copy_to_ram)
  * and core 0 never reads the flash: only core 1, the one writing, stops,
- * with its interrupts masked meanwhile. So writes are refused on core 0
+ * with its interrupts masked meanwhile. So writes are refused on core 0.
+ *
+ * What stays in flash is the boot code and the default handlers of faults
+ * and unhandled interrupts: a core 0 already failing during a write would
+ * lock up there rather than reach its fault handler
  */
 
 #include <stddef.h>
@@ -29,8 +33,9 @@ const uint8_t *storage_data(void);
 
 /**
  * Programs size bytes, a whole number of pages, at a page offset in the
- * region. Bits can only be cleared: the pages must have been erased. False
- * on core 0, or out of the region
+ * region. Bits can only be cleared: the pages must have been erased. data
+ * must be in RAM, the flash cannot be read while it is programmed. False
+ * on core 0, out of the region, or for data in flash
  */
 [[nodiscard]] bool storage_program(size_t offset, const uint8_t *data,
                                    size_t size);
