@@ -300,7 +300,7 @@ cmake --build build-sanitize && ctest --test-dir build-sanitize --output-on-fail
 
 ### Continuous integration
 
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push and pull request: the host tests and the same tests under the sanitizers on macOS, where the golden hashes were recorded, and the firmware build on Linux with the pinned Arm toolchain and Pico SDK. The firmware (`.uf2` and `.elf`) is attached to each run as an artifact.
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push and pull request: the host tests on macOS, where the golden hashes were recorded, and on Linux with glibc and GCC, the same tests under the sanitizers, and the firmware build with the pinned Arm toolchain and Pico SDK. The firmware (`.uf2` and `.elf`) is attached to each run as an artifact.
 
 ### Profiling
 

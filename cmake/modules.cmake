@@ -22,13 +22,17 @@ endif()
 # A static library of the sources in the calling directory, which is also its
 # public include directory. OPTIONS are extra compile flags for its sources,
 # MATH links libm on the host (the firmware toolchain provides it)
+#
+# The include directory is for quoted includes only (-iquote, not -I): a
+# module header named like a system one must not shadow it, as features.h
+# would shadow glibc's <features.h>, which <math.h> includes
 function(lp_add_module name)
     cmake_parse_arguments(PARSE_ARGV 1 ARG "MATH" "" "SOURCES;DEPS;OPTIONS")
 
     list(TRANSFORM ARG_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
 
     add_library(${name} STATIC ${ARG_SOURCES})
-    target_include_directories(${name} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+    target_compile_options(${name} PUBLIC -iquote${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(${name} PUBLIC ${ARG_DEPS})
     set_source_files_properties(${ARG_SOURCES}
         PROPERTIES COMPILE_OPTIONS "${PROJECT_WARNINGS};${ARG_OPTIONS}")

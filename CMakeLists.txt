@@ -57,9 +57,10 @@ set(APP_SOURCES
 target_sources(light-painting PRIVATE ${APP_SOURCES})
 set_source_files_properties(${APP_SOURCES}
     PROPERTIES COMPILE_OPTIONS "${PROJECT_WARNINGS}")
-target_include_directories(light-painting
+# Quoted includes only, like the modules (see lp_add_module)
+target_compile_options(light-painting
     PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/app)
+        -iquote${CMAKE_CURRENT_SOURCE_DIR}/app)
 target_link_libraries(light-painting
     PRIVATE
         i2s
