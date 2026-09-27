@@ -2,7 +2,14 @@
 
 #include "storage.h"
 
+#include <hardware/flash.h>
 #include <string.h>
+
+// One erase clears one block of the log, and records are whole pages
+static_assert(SETTINGS_LOG_BLOCK_SIZE == FLASH_SECTOR_SIZE,
+              "a log block must be one flash sector");
+static_assert(SETTINGS_RECORD_SIZE % FLASH_PAGE_SIZE == 0,
+              "a record must be whole flash pages");
 
 bool persist_init(void) { return storage_init(SETTINGS_LOG_SIZE); }
 
