@@ -259,8 +259,17 @@ static void show_value(lv_obj_t *row_obj) {
 
 static void open_async(void *page) { show((page_t)(uintptr_t)page); }
 
-// Screens change after the key's events are done with the current one
+/**
+ * Screens change after the key's events are done with the current one. The
+ * key is ignored until released: held on, it would go on repeating into the
+ * next screen, and right held on a page's row change its first setting
+ */
 static void open(page_t page) {
+    lv_indev_t *keypad = lv_indev_active();
+
+    if (keypad != nullptr)
+        lv_indev_wait_release(keypad);
+
     lv_async_call(open_async, (void *)(uintptr_t)page);
 }
 
