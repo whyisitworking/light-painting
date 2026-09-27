@@ -54,7 +54,7 @@ static void make_hop(int32_t *frames, size_t hop, uint32_t *noise) {
                         600000.0 * exp(-beat_t / 0.04) *
                             sin(2.0 * M_PI * 55.0 * beat_t);
 
-        i2s_put_mono(frames, i, sample);
+        signal_put_mono(frames, i, sample);
     }
 }
 

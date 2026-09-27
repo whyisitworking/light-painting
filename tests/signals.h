@@ -1,5 +1,5 @@
-#ifndef SIGNALS_H
-#define SIGNALS_H
+#ifndef TESTS_SIGNALS_H
+#define TESTS_SIGNALS_H
 
 /**
  * Test signals as the I2S driver delivers them: stereo frames of 32-bit
@@ -11,13 +11,14 @@
 #include <stdint.h>
 
 // The I2S word of a 24-bit sample: one delay bit, 24 data bits, 7 unused
-static inline int32_t i2s_word(int32_t sample) {
+static inline int32_t signal_i2s_word(int32_t sample) {
     return (int32_t)((uint32_t)sample << 7);
 }
 
 // The same 24-bit sample on both microphones
-static inline void i2s_put_mono(int32_t *frames, size_t frame, double sample) {
-    int32_t word = i2s_word((int32_t)lround(sample));
+static inline void signal_put_mono(int32_t *frames, size_t frame,
+                                   double sample) {
+    int32_t word = signal_i2s_word((int32_t)lround(sample));
 
     frames[2 * frame] = word;
     frames[2 * frame + 1] = word;

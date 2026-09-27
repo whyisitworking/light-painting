@@ -1,5 +1,5 @@
-#ifndef PERF_H
-#define PERF_H
+#ifndef APP_PERF_H
+#define APP_PERF_H
 
 /**
  * Opt-in performance statistics, built with -DPERF_STATS=ON: the main loop

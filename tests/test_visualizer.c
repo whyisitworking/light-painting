@@ -32,9 +32,9 @@ static unsigned brightness(uint32_t pixel) {
 // A tone of a 24-bit amplitude, 0 for silence, continuous across hops
 static void tone_hop(size_t hop, double hz, double amplitude) {
     for (size_t i = 0; i < HOP; i++)
-        i2s_put_mono(frames, i,
-                     amplitude * sin(2.0 * M_PI * hz *
-                                     (double)(hop * HOP + i) / FS));
+        signal_put_mono(
+            frames, i,
+            amplitude * sin(2.0 * M_PI * hz * (double)(hop * HOP + i) / FS));
 }
 
 // 55 Hz kicks decaying over 40 ms, one per period
@@ -42,8 +42,8 @@ static void kick_hop(size_t hop, double period_s) {
     for (size_t i = 0; i < HOP; i++) {
         double t = fmod((double)(hop * HOP + i) / FS, period_s);
 
-        i2s_put_mono(frames, i,
-                     600000.0 * exp(-t / 0.04) * sin(2.0 * M_PI * 55.0 * t));
+        signal_put_mono(frames, i,
+                        600000.0 * exp(-t / 0.04) * sin(2.0 * M_PI * 55.0 * t));
     }
 }
 

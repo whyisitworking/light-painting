@@ -12,8 +12,10 @@ static void make_frames(int32_t *frames, size_t k0, double left_amplitude,
     for (size_t i = 0; i < N; i++) {
         double phase = cos(2.0 * M_PI * k0 * i / N);
 
-        frames[2 * i] = i2s_word((int32_t)lround(left_amplitude * phase));
-        frames[2 * i + 1] = i2s_word((int32_t)lround(right_amplitude * phase));
+        frames[2 * i] =
+            signal_i2s_word((int32_t)lround(left_amplitude * phase));
+        frames[2 * i + 1] =
+            signal_i2s_word((int32_t)lround(right_amplitude * phase));
     }
 }
 
@@ -107,8 +109,8 @@ static void test_history_overlaps(void) {
     for (int feed = 1; feed <= 6; feed++) {
         // A ramp: sample value tells its age
         for (size_t i = 0; i < hop; i++, next++) {
-            frames[2 * i] = i2s_word(next);
-            frames[2 * i + 1] = i2s_word(next);
+            frames[2 * i] = signal_i2s_word(next);
+            frames[2 * i + 1] = signal_i2s_word(next);
         }
 
         spectrum_feed_i2s(&spectrum, frames);

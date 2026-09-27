@@ -1,5 +1,5 @@
-#ifndef CHECK_H
-#define CHECK_H
+#ifndef TESTS_CHECK_H
+#define TESTS_CHECK_H
 
 /**
  * Minimal assertion helpers for the host-side unit tests.
