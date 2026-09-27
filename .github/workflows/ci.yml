@@ -80,7 +80,10 @@ jobs:
     name: Firmware
     runs-on: ubuntu-latest
     steps:
+      # LVGL, for the menu, is a submodule (shallow, see .gitmodules)
       - uses: actions/checkout@v7
+        with:
+          submodules: true
 
       - name: Cache the Arm toolchain and the Pico SDK
         id: cache

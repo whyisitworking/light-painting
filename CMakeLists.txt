@@ -61,6 +61,20 @@ add_executable(light-painting)
 add_subdirectory(lib)
 add_subdirectory(platform)
 
+# LVGL for the menu on core 1, a git submodule pinned to v9.6.0. Its options
+# are forced into the cache: under the old policies of LVGL's own
+# cmake_minimum_required(), a plain variable would not override them.
+# Neither its examples, demos nor ThorVG (vector graphics, C++) are needed
+set(LV_BUILD_CONF_PATH ${CMAKE_CURRENT_SOURCE_DIR}/app/ui/lv_conf.h
+    CACHE PATH "lv_conf.h" FORCE)
+set(CONFIG_LV_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(CONFIG_LV_BUILD_DEMOS OFF CACHE BOOL "" FORCE)
+set(CONFIG_LV_USE_THORVG OFF CACHE BOOL "" FORCE)
+# Its headers are system headers to us: our warnings do not apply to them
+add_subdirectory(third_party/lvgl SYSTEM)
+# C11, the standard LVGL is tested with, rather than our C23
+set_target_properties(lvgl PROPERTIES C_STANDARD 11)
+
 set(APP_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/app/main.c
     ${CMAKE_CURRENT_SOURCE_DIR}/app/perf.c)
