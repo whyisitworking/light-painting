@@ -17,6 +17,9 @@ constexpr int32_t ROW_HEIGHT = 28;
 // How often the idle time is checked
 constexpr uint32_t IDLE_CHECK_MS = 1000;
 
+// A second press within this long confirms a reset
+constexpr uint32_t CONFIRM_MS = 3000;
+
 // How a setting's stored value reads
 typedef enum {
     FORMAT_MODE,
@@ -45,8 +48,9 @@ typedef enum {
     PAGE_COUNT
 } page_t;
 
-// A row of a page: back to its parent, to another page, or a setting
-typedef enum { ROW_BACK, ROW_PAGE, ROW_SETTING } row_kind_t;
+// A row of a page: back to its parent, to another page, a setting, or the
+// reset to defaults
+typedef enum { ROW_BACK, ROW_PAGE, ROW_SETTING, ROW_RESET } row_kind_t;
 
 typedef struct {
     row_kind_t kind;
@@ -146,6 +150,7 @@ static const row_t system_rows[] = {
      .name = "Screen",
      .id = SETTINGS_BACKLIGHT,
      .format = FORMAT_PERCENT},
+    {.kind = ROW_RESET, .name = "Reset to defaults"},
 };
 
 static const page_def_t pages[PAGE_COUNT] = {
@@ -188,6 +193,9 @@ static struct {
     ui_menu_changed_t *changed;
     page_t page;
     const char *note;
+    // Whether the reset waits for its second press, since when
+    bool reset_armed;
+    uint32_t reset_armed_ms;
 } menu;
 
 static void show(page_t page);
@@ -258,6 +266,36 @@ static void open(page_t page) {
 
 static void back(void) { open(pages[menu.page].parent); }
 
+// Every setting row of the screen shows its value again
+static void show_values(lv_obj_t *screen) {
+    for (uint32_t i = 0; i < lv_obj_get_child_count(screen); i++) {
+        lv_obj_t *row_obj = lv_obj_get_child(screen, i);
+        const row_t *row = lv_obj_get_user_data(row_obj);
+
+        if (row != nullptr && row->kind == ROW_SETTING)
+            show_value(row_obj);
+    }
+}
+
+// The first press asks for a second, which resets every setting
+static void reset(lv_obj_t *row_obj) {
+    lv_obj_t *label = lv_obj_get_child(row_obj, 1);
+
+    if (!menu.reset_armed ||
+        lv_tick_elaps(menu.reset_armed_ms) > CONFIRM_MS) {
+        menu.reset_armed = true;
+        menu.reset_armed_ms = lv_tick_get();
+        lv_label_set_text(label, "Press again");
+        return;
+    }
+
+    menu.reset_armed = false;
+    settings_reset(menu.settings);
+    menu.changed(menu.settings, SETTINGS_ID_COUNT);
+    show_values(lv_obj_get_parent(row_obj));
+    lv_label_set_text(label, "Done");
+}
+
 static void change(lv_obj_t *row_obj, const row_t *row, int steps) {
     if (!settings_step(menu.settings, row->id, steps))
         return;
@@ -288,6 +326,8 @@ static void row_event(lv_event_t *event) {
             back();
         else if (row->kind == ROW_PAGE)
             open(row->page);
+        else if (row->kind == ROW_RESET)
+            reset(row_obj);
         break;
     case LV_EVENT_LONG_PRESSED:
         back();
@@ -296,6 +336,11 @@ static void row_event(lv_event_t *event) {
     case LV_EVENT_DEFOCUSED:
         if (row->kind == ROW_SETTING)
             show_value(row_obj);
+        // Leaving the row cancels a reset waiting for its second press
+        if (row->kind == ROW_RESET) {
+            menu.reset_armed = false;
+            lv_label_set_text(lv_obj_get_child(row_obj, 1), "");
+        }
         break;
     default:
         break;
@@ -354,6 +399,8 @@ static lv_obj_t *page_create(page_t page, page_t from) {
         if (row->kind == ROW_SETTING) {
             lv_label_create(row_obj);
             show_value(row_obj);
+        } else if (row->kind == ROW_RESET) {
+            lv_label_set_text(lv_label_create(row_obj), "");
         } else {
             lv_obj_t *arrow = lv_label_create(row_obj);
             lv_label_set_text(arrow, LV_SYMBOL_RIGHT);

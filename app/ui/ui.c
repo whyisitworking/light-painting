@@ -30,21 +30,22 @@ static uint32_t save_at_ms;
 
 static uint32_t now_ms(void) { return to_ms_since_boot(get_absolute_time()); }
 
-// After each change in the menu: the backlight here, the rest on core 0
+// After each change in the menu: the backlight here, the rest on core 0.
+// SETTINGS_ID_COUNT: all of them
 static void changed(const settings_t *changed_settings, settings_id_t id) {
     visualizer_tuning_t tuning;
 
     save_pending = true;
     save_at_ms = now_ms() + UI_SAVE_DELAY_MS;
 
-    if (id == SETTINGS_BACKLIGHT) {
+    if (id == SETTINGS_BACKLIGHT || id == SETTINGS_ID_COUNT)
         st7789_set_backlight(
             settings_value(changed_settings, SETTINGS_BACKLIGHT));
-        return;
-    }
 
-    tuning = settings_tuning(changed_settings);
-    tuning_link_publish(&tuning);
+    if (id != SETTINGS_BACKLIGHT) {
+        tuning = settings_tuning(changed_settings);
+        tuning_link_publish(&tuning);
+    }
 }
 
 // A while after the last change, if the settings differ from the saved

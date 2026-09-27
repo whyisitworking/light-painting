@@ -9,14 +9,16 @@
  * On a page, up and down move between rows, left and right change the
  * focused setting at once (held, they repeat), and the centre opens the
  * page a row leads to. Left on the "‹ title" row, or the centre held, goes
- * back a level. 30 s without input, the status screen returns.
+ * back a level. 30 s without input, the status screen returns. Reset to
+ * defaults, on System, asks for a second press within 3 s.
  */
 
 #include "settings.h"
 
 #include <lvgl/lvgl.h>
 
-// Called after a setting changed, with all the settings
+// Called after a setting changed, with all the settings. id is
+// SETTINGS_ID_COUNT when all of them changed at once (reset to defaults)
 typedef void ui_menu_changed_t(const settings_t *settings, settings_id_t id);
 
 /**
