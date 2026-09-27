@@ -7,6 +7,7 @@
 
 #include "effects.h"
 
+#include <pico.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -42,6 +43,33 @@ static_assert(MIC_WS_PIN == MIC_SCK_PIN + 1,
               "MIC_WS_PIN must follow MIC_SCK_PIN, one side-set drives both");
 
 constexpr unsigned LED_DATA_PIN = 8;
+
+// The LCD on the board, wired as boards/waveshare_rp2350_lcd_1.47.h says
+constexpr unsigned LCD_SPI_INDEX = WAVESHARE_LCD_SPI;
+constexpr unsigned LCD_SCK_PIN = WAVESHARE_LCD_SCLK_PIN;
+constexpr unsigned LCD_MOSI_PIN = WAVESHARE_LCD_TX_PIN;
+constexpr unsigned LCD_CS_PIN = WAVESHARE_LCD_CS_PIN;
+constexpr unsigned LCD_DC_PIN = WAVESHARE_LCD_DC_PIN;
+constexpr unsigned LCD_RESET_PIN = WAVESHARE_LCD_RST_PIN;
+constexpr unsigned LCD_BACKLIGHT_PIN = WAVESHARE_LCD_BL_PIN;
+
+// Landscape. The panel's 172 lines sit in the middle of the controller's
+// 240, (240 - 172) / 2 = 34 from either end, so the offset holds upside
+// down too
+constexpr uint16_t LCD_WIDTH = 320;
+constexpr uint16_t LCD_HEIGHT = 172;
+constexpr uint16_t LCD_COLUMN_OFFSET = 0;
+constexpr uint16_t LCD_ROW_OFFSET = 34;
+
+// MADCTL: landscape (MX, MV, ML), RGB order. 0xB0 turns the picture 180°
+constexpr uint8_t LCD_MADCTL = 0x70;
+
+// The datasheet's maximum. The SPI divides 150 MHz by even numbers only, so
+// it runs at 37.5 MHz
+constexpr uint32_t LCD_SPI_HZ = 62'500'000;
+
+// Core 1's stack, for the menu. LVGL asks for more than 8 KB
+constexpr size_t UI_STACK_SIZE = 16 * 1024;
 
 // Visualizer look, see lib/effects/effects.h and lib/effects/palette.h
 constexpr effects_mode_t VISUALIZER_MODE = EFFECTS_MODE_RIVER;

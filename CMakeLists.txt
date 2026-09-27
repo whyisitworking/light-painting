@@ -74,22 +74,30 @@ set(CONFIG_LV_USE_THORVG OFF CACHE BOOL "" FORCE)
 add_subdirectory(third_party/lvgl SYSTEM)
 # C11, the standard LVGL is tested with, rather than our C23
 set_target_properties(lvgl PROPERTIES C_STANDARD 11)
+# For size: it runs from RAM, and a menu needs no speed
+target_compile_options(lvgl PRIVATE -Os)
 
 set(APP_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/app/main.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/app/perf.c)
+    ${CMAKE_CURRENT_SOURCE_DIR}/app/perf.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/app/ui/ui.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/app/ui/ui_port.c)
 target_sources(light-painting PRIVATE ${APP_SOURCES})
 set_source_files_properties(${APP_SOURCES}
     PROPERTIES COMPILE_OPTIONS "${PROJECT_WARNINGS}")
 # Quoted includes only, like the modules (see lp_add_module)
 target_compile_options(light-painting
     PRIVATE
-        -iquote${CMAKE_CURRENT_SOURCE_DIR}/app)
+        -iquote${CMAKE_CURRENT_SOURCE_DIR}/app
+        -iquote${CMAKE_CURRENT_SOURCE_DIR}/app/ui)
 target_link_libraries(light-painting
     PRIVATE
         i2s
         ws2812
+        st7789
         visualizer
+        lvgl
+        pico_multicore
         pico_stdlib)
 
 # Opt-in, e.g. -DPERF_STATS=ON: print main loop timings and audio/LED

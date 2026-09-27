@@ -7,6 +7,7 @@
 #include "config.h"
 #include "i2s.h"
 #include "perf.h"
+#include "ui.h"
 #include "visualizer.h"
 #include "ws2812.h"
 
@@ -53,6 +54,9 @@ int main(void) {
                                    }),
                    "Visualizer"))
         return EXIT_FAILURE;
+
+    // The menu, on core 1. The lights do not wait for it
+    ui_start();
 
     i2s_start_sampling();
     ws2812_start_transmission();

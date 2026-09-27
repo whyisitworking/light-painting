@@ -30,6 +30,23 @@
 #define LV_DEF_REFR_PERIOD 33
 
 /*
+ * The software renderer draws into RGB565, blends A8 glyph masks and, for a
+ * layer with transparency, ARGB8888. None of its other formats is used:
+ * compiled in, they took 136 KB of RAM (the code runs from RAM)
+ */
+#define LV_DRAW_SW_SUPPORT_RGB565 1
+#define LV_DRAW_SW_SUPPORT_A8 1
+#define LV_DRAW_SW_SUPPORT_ARGB8888 1
+#define LV_DRAW_SW_SUPPORT_RGB565_SWAPPED 0
+#define LV_DRAW_SW_SUPPORT_RGB565A8 0
+#define LV_DRAW_SW_SUPPORT_RGB888 0
+#define LV_DRAW_SW_SUPPORT_XRGB8888 0
+#define LV_DRAW_SW_SUPPORT_ARGB8888_PREMULTIPLIED 0
+#define LV_DRAW_SW_SUPPORT_L8 0
+#define LV_DRAW_SW_SUPPORT_AL88 0
+#define LV_DRAW_SW_SUPPORT_I1 0
+
+/*
  * Stop on a null pointer or a failed allocation rather than carry on
  */
 #define LV_USE_ASSERT_NULL 1
