@@ -3,8 +3,8 @@
 #include <math.h>
 
 // Beats launch pulses from the centre, the treble sparkles
-void effects_mode_ripples(effects_t *this, const features_t *features) {
-    if (features->beat) {
+void effects_mode_ripples(effects_t *this, const sound_t *sound) {
+    if (sound->beat) {
         effects_ripple_t *slot = NULL;
 
         // A free slot, or else the pulse furthest out
@@ -22,7 +22,7 @@ void effects_mode_ripples(effects_t *this, const features_t *features) {
 
         *slot = (effects_ripple_t){
             .position = 0.f,
-            .strength = features->beat_strength,
+            .strength = sound->beat_strength,
             .color_position = (float)(this->ripples.beat_count++ % 8) / 8.f,
             .active = true,
         };
@@ -39,7 +39,7 @@ void effects_mode_ripples(effects_t *this, const features_t *features) {
         width = 3.f + 6.f * ripple->strength;
         fade = fmaxf(0.f, 1.f - ripple->position / (float)this->half);
         brightness = (0.5f + 0.5f * ripple->strength) * fade;
-        color = color_at(this, features, ripple->color_position);
+        color = color_at(this, sound, ripple->color_position);
 
         // Brightest at the leading edge, fading behind it
         for (size_t k = 0; (float)k < width; k++) {
@@ -58,5 +58,5 @@ void effects_mode_ripples(effects_t *this, const features_t *features) {
             ripple->active = false;
     }
 
-    effects_sparkles(this, features);
+    effects_sparkles(this, sound);
 }

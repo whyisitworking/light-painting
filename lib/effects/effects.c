@@ -64,8 +64,7 @@ void effects_set_palette(effects_t *this, effects_palette_t palette) {
         this->palette = palette;
 }
 
-void effects_render(effects_t *this, const features_t *features,
-                    uint32_t *pixels) {
+void effects_render(effects_t *this, const sound_t *sound, uint32_t *pixels) {
     color_ws2812_t flash;
     uint8_t white;
 
@@ -73,11 +72,11 @@ void effects_render(effects_t *this, const features_t *features,
 
     // A mode without a renderer stays dark
     if (renderers[this->mode] != NULL)
-        renderers[this->mode](this, features);
+        renderers[this->mode](this, sound);
 
-    if (features->beat)
-        this->flash = fmaxf(this->flash,
-                            features->beat_strength * EFFECTS_FLASH_LEVEL);
+    if (sound->beat)
+        this->flash =
+            fmaxf(this->flash, sound->beat_strength * EFFECTS_FLASH_LEVEL);
 
     // The flash goes on after gamma, as shown: added before it, 0.35 would
     // come out as 25 / 255. Saturating, so bright pixels do not wrap dark

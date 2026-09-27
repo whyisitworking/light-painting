@@ -181,7 +181,7 @@ flowchart TB
     end
     subgraph analysis ["Analysis · lib/visualizer"]
         direction LR
-        SPECTRUM["spectrum<br/>mono · window · FFT"] -- "256 bins" --> FEAT["features<br/>bands · gain · beats"] -- "features_t" --> FX["effects<br/>mode · palette · gamma"]
+        SPECTRUM["spectrum<br/>mono · window · FFT"] -- "256 bins" --> FEAT["features<br/>bands · gain · beats"] -- "sound_t" --> FX["effects<br/>mode · palette · gamma"]
     end
     subgraph output ["Output · platform/ws2812"]
         direction LR

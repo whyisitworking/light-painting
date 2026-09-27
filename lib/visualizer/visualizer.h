@@ -4,7 +4,7 @@
 /**
  * The visualizer pipeline, hardware independent: I2S frames in, pixels out.
  *
- *   frames ──► spectrum ──bins──► features ──features_t──► effects ──► pixels
+ *   frames ──► spectrum ──bins──► features ──sound_t──► effects ──► pixels
  *
  * Once per hop: visualizer_analyze() with the newest frames, then
  * visualizer_render() into the next LED frame.
@@ -38,7 +38,7 @@ typedef struct {
 typedef struct {
     float gain;
     spectrum_t spectrum;
-    features_state_t features;
+    features_t features;
     effects_t effects;
 } visualizer_t;
 
@@ -56,9 +56,9 @@ void visualizer_analyze(visualizer_t *this, const int32_t *frames);
 
 /**
  * Renders the newest analysis into led_count color_ws2812_t words.
- * Returns the features it was rendered from, valid until the next call
+ * Returns the sound it was rendered from, valid until the next call
  */
-const features_t *visualizer_render(visualizer_t *this, uint32_t *pixels);
+const sound_t *visualizer_render(visualizer_t *this, uint32_t *pixels);
 
 // Only after a successful visualizer_init()
 void visualizer_deinit(visualizer_t *this);

@@ -3,11 +3,11 @@
 #include <string.h>
 
 // The colour of the sound enters at the centre and flows outward
-void effects_mode_river(effects_t *this, const features_t *features) {
+void effects_mode_river(effects_t *this, const sound_t *sound) {
     size_t speed =
         EFFECTS_RIVER_SPEED < this->half ? EFFECTS_RIVER_SPEED : this->half;
-    rgb_t fresh = scale(color_at(this, features, features->centroid),
-                        features->loudness);
+    rgb_t fresh =
+        scale(color_at(this, sound, sound->centroid), sound->loudness);
 
     memmove(this->river.history + speed, this->river.history,
             (this->half - speed) * sizeof(rgb_t));

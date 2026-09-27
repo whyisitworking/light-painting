@@ -34,13 +34,13 @@ void visualizer_analyze(visualizer_t *this, const int32_t *frames) {
     spectrum_analyze(&this->spectrum, frames, this->gain);
 }
 
-const features_t *visualizer_render(visualizer_t *this, uint32_t *pixels) {
-    const features_t *features =
+const sound_t *visualizer_render(visualizer_t *this, uint32_t *pixels) {
+    const sound_t *sound =
         features_update(&this->features, spectrum_bins(&this->spectrum));
 
-    effects_render(&this->effects, features, pixels);
+    effects_render(&this->effects, sound, pixels);
 
-    return features;
+    return sound;
 }
 
 void visualizer_deinit(visualizer_t *this) {

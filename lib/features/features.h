@@ -47,6 +47,7 @@
 #define FEATURES_BEAT_REFRACTORY_MS 150.f
 #define FEATURES_BEAT_MAX_HZ 150.f
 
+// The sound of one hop, what the effects render from
 typedef struct {
     // FEATURES_BAND_COUNT levels, 0..1, smoothed
     const float *bands;
@@ -58,9 +59,9 @@ typedef struct {
     bool beat;
     // 0..1, how far above the threshold the beat was
     float beat_strength;
-} features_t;
+} sound_t;
 
-// Internal state, features_update() returns the public part, out
+// Module state, features_update() returns its sound member
 typedef struct {
     // Input: bin k is centred at k * bin_hz, one update per hop_seconds
     size_t bin_count;
@@ -91,23 +92,23 @@ typedef struct {
     // The energy fell below the trigger since the last beat
     bool beat_armed;
 
-    features_t out;
-} features_state_t;
+    sound_t sound;
+} features_t;
 
 /**
  * bin_count: number of magnitude bins (>= 2), bin k centred at k * bin_hz
  * hop_seconds: time between two features_update calls
  */
-bool features_init(features_state_t *this, size_t bin_count, float bin_hz,
+bool features_init(features_t *this, size_t bin_count, float bin_hz,
                    float hop_seconds);
 
 /**
- * Updates from the newest bins and returns the features, valid until the
- * next call
+ * Updates from the newest bins and returns the sound, valid until the next
+ * call
  */
-const features_t *features_update(features_state_t *this, const float *bins);
+const sound_t *features_update(features_t *this, const float *bins);
 
 // Nothing is allocated today, kept for symmetry with the other modules
-void features_deinit(features_state_t *this);
+void features_deinit(features_t *this);
 
 #endif

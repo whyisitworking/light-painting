@@ -37,7 +37,7 @@ void perf_lap(perf_stage_t stage);
 
 // Ends the iteration, and reports once a second has passed since the last
 // report. Outside the timed stages, printing takes a while
-void perf_end(const visualizer_t *visualizer, const features_t *sound);
+void perf_end(const visualizer_t *visualizer, const sound_t *sound);
 
 #else
 
@@ -48,7 +48,7 @@ static inline void perf_begin(void) {}
 static inline void perf_lap(perf_stage_t stage) { (void)stage; }
 
 static inline void perf_end(const visualizer_t *visualizer,
-                            const features_t *sound) {
+                            const sound_t *sound) {
     (void)visualizer;
     (void)sound;
 }

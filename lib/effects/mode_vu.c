@@ -3,8 +3,8 @@
 #include <math.h>
 
 // Twin meters filling from both ends, with peak dots that hold then fall
-void effects_mode_vu(effects_t *this, const features_t *features) {
-    float length = features->loudness * (float)this->half;
+void effects_mode_vu(effects_t *this, const sound_t *sound) {
+    float length = sound->loudness * (float)this->half;
 
     if (length >= this->vu.peak) {
         this->vu.peak = length;
@@ -16,7 +16,7 @@ void effects_mode_vu(effects_t *this, const features_t *features) {
     }
 
     for (size_t d = 0; d < this->half && (float)d < length; d++) {
-        rgb_t color = color_at(this, features, (float)d / (float)this->half);
+        rgb_t color = color_at(this, sound, (float)d / (float)this->half);
 
         add(&this->frame[d], color);
         if (this->led_count - 1 - d != d)

@@ -63,7 +63,7 @@ int main() {
 
     while (true) {
         const int32_t *frames;
-        const features_t *sound;
+        const sound_t *sound;
 
         perf_begin();
 

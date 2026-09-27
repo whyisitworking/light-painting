@@ -78,7 +78,7 @@ static uint32_t run_mode(effects_mode_t mode) {
                           }));
 
     for (size_t hop = 0; hop < HOPS; hop++) {
-        const features_t *sound;
+        const sound_t *sound;
 
         make_hop(frames, hop, &noise);
         visualizer_analyze(&visualizer, frames);

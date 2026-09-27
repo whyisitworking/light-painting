@@ -15,11 +15,11 @@ static float random_unit(effects_t *this) {
     return (float)(next_random(this) >> 8) / 16777216.f;
 }
 
-void effects_sparkles(effects_t *this, const features_t *features) {
+void effects_sparkles(effects_t *this, const sound_t *sound) {
     size_t from =
         this->band_count -
         (size_t)((float)this->band_count * EFFECTS_TREBLE_FRACTION);
-    float treble = band_mean(features, from, this->band_count);
+    float treble = band_mean(sound, from, this->band_count);
 
     for (size_t i = 0; i < this->led_count; i++) {
         this->sparkles.levels[i] *= EFFECTS_SPARKLE_DECAY;

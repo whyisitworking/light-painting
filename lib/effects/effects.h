@@ -2,7 +2,8 @@
 #define EFFECTS_H
 
 /**
- * Effects: turns audio features into LED pixels, one render per hop.
+ * Effects: turns the sound (sound_t, from features) into LED pixels, one
+ * render per hop.
  * Each mode is a renderer in its own mode_*.c file, see effects_internal.h
  */
 
@@ -117,7 +118,7 @@ typedef struct {
 } effects_t;
 
 /**
- * band_count: length of features_t.bands (>= 2)
+ * band_count: length of sound_t.bands (>= 2)
  * seed: for the sparkles, renders are deterministic for a seed
  *
  * Starts in EFFECTS_RIVER with PALETTE_SYNTHWAVE. False if a count is too
@@ -135,8 +136,7 @@ void effects_set_palette(effects_t *this, effects_palette_t palette);
 /**
  * Renders one frame into led_count color_ws2812_t words
  */
-void effects_render(effects_t *this, const features_t *features,
-                    uint32_t *pixels);
+void effects_render(effects_t *this, const sound_t *sound, uint32_t *pixels);
 
 // Only after a successful effects_init()
 void effects_deinit(effects_t *this);

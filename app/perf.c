@@ -49,7 +49,7 @@ void perf_lap(perf_stage_t stage) {
     lap_us = now;
 }
 
-void perf_end(const visualizer_t *visualizer, const features_t *sound) {
+void perf_end(const visualizer_t *visualizer, const sound_t *sound) {
     i2s_stats_t audio;
     ws2812_stats_t leds;
 
