@@ -68,6 +68,14 @@ constexpr uint8_t LCD_MADCTL = 0x70;
 // it runs at 37.5 MHz
 constexpr uint32_t LCD_SPI_HZ = 62'500'000;
 
+// The 5-way switch on the header, its common pin to ground (header pin 11,
+// next to GP0-GP4). Swap these to match how it is mounted
+constexpr unsigned JOYSTICK_UP_PIN = 0;
+constexpr unsigned JOYSTICK_DOWN_PIN = 1;
+constexpr unsigned JOYSTICK_LEFT_PIN = 2;
+constexpr unsigned JOYSTICK_RIGHT_PIN = 3;
+constexpr unsigned JOYSTICK_CENTRE_PIN = 4;
+
 // Core 1's stack, for the menu. LVGL asks for more than 8 KB
 constexpr size_t UI_STACK_SIZE = 16 * 1024;
 

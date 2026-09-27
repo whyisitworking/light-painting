@@ -1,6 +1,7 @@
 #include "ui.h"
 
 #include "config.h"
+#include "joystick.h"
 #include "st7789.h"
 #include "ui_port.h"
 #include "ui_status.h"
@@ -37,6 +38,17 @@ static void ui_main(void) {
             .baud_hz = LCD_SPI_HZ,
         })) {
         printf("Could not initialize the LCD\n");
+        return;
+    }
+
+    if (!joystick_init(&(joystick_pins_t){
+            .up_pin = JOYSTICK_UP_PIN,
+            .down_pin = JOYSTICK_DOWN_PIN,
+            .left_pin = JOYSTICK_LEFT_PIN,
+            .right_pin = JOYSTICK_RIGHT_PIN,
+            .centre_pin = JOYSTICK_CENTRE_PIN,
+        })) {
+        printf("Could not initialize the joystick\n");
         return;
     }
 

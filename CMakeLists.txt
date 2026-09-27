@@ -96,6 +96,7 @@ target_link_libraries(light-painting
     PRIVATE
         i2s
         ws2812
+        joystick
         st7789
         visualizer
         lvgl
