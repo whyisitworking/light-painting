@@ -138,7 +138,7 @@ These apply to every mode:
 | Drift | The palette slowly shifts, one full span per minute | `EFFECTS_DRIFT_PERIOD_S` (0 disables it) |
 | Warmth | Louder music shifts colours towards the palette's end | `EFFECTS_WARMTH` (0 disables it) |
 | Beat flash | A white flash on each beat, fading with an 80 ms time constant | `EFFECTS_FLASH_LEVEL`, `EFFECTS_FLASH_MS` |
-| Gamma | 2.2, so fades look even to the eye | `GAMMA` in `lib/color/color.c` |
+| Gamma | 2.2, so fades look even to the eye | `COLOR_GAMMA` in `lib/color/color.h` |
 
 ## Configuration
 

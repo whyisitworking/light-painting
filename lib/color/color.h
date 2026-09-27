@@ -8,6 +8,9 @@
 
 #include <stdint.h>
 
+// The exponent of color_gamma(): output = input ^ COLOR_GAMMA
+constexpr float COLOR_GAMMA = 2.2f;
+
 // Linear 0..1 colour, before gamma
 typedef struct {
     float r;

@@ -2,8 +2,6 @@
 
 #include <math.h>
 
-constexpr float GAMMA = 2.2f;
-
 uint8_t color_gamma(float value) {
     static uint8_t table[256];
     static bool ready = false;
@@ -11,7 +9,7 @@ uint8_t color_gamma(float value) {
     // Built on the first call: 256 powf once, a lookup afterwards
     if (!ready) {
         for (unsigned i = 0; i < 256; i++)
-            table[i] = (uint8_t)lroundf(255.f * powf(i / 255.f, GAMMA));
+            table[i] = (uint8_t)lroundf(255.f * powf(i / 255.f, COLOR_GAMMA));
         ready = true;
     }
 
