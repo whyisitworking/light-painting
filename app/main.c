@@ -7,6 +7,7 @@
 #include "config.h"
 #include "i2s.h"
 #include "perf.h"
+#include "persist.h"
 #include "settings.h"
 #include "tuning_link.h"
 #include "ui.h"
@@ -59,8 +60,12 @@ int main(void) {
                    "Visualizer"))
         return EXIT_FAILURE;
 
-    // The settings the menu starts from, applied to the visualizer
-    settings_reset(&settings);
+    // The settings saved last, or the defaults, applied to the visualizer.
+    // Without them the lights still run, on the defaults
+    if (init_step(persist_init(), "Settings storage"))
+        persist_load(&settings);
+    else
+        settings_reset(&settings);
     tuning = settings_tuning(&settings);
     visualizer_tune(&visualizer, &tuning);
 
