@@ -113,9 +113,9 @@ void spectrum_transform(spectrum_t *this) {
     fft_real_transform(&this->fft, this->packed, this->bins);
 }
 
-const float *spectrum_bins(spectrum_t *this) { return this->bins; }
+const float *spectrum_bins(const spectrum_t *this) { return this->bins; }
 
-size_t spectrum_bin_count(spectrum_t *this) { return this->fft_size / 2; }
+size_t spectrum_bin_count(const spectrum_t *this) { return this->fft_size / 2; }
 
 void spectrum_deinit(spectrum_t *this) {
     free(this->history);

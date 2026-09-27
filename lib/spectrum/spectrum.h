@@ -67,8 +67,8 @@ void spectrum_apply_gain(spectrum_t *this, float gain);
 void spectrum_transform(spectrum_t *this);
 
 // The bins of the last spectrum_transform(), fft_size / 2 of them
-const float *spectrum_bins(spectrum_t *this);
-size_t spectrum_bin_count(spectrum_t *this);
+const float *spectrum_bins(const spectrum_t *this);
+size_t spectrum_bin_count(const spectrum_t *this);
 // Only after a successful spectrum_init()
 void spectrum_deinit(spectrum_t *this);
 

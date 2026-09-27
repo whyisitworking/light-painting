@@ -56,7 +56,7 @@ void swapchain_producer_swap(swapchain_t *this);
  * Takes the newest published buffer. Returns false, and keeps the current
  * consumer buffer, when nothing new was published since the last swap.
  */
-const void *swapchain_consumer_buffer(swapchain_t *this);
+const void *swapchain_consumer_buffer(const swapchain_t *this);
 bool swapchain_consumer_swap(swapchain_t *this);
 
 // Frees the buffers, the buffer getters return nullptr afterwards

@@ -41,7 +41,7 @@ void swapchain_producer_swap(swapchain_t *this) {
     this->fresh = true;
 }
 
-const void *swapchain_consumer_buffer(swapchain_t *this) {
+const void *swapchain_consumer_buffer(const swapchain_t *this) {
     return this->buffers[CONSUMER_INDEX];
 }
 
