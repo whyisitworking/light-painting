@@ -13,6 +13,7 @@ constexpr uint32_t MUTED_COLOR = 0x8888A0;
 constexpr uint32_t ACCENT_COLOR = 0xFF3D8B;
 
 static struct {
+    lv_obj_t *note;
     lv_obj_t *mode;
     lv_obj_t *palette;
     lv_obj_t *swatch[SWATCH_CELLS];
@@ -73,16 +74,16 @@ static lv_obj_t *swatch_create(lv_obj_t *parent) {
 }
 
 lv_obj_t *ui_status_create(void) {
-    lv_obj_t *screen = lv_obj_create(nullptr), *title, *row;
+    lv_obj_t *screen = lv_obj_create(nullptr), *row;
 
     lv_obj_set_flex_flow(screen, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_all(screen, 12, 0);
     lv_obj_set_style_pad_row(screen, 6, 0);
     lv_obj_set_scrollable(screen, false);
 
-    title = lv_label_create(screen);
-    lv_label_set_text(title, "Light Painting");
-    lv_obj_set_style_text_color(title, lv_color_hex(MUTED_COLOR), 0);
+    row = row_create(screen, "Light Painting");
+    view.note = lv_label_create(row);
+    lv_obj_set_style_text_color(view.note, lv_color_hex(MUTED_COLOR), 0);
 
     view.mode = lv_label_create(screen);
     lv_obj_set_style_text_font(view.mode, &lv_font_montserrat_28, 0);
@@ -102,7 +103,12 @@ lv_obj_t *ui_status_create(void) {
     return screen;
 }
 
+void ui_status_note(const char *note) {
+    lv_label_set_text(view.note, note != nullptr ? note : "");
+}
+
 void ui_status_show(const ui_status_t *status) {
+    ui_status_note(status->note);
     lv_label_set_text(view.mode, ui_names_mode(status->mode));
     lv_label_set_text(view.palette, ui_names_palette(status->palette));
 

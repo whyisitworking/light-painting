@@ -2,6 +2,7 @@
 
 #include "config.h"
 #include "joystick.h"
+#include "persist.h"
 #include "settings.h"
 #include "st7789.h"
 #include "tuning_link.h"
@@ -11,6 +12,10 @@
 #include <pico/multicore.h>
 #include <pico/time.h>
 #include <stdio.h>
+#include <string.h>
+
+// How often a pending save is looked at
+constexpr uint32_t SAVE_CHECK_MS = 250;
 
 // Core 1's stack, 8-byte aligned as the Arm procedure call standard asks
 static alignas(8) uint32_t stack[UI_STACK_SIZE / sizeof(uint32_t)];
@@ -18,9 +23,19 @@ static alignas(8) uint32_t stack[UI_STACK_SIZE / sizeof(uint32_t)];
 // What the menu shows and changes
 static settings_t settings;
 
+// What the flash holds, and when to save if the settings differ from it
+static settings_t saved;
+static bool save_pending = false;
+static uint32_t save_at_ms;
+
+static uint32_t now_ms(void) { return to_ms_since_boot(get_absolute_time()); }
+
 // After each change in the menu: the backlight here, the rest on core 0
 static void changed(const settings_t *changed_settings, settings_id_t id) {
     visualizer_tuning_t tuning;
+
+    save_pending = true;
+    save_at_ms = now_ms() + UI_SAVE_DELAY_MS;
 
     if (id == SETTINGS_BACKLIGHT) {
         st7789_set_backlight(
@@ -30,6 +45,28 @@ static void changed(const settings_t *changed_settings, settings_id_t id) {
 
     tuning = settings_tuning(changed_settings);
     tuning_link_publish(&tuning);
+}
+
+// A while after the last change, if the settings differ from the saved
+// ones. The flash is busy for up to about 400 ms: the menu pauses, the
+// lights on core 0 do not
+static void save_check([[maybe_unused]] lv_timer_t *timer) {
+    if (!save_pending || (int32_t)(now_ms() - save_at_ms) < 0)
+        return;
+
+    if (memcmp(&settings, &saved, sizeof(settings)) == 0) {
+        save_pending = false;
+        return;
+    }
+
+    if (persist_save(&settings)) {
+        saved = settings;
+        save_pending = false;
+        ui_menu_note("Saved");
+    } else {
+        save_at_ms = now_ms() + UI_SAVE_RETRY_MS;
+        ui_menu_note("Not saved");
+    }
 }
 
 static void ui_main(void) {
@@ -73,6 +110,7 @@ static void ui_main(void) {
     }
 
     ui_menu_start(&settings, changed);
+    lv_timer_create(save_check, SAVE_CHECK_MS, nullptr);
 
     // The display memory holds noise after a reset: light it only once the
     // first frame is on it
@@ -91,5 +129,6 @@ static void ui_main(void) {
 
 void ui_start(const settings_t *initial) {
     settings = *initial;
+    saved = *initial;
     multicore_launch_core1_with_stack(ui_main, stack, sizeof(stack));
 }

@@ -79,6 +79,11 @@ constexpr unsigned JOYSTICK_CENTRE_PIN = 4;
 // Without input for this long, the menu goes back to the status screen
 constexpr uint32_t UI_IDLE_TIMEOUT_MS = 30'000;
 
+// Settings are saved this long after the last change, and tried again this
+// long after a failed save
+constexpr uint32_t UI_SAVE_DELAY_MS = 3'000;
+constexpr uint32_t UI_SAVE_RETRY_MS = 30'000;
+
 // Core 1's stack, for the menu. LVGL asks for more than 8 KB
 constexpr size_t UI_STACK_SIZE = 16 * 1024;
 

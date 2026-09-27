@@ -187,6 +187,7 @@ static struct {
     settings_t *settings;
     ui_menu_changed_t *changed;
     page_t page;
+    const char *note;
 } menu;
 
 static void show(page_t page);
@@ -381,6 +382,7 @@ static lv_obj_t *status_create(void) {
         .palette = (palette_t)settings_get(menu.settings, SETTINGS_PALETTE),
         .brightness_percent =
             settings_get(menu.settings, SETTINGS_BRIGHTNESS),
+        .note = menu.note,
     });
 
     // Nothing to see, it takes the keys
@@ -407,6 +409,13 @@ static void idle_check([[maybe_unused]] lv_timer_t *timer) {
     if (menu.page != PAGE_STATUS &&
         lv_display_get_inactive_time(nullptr) >= UI_IDLE_TIMEOUT_MS)
         show(PAGE_STATUS);
+}
+
+void ui_menu_note(const char *note) {
+    menu.note = note;
+
+    if (menu.page == PAGE_STATUS)
+        ui_status_note(note);
 }
 
 void ui_menu_start(settings_t *settings, ui_menu_changed_t *changed) {

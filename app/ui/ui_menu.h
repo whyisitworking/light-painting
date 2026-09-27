@@ -26,4 +26,8 @@ typedef void ui_menu_changed_t(const settings_t *settings, settings_id_t id);
  */
 void ui_menu_start(settings_t *settings, ui_menu_changed_t *changed);
 
+// A note for the status screen's corner, e.g. how saving went. nullptr for
+// none. note must outlive its use: a string literal
+void ui_menu_note(const char *note);
+
 #endif
