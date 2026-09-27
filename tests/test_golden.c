@@ -72,8 +72,7 @@ static uint32_t run_mode(effects_mode_t mode) {
                               .led_count = LEDS,
                               .gain = GAIN,
                               .mode = mode,
-                              .palette = (effects_palette_t)(mode %
-                                                             PALETTE_COUNT),
+                              .palette = (palette_t)(mode % PALETTE_COUNT),
                               .seed = 1,
                           }));
 

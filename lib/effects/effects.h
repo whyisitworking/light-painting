@@ -19,7 +19,7 @@
 
 // Ripples: LEDs a pulse travels per frame, pulses alive at once
 #define EFFECTS_RIPPLE_SPEED 2.f
-#define EFFECTS_RIPPLE_MAX 8
+#define EFFECTS_RIPPLE_MAX_PULSES 8
 
 // VU: peak dot hold time, then LEDs it falls per frame
 #define EFFECTS_PEAK_HOLD_MS 300.f
@@ -45,17 +45,14 @@
 
 // What the strip shows, see the README for each mode
 typedef enum {
-    EFFECTS_SPECTRUM,
-    EFFECTS_SPECTRUM_MIRRORED,
-    EFFECTS_RIVER,
-    EFFECTS_RIPPLES,
-    EFFECTS_VU,
-    EFFECTS_GLOW,
+    EFFECTS_MODE_SPECTRUM,
+    EFFECTS_MODE_SPECTRUM_MIRRORED,
+    EFFECTS_MODE_RIVER,
+    EFFECTS_MODE_RIPPLES,
+    EFFECTS_MODE_VU,
+    EFFECTS_MODE_GLOW,
     EFFECTS_MODE_COUNT
 } effects_mode_t;
-
-// A palette from palette.h
-typedef palette_id_t effects_palette_t;
 
 // One pulse of the ripples mode, launched from the centre by a beat
 typedef struct {
@@ -67,19 +64,19 @@ typedef struct {
     float color_position;
     // False once it left the strip, the slot is free
     bool active;
-} effects_ripple_t;
+} effects_pulse_t;
 
 // Render state. Allocated by effects_init(), the render path never allocates
 typedef struct {
     size_t led_count;
     size_t band_count;
     // LEDs from the centre to one end, (led_count + 1) / 2
-    size_t half;
+    size_t half_led_count;
     // Time between two renders
     float hop_seconds;
 
     effects_mode_t mode;
-    effects_palette_t palette;
+    palette_t palette;
 
     // Time since init modulo two drift periods, drives the drift
     float time_s;
@@ -93,12 +90,12 @@ typedef struct {
 
     // Per mode state
     struct {
-        // History, half, index 0 at the centre
+        // History, half_led_count, index 0 at the centre
         rgb_t *history;
     } river;
 
     struct {
-        effects_ripple_t pulses[EFFECTS_RIPPLE_MAX];
+        effects_pulse_t pulses[EFFECTS_RIPPLE_MAX_PULSES];
         unsigned beat_count;
     } ripples;
 
@@ -121,7 +118,7 @@ typedef struct {
  * band_count: length of sound_t.bands (>= 2)
  * seed: for the sparkles, renders are deterministic for a seed
  *
- * Starts in EFFECTS_RIVER with PALETTE_SYNTHWAVE. False if a count is too
+ * Starts in EFFECTS_MODE_RIVER with PALETTE_SYNTHWAVE. False if a count is too
  * small, hop_seconds is not positive or memory runs out
  */
 bool effects_init(effects_t *this, size_t led_count, size_t band_count,
@@ -131,7 +128,7 @@ bool effects_init(effects_t *this, size_t led_count, size_t band_count,
 void effects_set_mode(effects_t *this, effects_mode_t mode);
 
 // Takes effect on the next render. Out of range values are ignored
-void effects_set_palette(effects_t *this, effects_palette_t palette);
+void effects_set_palette(effects_t *this, palette_t palette);
 
 /**
  * Renders one frame into led_count color_ws2812_t words

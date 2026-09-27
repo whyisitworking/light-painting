@@ -66,7 +66,7 @@ static void test_spectrum_band_position(void) {
     sound_t sound = quiet();
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
-    effects_set_mode(&effects, EFFECTS_SPECTRUM);
+    effects_set_mode(&effects, EFFECTS_MODE_SPECTRUM);
 
     // Band 20 of 32 lands at 20 / 31 of the strip
     bands[20] = 1.f;
@@ -82,7 +82,7 @@ static void test_mirrored_spectrum_band_position(void) {
     size_t half = LEDS / 2;
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
-    effects_set_mode(&effects, EFFECTS_SPECTRUM_MIRRORED);
+    effects_set_mode(&effects, EFFECTS_MODE_SPECTRUM_MIRRORED);
 
     bands[20] = 1.f;
     effects_render(&effects, &sound, pixels);
@@ -103,7 +103,7 @@ static void test_beat_flash(void) {
     unsigned first;
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
-    effects_set_mode(&effects, EFFECTS_SPECTRUM);
+    effects_set_mode(&effects, EFFECTS_MODE_SPECTRUM);
 
     sound.beat = true;
     sound.beat_strength = 1.f;
@@ -143,12 +143,12 @@ static void test_beat_flash_saturates(void) {
         bands[b] = 1.f;
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
-    effects_set_mode(&effects, EFFECTS_SPECTRUM);
+    effects_set_mode(&effects, EFFECTS_MODE_SPECTRUM);
     effects_render(&effects, &sound, plain);
     effects_deinit(&effects);
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
-    effects_set_mode(&effects, EFFECTS_SPECTRUM);
+    effects_set_mode(&effects, EFFECTS_MODE_SPECTRUM);
     sound.beat = true;
     sound.beat_strength = 1.f;
     effects_render(&effects, &sound, pixels);
@@ -176,7 +176,7 @@ static void test_river_flows_outward(void) {
     sound_t sound = quiet();
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
-    effects_set_mode(&effects, EFFECTS_RIVER);
+    effects_set_mode(&effects, EFFECTS_MODE_RIVER);
 
     sound.loudness = 1.f;
     sound.centroid = 0.5f;
@@ -201,7 +201,7 @@ static void test_ripple_travels(void) {
     sound_t sound = quiet();
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
-    effects_set_mode(&effects, EFFECTS_RIPPLES);
+    effects_set_mode(&effects, EFFECTS_MODE_RIPPLES);
 
     sound.beat = true;
     sound.beat_strength = 1.f;
@@ -229,8 +229,8 @@ static void test_sparkles_deterministic(void) {
 
     CHECK(effects_init(&a, LEDS, BANDS, HOP, 7));
     CHECK(effects_init(&b, LEDS, BANDS, HOP, 7));
-    effects_set_mode(&a, EFFECTS_RIPPLES);
-    effects_set_mode(&b, EFFECTS_RIPPLES);
+    effects_set_mode(&a, EFFECTS_MODE_RIPPLES);
+    effects_set_mode(&b, EFFECTS_MODE_RIPPLES);
 
     for (int frame = 0; frame < 20; frame++) {
         effects_render(&a, &sound, first);
@@ -253,7 +253,7 @@ static void test_vu(void) {
     size_t half = LEDS / 2, length = half / 2;
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
-    effects_set_mode(&effects, EFFECTS_VU);
+    effects_set_mode(&effects, EFFECTS_MODE_VU);
 
     sound.loudness = 0.5f;
     effects_render(&effects, &sound, pixels);
@@ -290,7 +290,7 @@ static void test_glow_follows_bass(void) {
     sound_t sound = quiet();
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
-    effects_set_mode(&effects, EFFECTS_GLOW);
+    effects_set_mode(&effects, EFFECTS_MODE_GLOW);
 
     for (size_t band = 0; band < EFFECTS_BASS_BANDS; band++)
         bands[band] = 1.f;
@@ -314,7 +314,7 @@ static void test_drift_clock_wraps(void) {
         bands[b] = 1.f;
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP, 1));
-    effects_set_mode(&effects, EFFECTS_SPECTRUM);
+    effects_set_mode(&effects, EFFECTS_MODE_SPECTRUM);
     effects.time_s = 10.f;
     effects_render(&effects, &sound, early);
 
@@ -338,20 +338,20 @@ static void test_drift_clock_wraps(void) {
 
 int main(void) {
     test_rejects_invalid();
-    check_silence_is_dark(EFFECTS_SPECTRUM);
-    check_silence_is_dark(EFFECTS_SPECTRUM_MIRRORED);
+    check_silence_is_dark(EFFECTS_MODE_SPECTRUM);
+    check_silence_is_dark(EFFECTS_MODE_SPECTRUM_MIRRORED);
     test_spectrum_band_position();
     test_mirrored_spectrum_band_position();
     test_beat_flash();
     test_beat_flash_saturates();
-    check_silence_is_dark(EFFECTS_RIVER);
+    check_silence_is_dark(EFFECTS_MODE_RIVER);
     test_river_flows_outward();
-    check_silence_is_dark(EFFECTS_RIPPLES);
+    check_silence_is_dark(EFFECTS_MODE_RIPPLES);
     test_ripple_travels();
     test_sparkles_deterministic();
     test_drift_clock_wraps();
-    check_silence_is_dark(EFFECTS_VU);
-    check_silence_is_dark(EFFECTS_GLOW);
+    check_silence_is_dark(EFFECTS_MODE_VU);
+    check_silence_is_dark(EFFECTS_MODE_GLOW);
     test_vu();
     test_glow_follows_bass();
 

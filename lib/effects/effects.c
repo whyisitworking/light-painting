@@ -9,17 +9,17 @@
 
 // The renderer of each mode, see effects_internal.h
 static effects_renderer_t *const renderers[EFFECTS_MODE_COUNT] = {
-    [EFFECTS_SPECTRUM] = effects_mode_spectrum,
-    [EFFECTS_SPECTRUM_MIRRORED] = effects_mode_spectrum_mirrored,
-    [EFFECTS_RIVER] = effects_mode_river,
-    [EFFECTS_RIPPLES] = effects_mode_ripples,
-    [EFFECTS_VU] = effects_mode_vu,
-    [EFFECTS_GLOW] = effects_mode_glow,
+    [EFFECTS_MODE_SPECTRUM] = effects_mode_spectrum,
+    [EFFECTS_MODE_SPECTRUM_MIRRORED] = effects_mode_spectrum_mirrored,
+    [EFFECTS_MODE_RIVER] = effects_mode_river,
+    [EFFECTS_MODE_RIPPLES] = effects_mode_ripples,
+    [EFFECTS_MODE_VU] = effects_mode_vu,
+    [EFFECTS_MODE_GLOW] = effects_mode_glow,
 };
 
 bool effects_init(effects_t *this, size_t led_count, size_t band_count,
                   float hop_seconds, uint32_t seed) {
-    size_t half = (led_count + 1) / 2;
+    size_t half_led_count = (led_count + 1) / 2;
     rgb_t *frame, *river;
     float *sparkles;
 
@@ -27,7 +27,7 @@ bool effects_init(effects_t *this, size_t led_count, size_t band_count,
         return false;
 
     frame = (rgb_t *)calloc(led_count, sizeof(rgb_t));
-    river = (rgb_t *)calloc(half, sizeof(rgb_t));
+    river = (rgb_t *)calloc(half_led_count, sizeof(rgb_t));
     sparkles = (float *)calloc(led_count, sizeof(float));
 
     if (frame == NULL || river == NULL || sparkles == NULL) {
@@ -40,9 +40,9 @@ bool effects_init(effects_t *this, size_t led_count, size_t band_count,
     *this = (effects_t){
         .led_count = led_count,
         .band_count = band_count,
-        .half = half,
+        .half_led_count = half_led_count,
         .hop_seconds = hop_seconds,
-        .mode = EFFECTS_RIVER,
+        .mode = EFFECTS_MODE_RIVER,
         .palette = PALETTE_SYNTHWAVE,
         .flash_k = expf(-hop_seconds / (EFFECTS_FLASH_MS / 1000.f)),
         .frame = frame,
@@ -59,7 +59,7 @@ void effects_set_mode(effects_t *this, effects_mode_t mode) {
         this->mode = mode;
 }
 
-void effects_set_palette(effects_t *this, effects_palette_t palette) {
+void effects_set_palette(effects_t *this, palette_t palette) {
     if (palette < PALETTE_COUNT)
         this->palette = palette;
 }

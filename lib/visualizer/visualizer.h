@@ -29,7 +29,7 @@ typedef struct {
     // Applied after the window, on top of the microphone's SPECTRUM_INPUT_GAIN
     float gain;
     effects_mode_t mode;
-    effects_palette_t palette;
+    palette_t palette;
     // Renders are deterministic for a seed
     uint32_t seed;
 } visualizer_config_t;

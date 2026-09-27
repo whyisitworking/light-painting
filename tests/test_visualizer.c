@@ -51,27 +51,27 @@ static void test_rejects_invalid(void) {
     visualizer_t visualizer;
     visualizer_config_t bad;
 
-    bad = config(EFFECTS_SPECTRUM);
+    bad = config(EFFECTS_MODE_SPECTRUM);
     bad.sample_rate = 0.f;
     CHECK(!visualizer_init(&visualizer, &bad));
 
-    bad = config(EFFECTS_SPECTRUM);
+    bad = config(EFFECTS_MODE_SPECTRUM);
     bad.fft_size = 100;
     CHECK(!visualizer_init(&visualizer, &bad));
 
-    bad = config(EFFECTS_SPECTRUM);
+    bad = config(EFFECTS_MODE_SPECTRUM);
     bad.hop = FFT_SIZE + 1;
     CHECK(!visualizer_init(&visualizer, &bad));
 
     // Fails late, in the effects, after the spectrum and features are set up
-    bad = config(EFFECTS_SPECTRUM);
+    bad = config(EFFECTS_MODE_SPECTRUM);
     bad.led_count = 1;
     CHECK(!visualizer_init(&visualizer, &bad));
 }
 
 static void test_silence_is_dark(void) {
     visualizer_t visualizer;
-    visualizer_config_t silent = config(EFFECTS_SPECTRUM);
+    visualizer_config_t silent = config(EFFECTS_MODE_SPECTRUM);
     bool dark = true;
 
     CHECK(visualizer_init(&visualizer, &silent));
@@ -92,7 +92,7 @@ static void test_silence_is_dark(void) {
 // A 1 kHz tone lights the spectrum where its band is, not the ends
 static void test_tone_lights_its_position(void) {
     visualizer_t visualizer;
-    visualizer_config_t spectrum = config(EFFECTS_SPECTRUM);
+    visualizer_config_t spectrum = config(EFFECTS_MODE_SPECTRUM);
     size_t band = 0, led;
 
     CHECK(visualizer_init(&visualizer, &spectrum));
@@ -118,7 +118,7 @@ static void test_tone_lights_its_position(void) {
 // 120 BPM kicks, from I2S words on: one beat per kick
 static void test_kicks_give_beats(void) {
     visualizer_t visualizer;
-    visualizer_config_t ripples = config(EFFECTS_RIPPLES);
+    visualizer_config_t ripples = config(EFFECTS_MODE_RIPPLES);
     const size_t hops = (size_t)(4.0 * FS / HOP);
     unsigned beats = 0;
 

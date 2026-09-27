@@ -24,21 +24,11 @@ effects_renderer_t effects_mode_vu;
 effects_renderer_t effects_mode_glow;
 
 // White sparkles appearing with the treble, fading each frame
-void effects_sparkles(effects_t *this, const sound_t *sound);
-
-static inline rgb_t scale(rgb_t color, float k) {
-    return (rgb_t){color.r * k, color.g * k, color.b * k};
-}
-
-static inline void add(rgb_t *pixel, rgb_t color) {
-    pixel->r += color.r;
-    pixel->g += color.g;
-    pixel->b += color.b;
-}
+void effects_draw_sparkles(effects_t *this, const sound_t *sound);
 
 // Palette colour with the drift and the loudness warmth applied
-static inline rgb_t color_at(const effects_t *this, const sound_t *sound,
-                             float position) {
+static inline rgb_t effects_color_at(const effects_t *this,
+                                     const sound_t *sound, float position) {
     float drift = EFFECTS_DRIFT_PERIOD_S > 0.f
                       ? this->time_s / EFFECTS_DRIFT_PERIOD_S
                       : 0.f;
@@ -48,22 +38,22 @@ static inline rgb_t color_at(const effects_t *this, const sound_t *sound,
 }
 
 // Adds a colour at a distance from the centre, on both sides
-static inline void put_mirrored(effects_t *this, size_t distance,
-                                rgb_t color) {
+static inline void effects_put_mirrored(effects_t *this, size_t distance,
+                                        rgb_t color) {
     size_t right = this->led_count / 2 + distance;
     size_t centre_left = (this->led_count - 1) / 2;
 
     if (right < this->led_count)
-        add(&this->frame[right], color);
+        color_rgb_add(&this->frame[right], color);
 
     // With an odd count both sides share the centre LED
     if (distance <= centre_left && centre_left - distance != right)
-        add(&this->frame[centre_left - distance], color);
+        color_rgb_add(&this->frame[centre_left - distance], color);
 }
 
 // Band level at a fractional band position, interpolated
-static inline float band_at(const effects_t *this, const sound_t *sound,
-                            float position) {
+static inline float effects_band_at(const effects_t *this, const sound_t *sound,
+                                    float position) {
     size_t band = (size_t)position;
     float fraction;
 
@@ -76,7 +66,8 @@ static inline float band_at(const effects_t *this, const sound_t *sound,
            (sound->bands[band + 1] - sound->bands[band]) * fraction;
 }
 
-static inline float band_mean(const sound_t *sound, size_t from, size_t to) {
+static inline float effects_band_mean(const sound_t *sound, size_t from,
+                                      size_t to) {
     float sum = 0.f;
 
     for (size_t b = from; b < to; b++)

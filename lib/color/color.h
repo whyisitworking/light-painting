@@ -28,6 +28,18 @@ typedef union {
     uint32_t value;
 } color_ws2812_t;
 
+// color * k, channel by channel
+static inline rgb_t color_rgb_scale(rgb_t color, float k) {
+    return (rgb_t){color.r * k, color.g * k, color.b * k};
+}
+
+// Adds color to *pixel, channel by channel, unclamped: color_gamma() clamps
+static inline void color_rgb_add(rgb_t *pixel, rgb_t color) {
+    pixel->r += color.r;
+    pixel->g += color.g;
+    pixel->b += color.b;
+}
+
 /**
  * Linear 0..1 to a gamma 2.2 corrected 0..255 channel, clamped
  */

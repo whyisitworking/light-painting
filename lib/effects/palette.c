@@ -8,7 +8,7 @@ typedef struct {
     unsigned count;
     // Wraps around instead of reflecting at the ends
     bool cyclic;
-} palette_t;
+} palette_gradient_t;
 
 // Stops, in linear 0..1 RGB before gamma
 static const rgb_t rainbow[] = {{1.f, 0.f, 0.f}, {1.f, 1.f, 0.f},
@@ -31,15 +31,16 @@ static const rgb_t ocean[] = {{0.f, 0.05f, 0.2f},
                               {0.3f, 1.f, 0.8f},
                               {0.9f, 1.f, 1.f}};
 
-static const palette_t palettes[PALETTE_COUNT] = {
+static const palette_gradient_t palettes[PALETTE_COUNT] = {
     [PALETTE_RAINBOW] = {rainbow, 6, true},
     [PALETTE_SYNTHWAVE] = {synthwave, 5, false},
     [PALETTE_FIRE] = {fire, 5, false},
     [PALETTE_OCEAN] = {ocean, 5, false},
 };
 
-rgb_t palette_color(palette_id_t palette, float position) {
-    const palette_t *p = &palettes[palette < PALETTE_COUNT ? palette : 0];
+rgb_t palette_color(palette_t palette, float position) {
+    const palette_gradient_t *p =
+        &palettes[palette < PALETTE_COUNT ? palette : 0];
     unsigned from, to;
     float scaled, fraction;
     rgb_t a, b;

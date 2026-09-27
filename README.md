@@ -117,12 +117,12 @@ Pick a mode with `VISUALIZER_MODE` and a palette with `VISUALIZER_PALETTE` in [`
 
 | Mode | What you see |
 |---|---|
-| `EFFECTS_SPECTRUM` | The 32 bands along the strip, bass to treble. Colour from the palette, brightness from the level |
-| `EFFECTS_SPECTRUM_MIRRORED` | The same, bass in the centre and treble towards both ends |
-| `EFFECTS_RIVER` *(default)* | The colour of the sound enters at the centre and flows outward, one LED per frame |
-| `EFFECTS_RIPPLES` | Every beat launches a pulse from the centre (up to 8 at once), sized by its strength, with treble sparkles |
-| `EFFECTS_VU` | Twin meters filling from both ends with loudness, and peak dots that hold, then fall |
-| `EFFECTS_GLOW` | The whole strip breathes with the bass, with treble sparkles |
+| `EFFECTS_MODE_SPECTRUM` | The 32 bands along the strip, bass to treble. Colour from the palette, brightness from the level |
+| `EFFECTS_MODE_SPECTRUM_MIRRORED` | The same, bass in the centre and treble towards both ends |
+| `EFFECTS_MODE_RIVER` *(default)* | The colour of the sound enters at the centre and flows outward, one LED per frame |
+| `EFFECTS_MODE_RIPPLES` | Every beat launches a pulse from the centre (up to 8 at once), sized by its strength, with treble sparkles |
+| `EFFECTS_MODE_VU` | Twin meters filling from both ends with loudness, and peak dots that hold, then fall |
+| `EFFECTS_MODE_GLOW` | The whole strip breathes with the bass, with treble sparkles |
 
 | Palette | Stops |
 |---|---|
@@ -151,7 +151,7 @@ These apply to every mode:
 | `LED_DATA_PIN` | `8` | Strip data |
 | `AUDIO_FFT_SIZE` | `512` | Samples per analysis. Larger resolves lower notes, smaller reacts faster |
 | `AUDIO_FFT_HOP` | `256` | New samples per analysis |
-| `VISUALIZER_MODE` | `EFFECTS_RIVER` | See [modes](#modes-and-palettes) |
+| `VISUALIZER_MODE` | `EFFECTS_MODE_RIVER` | See [modes](#modes-and-palettes) |
 | `VISUALIZER_PALETTE` | `PALETTE_SYNTHWAVE` | See [palettes](#modes-and-palettes) |
 | `VISUALIZER_GAIN` | `1.5f` | Input gain on top of the microphone's ×8 |
 | `VISUALIZER_SEED` | `1` | Sparkle pattern |
@@ -301,7 +301,7 @@ Build with `-DPERF_STATS=ON`. Once per second, the USB serial output shows each 
 
 ### Adding a palette
 
-1. Add a value to `palette_id_t` in [`lib/effects/palette.h`](lib/effects/palette.h), before `PALETTE_COUNT`.
+1. Add a value to `palette_t` in [`lib/effects/palette.h`](lib/effects/palette.h), before `PALETTE_COUNT`.
 2. Add its stops (linear RGB, 0..1) and its entry in the `palettes` table in [`palette.c`](lib/effects/palette.c): `true` wraps around like the rainbow, `false` reflects at the ends.
 
 ### Conventions

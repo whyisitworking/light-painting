@@ -36,7 +36,7 @@ _Static_assert((AUDIO_FFT_HOP & (AUDIO_FFT_HOP - 1)) == 0 &&
 #define LED_DATA_PIN 8
 
 // Visualizer look, see lib/effects/effects.h and lib/effects/palette.h
-#define VISUALIZER_MODE EFFECTS_RIVER
+#define VISUALIZER_MODE EFFECTS_MODE_RIVER
 #define VISUALIZER_PALETTE PALETTE_SYNTHWAVE
 
 // On top of the microphone's SPECTRUM_INPUT_GAIN, x12 in total: the features'

@@ -4,7 +4,7 @@
 
 // Twin meters filling from both ends, with peak dots that hold then fall
 void effects_mode_vu(effects_t *this, const sound_t *sound) {
-    float length = sound->loudness * (float)this->half;
+    float length = sound->loudness * (float)this->half_led_count;
 
     if (length >= this->vu.peak) {
         this->vu.peak = length;
@@ -15,22 +15,24 @@ void effects_mode_vu(effects_t *this, const sound_t *sound) {
         this->vu.peak = fmaxf(length, this->vu.peak - EFFECTS_PEAK_FALL);
     }
 
-    for (size_t d = 0; d < this->half && (float)d < length; d++) {
-        rgb_t color = color_at(this, sound, (float)d / (float)this->half);
+    for (size_t d = 0; d < this->half_led_count && (float)d < length; d++) {
+        rgb_t color = effects_color_at(this, sound,
+                                       (float)d / (float)this->half_led_count);
 
-        add(&this->frame[d], color);
+        color_rgb_add(&this->frame[d], color);
         if (this->led_count - 1 - d != d)
-            add(&this->frame[this->led_count - 1 - d], color);
+            color_rgb_add(&this->frame[this->led_count - 1 - d], color);
     }
 
     if (this->vu.peak >= 1.f) {
         size_t d = (size_t)this->vu.peak;
 
-        if (d >= this->half)
-            d = this->half - 1;
+        if (d >= this->half_led_count)
+            d = this->half_led_count - 1;
 
-        add(&this->frame[d], (rgb_t){1.f, 1.f, 1.f});
+        color_rgb_add(&this->frame[d], (rgb_t){1.f, 1.f, 1.f});
         if (this->led_count - 1 - d != d)
-            add(&this->frame[this->led_count - 1 - d], (rgb_t){1.f, 1.f, 1.f});
+            color_rgb_add(&this->frame[this->led_count - 1 - d],
+                          (rgb_t){1.f, 1.f, 1.f});
     }
 }
