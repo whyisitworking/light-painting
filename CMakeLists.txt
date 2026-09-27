@@ -47,6 +47,14 @@ if (NOT PICO_NO_GC_SECTIONS)
 endif()
 add_compile_options(-fno-math-errno)
 
+# The firmware runs from RAM (copy_to_ram below), so core 0 never reads the
+# flash and can keep running while core 1 erases or programs it. pico_flash
+# compiles into every target that links it, hence global. Core 1 gets its
+# own stack in main RAM: the SDK's default one sits in the 4 KB SCRATCH_X
+add_compile_definitions(
+    PICO_FLASH_ASSUME_CORE0_SAFE=1
+    PICO_CORE1_STACK_SIZE=0)
+
 add_executable(light-painting)
 
 # lib/ is portable, platform/ is the Pico hardware, app/ puts them together
@@ -76,6 +84,10 @@ option(PERF_STATS "Print performance statistics once per second" OFF)
 if (PERF_STATS)
     target_compile_definitions(light-painting PRIVATE PERF_STATS)
 endif()
+
+# Copied from flash into RAM at boot, code and read-only data alike
+pico_set_binary_type(light-painting copy_to_ram)
+target_link_options(light-painting PRIVATE -Wl,--print-memory-usage)
 
 pico_add_extra_outputs(light-painting)
 pico_enable_stdio_usb(light-painting ON)
