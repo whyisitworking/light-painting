@@ -217,7 +217,7 @@ All memory is allocated once at startup, and the loop never allocates. The firmw
 │   ├── effects/         one mode_*.c per mode, palettes, sparkles
 │   ├── fft/             radix-2 complex and real FFTs
 │   ├── color/           linear RGB, gamma, the WS2812 word
-│   └── swapchain/       triple buffer between an interrupt and the loop
+│   └── swapchain/       lock-free triple buffer between contexts or cores
 ├── cmake/modules.cmake  lp_add_module(): one definition per module, for both builds
 └── tests/               host tests (CTest)
 ```
@@ -271,7 +271,7 @@ ctest --test-dir build-tests --output-on-failure
 | Test | Covers |
 |---|---|
 | `fft` | Every size against a naive DFT, the real FFT, tones |
-| `swapchain` | Ordering, newest wins, drop counting |
+| `swapchain` | Ordering, newest wins, and two threads at full speed: never torn, never older |
 | `color` | The WS2812 word layout, saturation, gamma |
 | `spectrum` | Scaling, the stereo sum, the sliding window, tones in their bin |
 | `features` | Bands, silence, self-noise, auto-gain, beats on kicks and none on noise |

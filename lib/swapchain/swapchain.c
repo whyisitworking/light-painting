@@ -1,16 +1,12 @@
 #include "swapchain.h"
 
-// The role of each slot of the buffers array
-constexpr size_t PRODUCER_INDEX = 0;
-constexpr size_t SHARED_INDEX = 1;
-constexpr size_t CONSUMER_INDEX = 2;
+// Set in shared while the shared buffer holds data the consumer has not
+// taken yet, above the buffer indices
+constexpr uint8_t FRESH = 1u << 7;
+constexpr uint8_t INDEX = FRESH - 1;
 
-static inline void swap_slots(void *volatile slots[], size_t first,
-                              size_t second) {
-    void *temp = slots[first];
-    slots[first] = slots[second];
-    slots[second] = temp;
-}
+static_assert(SWAPCHAIN_BUFFER_COUNT <= INDEX + 1u,
+              "the buffer indices must fit below FRESH");
 
 bool swapchain_init(swapchain_t *this, size_t buffer_size) {
     char *memory = (char *)malloc(SWAPCHAIN_BUFFER_COUNT * buffer_size);
@@ -21,31 +17,43 @@ bool swapchain_init(swapchain_t *this, size_t buffer_size) {
         this->buffers[i] = memory + i * buffer_size;
 
     this->memory = memory;
-    this->fresh = false;
+    this->producer = 0;
+    this->consumer = 2;
+    atomic_init(&this->shared, 1);
 
     return true;
 }
 
 void *swapchain_producer_buffer(swapchain_t *this) {
-    return this->buffers[PRODUCER_INDEX];
+    return this->buffers[this->producer];
 }
 
 void swapchain_producer_swap(swapchain_t *this) {
-    swap_slots(this->buffers, SHARED_INDEX, PRODUCER_INDEX);
-    this->fresh = true;
+    // Release: the consumer sees everything written into the buffer.
+    // Acquire: the buffer taken back was released by the consumer, which
+    // no longer reads it
+    uint8_t previous = atomic_exchange_explicit(
+        &this->shared, this->producer | FRESH, memory_order_acq_rel);
+
+    this->producer = previous & INDEX;
 }
 
 const void *swapchain_consumer_buffer(const swapchain_t *this) {
-    return this->buffers[CONSUMER_INDEX];
+    return this->buffers[this->consumer];
 }
 
 bool swapchain_consumer_swap(swapchain_t *this) {
-    // Swapping now would hand back our own previous, older, buffer
-    if (!this->fresh)
+    uint8_t previous;
+
+    // Swapping now would hand back our own previous, older, buffer. Only
+    // the consumer clears FRESH, so once seen it is still set below, on
+    // this or an even newer buffer
+    if (!(atomic_load_explicit(&this->shared, memory_order_acquire) & FRESH))
         return false;
 
-    swap_slots(this->buffers, SHARED_INDEX, CONSUMER_INDEX);
-    this->fresh = false;
+    previous = atomic_exchange_explicit(&this->shared, this->consumer,
+                                        memory_order_acq_rel);
+    this->consumer = previous & INDEX;
 
     return true;
 }

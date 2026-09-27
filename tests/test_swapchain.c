@@ -1,7 +1,12 @@
 #include "check.h"
 #include "swapchain.h"
 
+#include <pthread.h>
 #include <stdint.h>
+
+// Buffers the stress test publishes, and the words in each
+constexpr uint32_t STRESS_COUNT = 1'000'000;
+constexpr size_t STRESS_WORDS = 64;
 
 static void publish(swapchain_t *chain, uint32_t value) {
     *(uint32_t *)swapchain_producer_buffer(chain) = value;
@@ -97,6 +102,60 @@ static void test_deinit_forgets_buffers(void) {
     CHECK(!swapchain_consumer_swap(&chain));
 }
 
+// Publishes STRESS_COUNT buffers as fast as it can, each filled with its
+// sequence number
+static void *stress_producer(void *chain) {
+    for (uint32_t sequence = 1; sequence <= STRESS_COUNT; sequence++) {
+        uint32_t *words = (uint32_t *)swapchain_producer_buffer(chain);
+
+        for (size_t i = 0; i < STRESS_WORDS; i++)
+            words[i] = sequence;
+
+        swapchain_producer_swap(chain);
+    }
+
+    return nullptr;
+}
+
+// The two sides on two threads at full speed, as on the two cores: every
+// buffer taken is whole, never torn, and newer than the one before
+static void test_two_threads(void) {
+    swapchain_t chain;
+    pthread_t producer;
+    uint32_t last = 0;
+    size_t taken = 0, torn = 0, older = 0;
+
+    CHECK(swapchain_init(&chain, STRESS_WORDS * sizeof(uint32_t)));
+    CHECK(pthread_create(&producer, nullptr, stress_producer, &chain) == 0);
+
+    // The last buffer stays fresh until taken, so this ends
+    while (last < STRESS_COUNT) {
+        const uint32_t *words;
+
+        if (!swapchain_consumer_swap(&chain))
+            continue;
+
+        words = (const uint32_t *)swapchain_consumer_buffer(&chain);
+
+        for (size_t i = 1; i < STRESS_WORDS; i++)
+            if (words[i] != words[0])
+                torn++;
+
+        if (words[0] <= last)
+            older++;
+
+        last = words[0];
+        taken++;
+    }
+
+    CHECK(pthread_join(producer, nullptr) == 0);
+    CHECK(torn == 0);
+    CHECK(older == 0);
+    CHECK(taken > 1);
+
+    swapchain_deinit(&chain);
+}
+
 int main(void) {
     test_buffers_are_distinct();
     test_nothing_published();
@@ -104,6 +163,7 @@ int main(void) {
     test_never_goes_back_in_time();
     test_newest_wins();
     test_deinit_forgets_buffers();
+    test_two_threads();
 
     return CHECK_REPORT();
 }

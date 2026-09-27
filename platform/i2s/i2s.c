@@ -265,11 +265,11 @@ void i2s_stop_sampling(void) {
 const int32_t *i2s_wait_buffer(void) {
     uint32_t saved_irq;
 
-    // The DMA interrupt swaps the other side of the chain: never both at
-    // once. Sleeps until the next interrupt instead of polling. A buffer
-    // arriving between the check and __wfi() still wakes it: with interrupts
-    // masked, a pending one ends the sleep (Cortex-M33 Generic User Guide,
-    // 2.6), and runs its handler once they are unmasked
+    // Sleeps until the next interrupt instead of polling. Checked with
+    // interrupts masked, so a buffer arriving between the check and
+    // __wfi() still wakes it: a pending interrupt ends the sleep even while
+    // masked (Cortex-M33 Generic User Guide, 2.6), and its handler runs once
+    // they are unmasked
     saved_irq = save_and_disable_interrupts();
     while (!swapchain_consumer_swap(&driver.swapchain)) {
         __wfi();

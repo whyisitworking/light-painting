@@ -22,6 +22,9 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../lib lib)
 
 enable_testing()
 
+# The swapchain test runs its two sides on two threads
+find_package(Threads REQUIRED)
+
 # lp_add_test(<name> <target>...): test_<name>.c linked with the targets. A
 # hang (e.g. an endless loop) fails quickly, not at ctest's default timeout
 function(lp_add_test name)
@@ -32,7 +35,7 @@ function(lp_add_test name)
 endfunction()
 
 lp_add_test(fft fft)
-lp_add_test(swapchain swapchain)
+lp_add_test(swapchain swapchain Threads::Threads)
 lp_add_test(color color)
 lp_add_test(spectrum spectrum)
 lp_add_test(features features)

@@ -180,7 +180,8 @@ void ws2812_submit(void) {
     if (!driver.is_init)
         return;
 
-    // The PIO interrupt swaps the other side of the chain: never both at once
+    // The PIO interrupt starts frames too: checking is_sending and starting
+    // one here must not interleave with it
     saved_irq = save_and_disable_interrupts();
 
     swapchain_producer_swap(&driver.swapchain);

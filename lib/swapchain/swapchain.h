@@ -9,9 +9,15 @@
  * Each side owns one buffer and swaps it with the shared one: the producer
  * never waits and never overwrites what the consumer reads, and the
  * consumer always gets the newest complete buffer. A buffer the consumer
- * missed is simply replaced. Nothing is copied, only pointers swap.
+ * missed is simply replaced. Nothing is copied, only buffer indices swap.
+ *
+ * Each swap is one atomic exchange of the shared index, so neither side
+ * ever waits: they may run on different cores, or one in an interrupt
+ * handler, with no lock and no interrupts masked.
  */
 
+#include <stdatomic.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 // A producer, a shared and a consumer buffer
@@ -25,17 +31,19 @@ typedef struct {
     //      for objects of **any type**, but buffers that are not allocated
     //      dynamically have no such guarantee."
     void *memory;
-    // Swapped from interrupt handlers, hence volatile
-    void *volatile buffers[SWAPCHAIN_BUFFER_COUNT];
-    // Whether the shared buffer holds data the consumer has not taken yet
-    volatile bool fresh;
+    void *buffers[SWAPCHAIN_BUFFER_COUNT];
+    // The buffer each side owns, only ever touched by that side
+    uint8_t producer;
+    uint8_t consumer;
+    // The shared buffer, plus a flag while it holds data the consumer has
+    // not taken yet. Both sides exchange it atomically
+    _Atomic uint8_t shared;
 } swapchain_t;
 
 /**
  * Allocates SWAPCHAIN_BUFFER_COUNT buffers of buffer_size bytes, for one
- * producer and one consumer that may run in different contexts (e.g. an
- * interrupt handler and the main loop). Swaps are not atomic: the caller
- * makes sure the two sides never swap at the same time.
+ * producer and one consumer that may run in different contexts: an
+ * interrupt handler and the main loop, or the two cores.
  */
 [[nodiscard]] bool swapchain_init(swapchain_t *this, size_t buffer_size);
 
