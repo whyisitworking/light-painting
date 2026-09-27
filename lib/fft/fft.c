@@ -19,12 +19,12 @@
  * @brief Ultra fast log base-2 of 2^n numbers.
  *
  * Since 2^n numbers will have only one '1' bit, we just need to shift
- * right until we find it, and that's log2N
+ * right until we find it, and that's its log2
  *
  * @param N The input
  * @return The log base-2 result, -1 if not a power of two (including 0)
  */
-static inline int log2N(unsigned int N) {
+static inline int log2_exact(unsigned int N) {
     unsigned int n;
     int value;
 
@@ -66,7 +66,7 @@ static void fill_reversed_indices(unsigned int *reversed_indices,
     unsigned int bit_depth, i;
 
     // Number of bits required
-    bit_depth = log2N(N);
+    bit_depth = log2_exact(N);
 
     for (i = 0; i < N; i++)
         reversed_indices[i] = reverse_bits(i, bit_depth);
@@ -102,7 +102,7 @@ static void fill_twiddles(float complex *twiddles, unsigned int N) {
 static inline int is_valid_count(size_t count) {
     return count >= 2 && count <= UINT_MAX &&
            count <= SIZE_MAX / sizeof(float complex) &&
-           log2N((unsigned int)count) >= 0;
+           log2_exact((unsigned int)count) >= 0;
 }
 
 bool fft_init(fft_t *this, size_t count) {
