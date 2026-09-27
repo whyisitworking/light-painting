@@ -20,7 +20,9 @@ if (EXISTS ${picoVscode})
     include(${picoVscode})
 endif()
 
-set(PICO_BOARD pico2 CACHE STRING "Board Type")
+# The Waveshare RP2350-LCD-1.47-A, from our own header in boards/
+set(PICO_BOARD_HEADER_DIRS ${CMAKE_CURRENT_LIST_DIR}/boards)
+set(PICO_BOARD waveshare_rp2350_lcd_1.47 CACHE STRING "Board type")
 
 include(pico_sdk_import.cmake)
 

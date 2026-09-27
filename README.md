@@ -2,14 +2,14 @@
 
 # Light Painting
 
-**A real-time music visualizer for the Raspberry Pi Pico 2: two MEMS microphones in, 300 WS2812 LEDs out.**
+**A real-time music visualizer for the RP2350: two MEMS microphones in, 300 WS2812 LEDs out.**
 
 > Simple and ultra fast music visualizer using RP2040 (Raspberry Pi Pico). It uses the trustworthy MEMS microphone i2s and outputs the visualization into an RGB addressable LED strip WS2812
 >
 > <sub>— the original pitch. It has since moved up to the RP2350.</sub>
 
 [![C23](https://img.shields.io/badge/C-23-00599C?logo=c&logoColor=white)](https://en.cppreference.com/w/c/23)
-[![RP2350](https://img.shields.io/badge/RP2350-Pico%202-C51A4A?logo=raspberrypi&logoColor=white)](https://www.raspberrypi.com/products/raspberry-pi-pico-2/)
+[![RP2350](https://img.shields.io/badge/RP2350-LCD%201.47-C51A4A?logo=raspberrypi&logoColor=white)](https://www.waveshare.com/wiki/RP2350-LCD-1.47-A)
 [![Pico SDK](https://img.shields.io/badge/Pico%20SDK-2.3.1-C51A4A)](https://github.com/raspberrypi/pico-sdk)
 [![CMake](https://img.shields.io/badge/CMake-%E2%89%A5%203.25-064F8C?logo=cmake&logoColor=white)](https://cmake.org)
 [![CI](https://github.com/whyisitworking/light-painting/actions/workflows/ci.yml/badge.svg)](https://github.com/whyisitworking/light-painting/actions/workflows/ci.yml)
@@ -34,7 +34,7 @@
 
 | Part | Qty | Notes |
 |---|---|---|
-| Raspberry Pi Pico 2 (RP2350) | 1 | `PICO_BOARD pico2` |
+| Waveshare RP2350-LCD-1.47-A | 1 | the RP2350A of a Pico 2 with 16 MB of flash and a 1.47" LCD, header in [`boards/`](boards) |
 | INMP441 I²S MEMS microphone | 2 | a left and a right one on the same bus, summed to mono |
 | WS2812B LED strip | 300 LEDs | GRB order, 5 V |
 | 3.3 → 5 V level shifter | 1 | on the LED data line, e.g. a 74AHCT125 or 74HCT245 |
@@ -42,19 +42,19 @@
 
 ### Wiring
 
-| Signal | Pico 2 pin | INMP441 (both) | WS2812B |
+| Signal | Board pin | INMP441 (both) | WS2812B |
 |---|---|---|---|
 | SCK (bit clock) | **GP26** | SCK | |
 | WS (word select) | **GP27** | WS | |
 | SD (data) | **GP28** | SD | |
 | LED data | **GP8** → level shifter | | DIN (from the shifter's 5 V output) |
-| 3.3 V | 3V3(OUT) | VDD | |
+| 3.3 V | 3V3 | VDD | |
 | Ground | GND | GND | GND |
 | Channel select | | L/R: **GND** on one, **3.3 V** on the other | |
 
 - SCK and WS must be on **consecutive** pins, in that order (one PIO side-set drives both). All pins are set in [`app/config.h`](app/config.h).
-- Power the strip from the 5 V supply, not from the Pico, and connect all grounds.
-- The strip expects 5 V logic (WS2812B: high above 0.7 × VDD, 3.5 V), so the Pico's 3.3 V data goes through a level shifter powered from the strip's 5 V. Place it close to the Pico: the pin keeps its default drive, and the shifter drives the lead to the strip. A buffer like the 74AHCT125 suits the 0.3 µs pulses better than the slow, pull-up based bidirectional shifters (BSS138 modules).
+- Power the strip from the 5 V supply, not from the board, and connect all grounds.
+- The strip expects 5 V logic (WS2812B: high above 0.7 × VDD, 3.5 V), so the board's 3.3 V data goes through a level shifter powered from the strip's 5 V. Place it close to the board: the pin keeps its default drive, and the shifter drives the lead to the strip. A buffer like the 74AHCT125 suits the 0.3 µs pulses better than the slow, pull-up based bidirectional shifters (BSS138 modules).
 
 ## Quick start
 
@@ -91,7 +91,7 @@ The image tracks the SDK's latest release rather than the pinned 2.3.1.
 
 ### 3. Flash
 
-Hold **BOOTSEL** while plugging the Pico in, then copy `build/light-painting.uf2` onto the `RP2350` drive that appears. Or, with picotool:
+Hold **BOOT** while plugging the board in, then copy `build/light-painting.uf2` onto the `RP2350` drive that appears. Or, with picotool:
 
 ```bash
 picotool load build/light-painting.uf2 -fx
@@ -169,7 +169,7 @@ The sound analysis and the effects each have their constants at the top of their
 |---|---|---|
 | `-DPERF_STATS=ON` | off | Prints stage timings and driver counters once per second over USB |
 | `-DWAIT_FOR_USB_HOST=ON` | off | Waits up to 2 s at startup for a USB serial host |
-| `-DPICO_BOARD=…` | `pico2` | Target board |
+| `-DPICO_BOARD=…` | `waveshare_rp2350_lcd_1.47` | Target board |
 
 ## How it works
 
@@ -358,7 +358,7 @@ The microphones' self-noise is getting above the auto-gain floor. Raise `FEATURE
 <details>
 <summary><b>Random colours or glitches near the start of the strip</b></summary>
 
-Check that the level shifter is powered from 5 V and shares ground with the Pico and the strip. A long lead from the shifter to the strip can ring: a 330 Ω series resistor at the shifter's output, and a shorter wire, help.
+Check that the level shifter is powered from 5 V and shares ground with the board and the strip. A long lead from the shifter to the strip can ring: a 330 Ω series resistor at the shifter's output, and a shorter wire, help.
 
 </details>
 

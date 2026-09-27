@@ -33,7 +33,7 @@ static_assert((AUDIO_HOP_SIZE & (AUDIO_HOP_SIZE - 1)) == 0 &&
 
 constexpr size_t LED_COUNT = 300;
 
-// Pico 2 header pins, SCK and WS must be consecutive
+// Header pins, SCK and WS must be consecutive
 constexpr unsigned MIC_SCK_PIN = 26;
 constexpr unsigned MIC_WS_PIN = 27;
 constexpr unsigned MIC_DATA_PIN = 28;
