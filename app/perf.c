@@ -24,6 +24,10 @@ static const char *const stage_names[PERF_STAGE_COUNT] = {
 static perf_stat_t stages[PERF_STAGE_COUNT];
 static uint32_t lap_us, report_us, beats;
 
+// Loop iterations since the last report: each analyzes one audio buffer and
+// submits one LED frame
+static long hops;
+
 static void perf_add(perf_stat_t *stat, uint32_t us) {
     stat->count++;
     stat->total_us += us;
@@ -53,6 +57,8 @@ void perf_end(const visualizer_t *visualizer, const sound_t *sound) {
     i2s_stats_t audio;
     ws2812_stats_t leds;
 
+    hops++;
+
     if (sound->beat)
         beats++;
 
@@ -61,14 +67,19 @@ void perf_end(const visualizer_t *visualizer, const sound_t *sound) {
 
     report_us = lap_us;
 
-    for (int stage = 0; stage < PERF_STAGE_COUNT; stage++)
-        perf_print(stage_names[stage], &stages[stage]);
-
+    // Before printing, which takes a while: the counts then cover the same
+    // hops
     audio = i2s_take_stats();
     leds = ws2812_take_stats();
 
-    printf("Audio buffers dropped %zu, LED frames dropped %zu\n",
-           audio.dropped, leds.dropped);
+    for (int stage = 0; stage < PERF_STAGE_COUNT; stage++)
+        perf_print(stage_names[stage], &stages[stage]);
+
+    // Worked out from the counts rather than counted. A frame submitted but
+    // not latched yet is still in flight: the LED count can be off by 1
+    printf("Audio buffers lost %ld, LED frames skipped %ld\n",
+           (long)audio.irq_hits - hops, hops - (long)leds.frames_latched);
+    hops = 0;
     // To tune FEATURES_MIN_CEILING_DB: a quiet room should read loudness ~0
     // and no beats
     printf("Ceiling %.1f dB, loudness %.3f, beats %lu\n",

@@ -288,9 +288,7 @@ i2s_stats_t i2s_take_stats(void) {
     // Take and reset in one go, interrupts keep counting
     saved_irq = save_and_disable_interrupts();
     stats.irq_hits = irq_hits;
-    stats.dropped = driver.swapchain.dropped;
     irq_hits = 0;
-    driver.swapchain.dropped = 0;
     restore_interrupts(saved_irq);
 
     return stats;

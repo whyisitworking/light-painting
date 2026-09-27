@@ -14,8 +14,6 @@
 typedef struct {
     // Frames sent and latched by the LEDs
     size_t frames_latched;
-    // Frames replaced by newer ones before they could be sent
-    size_t dropped;
 } ws2812_stats_t;
 
 // led_count LEDs on the data pin. False if already initialized, or if no PIO,

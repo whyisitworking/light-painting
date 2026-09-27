@@ -231,9 +231,7 @@ ws2812_stats_t ws2812_take_stats(void) {
     // Take and reset in one go, interrupts keep counting
     saved_irq = save_and_disable_interrupts();
     stats.frames_latched = frames_latched;
-    stats.dropped = driver.swapchain.dropped;
     frames_latched = 0;
-    driver.swapchain.dropped = 0;
     restore_interrupts(saved_irq);
 
     return stats;

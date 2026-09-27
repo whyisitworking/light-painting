@@ -22,7 +22,6 @@ bool swapchain_init(swapchain_t *this, size_t buffer_size) {
 
     this->memory = memory;
     this->fresh = false;
-    this->dropped = 0;
 
     return true;
 }
@@ -33,11 +32,6 @@ void *swapchain_producer_buffer(swapchain_t *this) {
 
 void swapchain_producer_swap(swapchain_t *this) {
     swap_slots(this->buffers, SHARED_INDEX, PRODUCER_INDEX);
-
-    // The consumer never saw the buffer we just took back
-    if (this->fresh)
-        this->dropped++;
-
     this->fresh = true;
 }
 

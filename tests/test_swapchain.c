@@ -32,7 +32,6 @@ static void test_nothing_published(void) {
 
     CHECK(swapchain_init(&chain, sizeof(uint32_t)));
     CHECK(!swapchain_consumer_swap(&chain));
-    CHECK(chain.dropped == 0);
 
     swapchain_deinit(&chain);
 }
@@ -47,8 +46,6 @@ static void test_in_order(void) {
         CHECK(swapchain_consumer_swap(&chain));
         CHECK(consumed(&chain) == i);
     }
-
-    CHECK(chain.dropped == 0);
 
     swapchain_deinit(&chain);
 }
@@ -72,7 +69,7 @@ static void test_never_goes_back_in_time(void) {
     swapchain_deinit(&chain);
 }
 
-static void test_newest_wins_and_drops_counted(void) {
+static void test_newest_wins(void) {
     swapchain_t chain;
 
     CHECK(swapchain_init(&chain, sizeof(uint32_t)));
@@ -83,7 +80,6 @@ static void test_newest_wins_and_drops_counted(void) {
 
     CHECK(swapchain_consumer_swap(&chain));
     CHECK(consumed(&chain) == 3);
-    CHECK(chain.dropped == 2);
 
     swapchain_deinit(&chain);
 }
@@ -106,7 +102,7 @@ int main(void) {
     test_nothing_published();
     test_in_order();
     test_never_goes_back_in_time();
-    test_newest_wins_and_drops_counted();
+    test_newest_wins();
     test_deinit_forgets_buffers();
 
     return CHECK_REPORT();

@@ -304,7 +304,7 @@ cmake --build build-sanitize && ctest --test-dir build-sanitize --output-on-fail
 
 ### Profiling
 
-Build with `-DPERF_STATS=ON`. Once per second, the USB serial output shows each loop stage's average and worst time (`wait`, `analyze`, `render`), the audio buffers and LED frames dropped, the auto-gain ceiling, loudness and beat count, and the interrupt counters. In a quiet room, loudness should read about 0 with no beats. If it doesn't, raise `FEATURES_MIN_CEILING_DB`.
+Build with `-DPERF_STATS=ON`. Once per second, the USB serial output shows each loop stage's average and worst time (`wait`, `analyze`, `render`), the audio buffers lost and the LED frames skipped (the strip latches about 150 frames/s of the 190 rendered), the auto-gain ceiling, loudness and beat count, and the interrupt counters. In a quiet room, loudness should read about 0 with no beats. If it doesn't, raise `FEATURES_MIN_CEILING_DB`.
 
 ### Adding an effect mode
 
