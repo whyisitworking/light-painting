@@ -10,7 +10,9 @@ static const settings_range_t ranges[SETTINGS_ID_COUNT] = {
     [SETTINGS_MODE] = {0, EFFECTS_MODE_COUNT - 1, 1, VISUALIZER_MODE, 1, true},
     [SETTINGS_PALETTE] = {0, PALETTE_COUNT - 1, 1, VISUALIZER_PALETTE, 1,
                           true},
-    // Below 10 %, the strip's 8 bits leave too few levels for colours
+    // Perceptual, before the strip's 8-bit gamma: at 10 % full white is
+    // 2 / 255, below about 20 % colours lose their shading, and below 6 %
+    // everything rounds to off
     [SETTINGS_BRIGHTNESS] = {10, 100, 5, 100, 100, false},
     // VISUALIZER_GAIN. Much above 3, a quiet room's self-noise nears the
     // floor of FEATURES_MIN_CEILING_DB - FEATURES_RANGE_DB
