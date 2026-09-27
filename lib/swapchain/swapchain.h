@@ -25,9 +25,9 @@ typedef struct {
     //      dynamically via new or malloc is guaranteed to be properly aligned
     //      for objects of **any type**, but buffers that are not allocated
     //      dynamically have no such guarantee."
-    void *mem;
+    void *memory;
     // Swapped from interrupt handlers, hence volatile
-    void *volatile buffer_chain[SWAPCHAIN_BUFFER_COUNT];
+    void *volatile buffers[SWAPCHAIN_BUFFER_COUNT];
     // Whether the shared buffer holds data the consumer has not taken yet
     volatile bool fresh;
     // Number of fresh buffers replaced before the consumer took them
@@ -35,8 +35,6 @@ typedef struct {
 } swapchain_t;
 
 /**
- * Instantiates a swap-
- *
  * Allocates SWAPCHAIN_BUFFER_COUNT buffers of buffer_size bytes, for one
  * producer and one consumer that may run in different contexts (e.g. an
  * interrupt handler and the main loop). Swaps are not atomic: the caller
