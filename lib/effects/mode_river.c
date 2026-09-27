@@ -4,8 +4,8 @@
 
 // The colour of the sound enters at the centre and flows outward
 void effects_mode_river(effects_t *this, const sound_t *sound) {
-    size_t speed = EFFECTS_RIVER_SPEED < this->half_led_count
-                       ? EFFECTS_RIVER_SPEED
+    size_t speed = this->tuning.river_speed < this->half_led_count
+                       ? this->tuning.river_speed
                        : this->half_led_count;
     rgb_t fresh = color_rgb_scale(
         effects_color_at(this, sound, sound->centroid), sound->loudness);

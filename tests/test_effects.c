@@ -2,6 +2,7 @@
 #include "color.h"
 #include "effects.h"
 
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -336,6 +337,181 @@ static void test_drift_clock_wraps(void) {
     effects_deinit(&effects);
 }
 
+// Tuned to the defaults, nothing changes
+static void test_default_tuning_changes_nothing(void) {
+    effects_t effects;
+    effects_tuning_t defaults = effects_default_tuning();
+    float peak_hold_s;
+
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
+    peak_hold_s = effects.peak_hold_s;
+
+    effects_tune(&effects, &defaults);
+    CHECK(effects.peak_hold_s == peak_hold_s);
+    CHECK(memcmp(&effects.tuning, &defaults, sizeof(defaults)) == 0);
+
+    effects_deinit(&effects);
+}
+
+// Out of range fields keep their values, the others still apply
+static void test_tuning_ignores_invalid(void) {
+    effects_t effects;
+    effects_tuning_t tuning = effects_default_tuning();
+
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
+
+    tuning.river_speed = 0;
+    tuning.ripple_speed = -1.f;
+    tuning.peak_hold_ms = NAN;
+    tuning.drift_period_s = -5.f;
+    tuning.warmth = INFINITY;
+    tuning.flash_level = 1.5f;
+    tuning.sparkle_rate = 0.5f;
+    effects_tune(&effects, &tuning);
+
+    CHECK(effects.tuning.river_speed == EFFECTS_RIVER_SPEED);
+    CHECK(effects.tuning.ripple_speed == EFFECTS_RIPPLE_SPEED);
+    CHECK(effects.tuning.peak_hold_ms == EFFECTS_PEAK_HOLD_MS);
+    CHECK(effects.tuning.drift_period_s == EFFECTS_DRIFT_PERIOD_S);
+    CHECK(effects.tuning.warmth == EFFECTS_WARMTH);
+    CHECK(effects.tuning.flash_level == EFFECTS_FLASH_LEVEL);
+    CHECK(effects.tuning.sparkle_rate == 0.5f);
+
+    effects_deinit(&effects);
+}
+
+static void test_tuned_river_speed(void) {
+    effects_t effects;
+    effects_tuning_t tuning = effects_default_tuning();
+    sound_t sound = quiet();
+
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
+    effects_set_mode(&effects, EFFECTS_MODE_RIVER);
+    tuning.river_speed = 3;
+    effects_tune(&effects, &tuning);
+
+    sound.loudness = 1.f;
+    sound.centroid = 0.5f;
+    effects_render(&effects, &sound, pixels);
+
+    sound = quiet();
+    for (int frame = 0; frame < 10; frame++)
+        effects_render(&effects, &sound, pixels);
+
+    // The last of the 3 LEDs the sound entered on, 30 further out
+    CHECK(brightest(LEDS / 2, LEDS) >= LEDS / 2 + 30);
+    CHECK(brightest(LEDS / 2, LEDS) <= LEDS / 2 + 32);
+
+    effects_deinit(&effects);
+}
+
+static void test_tuned_ripple_speed(void) {
+    effects_t effects;
+    effects_tuning_t tuning = effects_default_tuning();
+    sound_t sound = quiet();
+
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
+    effects_set_mode(&effects, EFFECTS_MODE_RIPPLES);
+    tuning.ripple_speed = 4.f;
+    effects_tune(&effects, &tuning);
+
+    sound.beat = true;
+    sound.beat_strength = 1.f;
+    effects_render(&effects, &sound, pixels);
+
+    sound = quiet();
+    for (int frame = 0; frame < 10; frame++)
+        effects_render(&effects, &sound, pixels);
+
+    CHECK_NEAR(brightest(LEDS / 2, LEDS), LEDS / 2 + 10 * 4.f, 0.5);
+
+    effects_deinit(&effects);
+}
+
+// Without a hold time the peak dot falls on the very next frame
+static void test_tuned_peak_hold(void) {
+    size_t length = LEDS / 4;
+
+    for (int held = 0; held < 2; held++) {
+        effects_t effects;
+        effects_tuning_t tuning = effects_default_tuning();
+        sound_t sound = quiet();
+
+        CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
+        effects_set_mode(&effects, EFFECTS_MODE_VU);
+        tuning.peak_hold_ms = held ? EFFECTS_PEAK_HOLD_MS : 0.f;
+        effects_tune(&effects, &tuning);
+
+        sound.loudness = 0.5f;
+        effects_render(&effects, &sound, pixels);
+        sound = quiet();
+        effects_render(&effects, &sound, pixels);
+
+        CHECK((brightness(pixels[length]) > 0) == (bool)held);
+
+        effects_deinit(&effects);
+    }
+}
+
+// Without warmth the colours do not depend on loudness, without drift not
+// on time, and the drift clock stays at 0
+static void test_tuned_warmth_and_drift(void) {
+    effects_t effects;
+    effects_tuning_t tuning = effects_default_tuning();
+    sound_t sound = quiet();
+    uint32_t quiet_pixels[LEDS];
+
+    for (size_t b = 0; b < BANDS; b++)
+        bands[b] = 1.f;
+
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
+    effects_set_mode(&effects, EFFECTS_MODE_SPECTRUM);
+    tuning.warmth = 0.f;
+    tuning.drift_period_s = 0.f;
+    effects_tune(&effects, &tuning);
+
+    sound.loudness = 0.f;
+    effects_render(&effects, &sound, quiet_pixels);
+    sound.loudness = 1.f;
+    for (int frame = 0; frame < 100; frame++)
+        effects_render(&effects, &sound, pixels);
+
+    CHECK(memcmp(quiet_pixels, pixels, sizeof(pixels)) == 0);
+    CHECK(effects.time_s == 0.f);
+
+    // With the default warmth, loudness moves the colours
+    tuning.warmth = EFFECTS_WARMTH;
+    effects_tune(&effects, &tuning);
+    effects_render(&effects, &sound, pixels);
+    CHECK(memcmp(quiet_pixels, pixels, sizeof(pixels)) != 0);
+
+    effects_deinit(&effects);
+}
+
+// No flash, no sparkles
+static void test_tuned_flash_and_sparkles(void) {
+    effects_t effects;
+    effects_tuning_t tuning = effects_default_tuning();
+    sound_t sound = quiet();
+
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 7));
+    effects_set_mode(&effects, EFFECTS_MODE_GLOW);
+    tuning.flash_level = 0.f;
+    tuning.sparkle_rate = 0.f;
+    effects_tune(&effects, &tuning);
+
+    for (size_t band = BANDS * 3 / 4; band < BANDS; band++)
+        bands[band] = 1.f;
+    sound.beat = true;
+    sound.beat_strength = 1.f;
+
+    for (int frame = 0; frame < 20; frame++)
+        effects_render(&effects, &sound, pixels);
+    CHECK(all_dark());
+
+    effects_deinit(&effects);
+}
+
 int main(void) {
     test_rejects_invalid();
     check_silence_is_dark(EFFECTS_MODE_SPECTRUM);
@@ -350,6 +526,13 @@ int main(void) {
     test_ripple_travels();
     test_sparkles_deterministic();
     test_drift_clock_wraps();
+    test_default_tuning_changes_nothing();
+    test_tuning_ignores_invalid();
+    test_tuned_river_speed();
+    test_tuned_ripple_speed();
+    test_tuned_peak_hold();
+    test_tuned_warmth_and_drift();
+    test_tuned_flash_and_sparkles();
     check_silence_is_dark(EFFECTS_MODE_VU);
     check_silence_is_dark(EFFECTS_MODE_GLOW);
     test_vu();

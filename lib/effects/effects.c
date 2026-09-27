@@ -38,6 +38,7 @@ bool effects_init(effects_t *this, size_t led_count, size_t band_count,
     }
 
     *this = (effects_t){
+        .tuning = effects_default_tuning(),
         .led_count = led_count,
         .band_count = band_count,
         .half_led_count = half_led_count,
@@ -50,6 +51,7 @@ bool effects_init(effects_t *this, size_t led_count, size_t band_count,
         .sparkles.levels = sparkles,
         .sparkles.random = seed != 0 ? seed : 1,
     };
+    effects_tune(this, &this->tuning);
 
     return true;
 }
@@ -64,6 +66,43 @@ void effects_set_palette(effects_t *this, palette_t palette) {
         this->palette = palette;
 }
 
+effects_tuning_t effects_default_tuning(void) {
+    return (effects_tuning_t){
+        .river_speed = EFFECTS_RIVER_SPEED,
+        .ripple_speed = EFFECTS_RIPPLE_SPEED,
+        .peak_hold_ms = EFFECTS_PEAK_HOLD_MS,
+        .drift_period_s = EFFECTS_DRIFT_PERIOD_S,
+        .warmth = EFFECTS_WARMTH,
+        .flash_level = EFFECTS_FLASH_LEVEL,
+        .sparkle_rate = EFFECTS_SPARKLE_RATE,
+    };
+}
+
+static bool is_at_least(float value, float least) {
+    return value >= least && isfinite(value);
+}
+
+static bool is_fraction(float value) { return value >= 0.f && value <= 1.f; }
+
+void effects_tune(effects_t *this, const effects_tuning_t *tuning) {
+    if (tuning->river_speed >= 1)
+        this->tuning.river_speed = tuning->river_speed;
+    if (tuning->ripple_speed > 0.f && isfinite(tuning->ripple_speed))
+        this->tuning.ripple_speed = tuning->ripple_speed;
+    if (is_at_least(tuning->peak_hold_ms, 0.f))
+        this->tuning.peak_hold_ms = tuning->peak_hold_ms;
+    if (is_at_least(tuning->drift_period_s, 0.f))
+        this->tuning.drift_period_s = tuning->drift_period_s;
+    if (is_at_least(tuning->warmth, 0.f))
+        this->tuning.warmth = tuning->warmth;
+    if (is_fraction(tuning->flash_level))
+        this->tuning.flash_level = tuning->flash_level;
+    if (is_fraction(tuning->sparkle_rate))
+        this->tuning.sparkle_rate = tuning->sparkle_rate;
+
+    this->peak_hold_s = this->tuning.peak_hold_ms / 1000.f;
+}
+
 void effects_render(effects_t *this, const sound_t *sound, uint32_t *pixels) {
     color_ws2812_t flash;
     uint8_t white;
@@ -76,7 +115,7 @@ void effects_render(effects_t *this, const sound_t *sound, uint32_t *pixels) {
 
     if (sound->beat)
         this->flash =
-            fmaxf(this->flash, sound->beat_strength * EFFECTS_FLASH_LEVEL);
+            fmaxf(this->flash, sound->beat_strength * this->tuning.flash_level);
 
     // The flash goes on after gamma, as shown: added before it, 0.35 would
     // come out as 25 / 255. Saturating, so bright pixels do not wrap dark
@@ -98,9 +137,11 @@ void effects_render(effects_t *this, const sound_t *sound, uint32_t *pixels) {
 
     // Wrapped where the drift repeats (two periods, for reflecting palettes
     // too): a float growing forever loses precision and freezes after ~36 h
-    this->time_s += this->hop_period_s;
-    if (EFFECTS_DRIFT_PERIOD_S > 0.f)
-        this->time_s = fmodf(this->time_s, 2.f * EFFECTS_DRIFT_PERIOD_S);
+    if (this->tuning.drift_period_s > 0.f)
+        this->time_s = fmodf(this->time_s + this->hop_period_s,
+                             2.f * this->tuning.drift_period_s);
+    else
+        this->time_s = 0.f;
 }
 
 void effects_deinit(effects_t *this) {

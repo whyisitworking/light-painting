@@ -42,6 +42,23 @@ constexpr float EFFECTS_SPARKLE_DECAY = 0.8f;
 constexpr size_t EFFECTS_BASS_BANDS = 5;
 constexpr float EFFECTS_TREBLE_FRACTION = 0.25f;
 
+// What can be changed while running, the constants above are the defaults
+typedef struct {
+    // EFFECTS_RIVER_SPEED: at least 1
+    size_t river_speed;
+    // EFFECTS_RIPPLE_SPEED: positive
+    float ripple_speed;
+    // EFFECTS_PEAK_HOLD_MS: 0 or more
+    float peak_hold_ms;
+    // EFFECTS_DRIFT_PERIOD_S: 0 or more, 0 disables the drift
+    float drift_period_s;
+    // EFFECTS_WARMTH: 0 or more
+    float warmth;
+    // EFFECTS_FLASH_LEVEL, EFFECTS_SPARKLE_RATE: 0 to 1
+    float flash_level;
+    float sparkle_rate;
+} effects_tuning_t;
+
 // What the strip shows, see the README for each mode
 typedef enum {
     EFFECTS_MODE_SPECTRUM,
@@ -77,7 +94,12 @@ typedef struct {
     effects_mode_t mode;
     palette_t palette;
 
-    // Time since init modulo two drift periods, drives the drift
+    effects_tuning_t tuning;
+    // tuning.peak_hold_ms in seconds
+    float peak_hold_s;
+
+    // Time since init modulo two drift periods, drives the drift. 0 while
+    // the drift is disabled
     float time_s;
 
     // Current beat flash level and its fade per frame
@@ -129,6 +151,15 @@ void effects_set_mode(effects_t *this, effects_mode_t mode);
 
 // Takes effect on the next render. Out of range values are ignored
 void effects_set_palette(effects_t *this, palette_t palette);
+
+// The EFFECTS_* constants, what effects_init() starts with
+effects_tuning_t effects_default_tuning(void);
+
+/**
+ * Takes effect on the next render. A field out of its range (see
+ * effects_tuning_t) or NaN keeps its current value
+ */
+void effects_tune(effects_t *this, const effects_tuning_t *tuning);
 
 /**
  * Renders one frame into led_count color_ws2812_t words

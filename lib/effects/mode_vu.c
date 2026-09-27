@@ -8,7 +8,7 @@ void effects_mode_vu(effects_t *this, const sound_t *sound) {
 
     if (length >= this->vu.peak) {
         this->vu.peak = length;
-        this->vu.hold_s = EFFECTS_PEAK_HOLD_MS / 1000.f;
+        this->vu.hold_s = this->peak_hold_s;
     } else if (this->vu.hold_s > 0.f) {
         this->vu.hold_s -= this->hop_period_s;
     } else {

@@ -53,7 +53,7 @@ void effects_mode_ripples(effects_t *this, const sound_t *sound) {
                 color_rgb_scale(color, brightness * (1.f - (float)k / width)));
         }
 
-        pulse->position += EFFECTS_RIPPLE_SPEED;
+        pulse->position += this->tuning.ripple_speed;
 
         if (pulse->position - width >= (float)this->half_led_count)
             pulse->active = false;

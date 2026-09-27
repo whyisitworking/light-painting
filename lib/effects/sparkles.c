@@ -24,7 +24,7 @@ void effects_draw_sparkles(effects_t *this, const sound_t *sound) {
     for (size_t i = 0; i < this->led_count; i++) {
         this->sparkles.levels[i] *= EFFECTS_SPARKLE_DECAY;
 
-        if (random_unit(this) < treble * EFFECTS_SPARKLE_RATE)
+        if (random_unit(this) < treble * this->tuning.sparkle_rate)
             this->sparkles.levels[i] = 1.f;
 
         color_rgb_add(&this->frame[i],
