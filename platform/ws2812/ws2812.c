@@ -18,7 +18,7 @@
 
 typedef struct {
     // Number of LEDs
-    size_t count;
+    size_t led_count;
 
     // The PIO block
     PIO pio;
@@ -52,7 +52,7 @@ static ws2812_t driver = {
 };
 
 // Latched frames, updated from the PIO interrupt
-static volatile size_t irq_hit = 0;
+static volatile size_t frames_latched = 0;
 
 /**
  * Starts sending the newest frame, if there is one we have not sent yet.
@@ -73,7 +73,7 @@ static void send_fresh_frame() {
 // The state machine raises its IRQ once a frame has been latched
 static void pio_irq_handler() {
     pio_interrupt_clear(driver.pio, driver.pio_sm);
-    irq_hit++;
+    frames_latched++;
 
     // Stopping, the frame in flight is being drained
     if (!driver.is_transmitting)
@@ -93,7 +93,7 @@ static size_t ws2812_required_buffer_size(size_t led_count) {
     return led_count * sizeof(uint32_t);
 }
 
-bool ws2812_init(size_t count, uint pin) {
+bool ws2812_init(size_t led_count, uint pin) {
     PIO pio;
     uint pio_sm, pio_offset;
     int dma_channel;
@@ -102,7 +102,8 @@ bool ws2812_init(size_t count, uint pin) {
     if (driver.is_init)
         return false;
 
-    if (!swapchain_init(&driver.swapchain, ws2812_required_buffer_size(count)))
+    if (!swapchain_init(&driver.swapchain,
+                        ws2812_required_buffer_size(led_count)))
         return false;
 
     // Find any PIO (3 on RP2350) with room for the program and a free State
@@ -130,7 +131,7 @@ bool ws2812_init(size_t count, uint pin) {
     channel_config_set_transfer_data_size(&dma_config, DMA_SIZE_32);
     channel_config_set_dreq(&dma_config, pio_get_dreq(pio, pio_sm, true));
     dma_channel_configure(dma_channel, &dma_config, &pio->txf[pio_sm], NULL,
-                          count, false);
+                          led_count, false);
 
     // Frame latched interrupt, 'irq 0 rel' raises the flag numbered after
     // the state machine
@@ -141,7 +142,7 @@ bool ws2812_init(size_t count, uint pin) {
     driver.pio = pio;
     driver.pio_sm = pio_sm;
     driver.pio_offset = pio_offset;
-    driver.count = count;
+    driver.led_count = led_count;
     driver.dma_channel = (uint)dma_channel;
     driver.is_init = true;
 
@@ -229,9 +230,9 @@ ws2812_stats_t ws2812_take_stats(void) {
 
     // Take and reset in one go, interrupts keep counting
     saved_irq = save_and_disable_interrupts();
-    stats.frames_latched = irq_hit;
+    stats.frames_latched = frames_latched;
     stats.dropped = driver.swapchain.dropped;
-    irq_hit = 0;
+    frames_latched = 0;
     driver.swapchain.dropped = 0;
     restore_interrupts(saved_irq);
 

@@ -19,15 +19,15 @@ typedef struct {
     size_t dropped;
 } ws2812_stats_t;
 
-// count LEDs on the data pin. False if already initialized, or if no PIO,
+// led_count LEDs on the data pin. False if already initialized, or if no PIO,
 // DMA channel or memory is free
-bool ws2812_init(size_t count, uint pin);
+bool ws2812_init(size_t led_count, uint pin);
 
 // Frames go out from now on, starting with any already submitted
 void ws2812_start_transmission(void);
 
 /**
- * The frame to fill next: count color_ws2812_t words. Valid until
+ * The frame to fill next: led_count color_ws2812_t words. Valid until
  * ws2812_submit()
  */
 uint32_t *ws2812_frame(void);
