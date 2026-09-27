@@ -94,8 +94,9 @@ static inline void i2s_program_init(PIO pio, uint sm, uint offset,
 
     // Each microphone tri-states the data line outside its own channel, so
     // with one missing or dead its half would float and read as noise. Both
-    // pulls make a bus keeper that holds the last level instead. Not a plain
-    // pull-down: RP2350-E9 input leakage can overpower the internal one
+    // pulls make a bus keeper that holds the last level instead (a mode of
+    // its own, only one resistor is ever on: RP2350 datasheet 9.6.1). Not a
+    // plain pull-down: RP2350-E9 input leakage can overpower the internal one
     gpio_set_pulls(data_pin, true, true);
 
     pio_sm_init(pio, sm, offset, &cfg);
