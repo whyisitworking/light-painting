@@ -81,7 +81,9 @@ set(APP_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/app/main.c
     ${CMAKE_CURRENT_SOURCE_DIR}/app/perf.c
     ${CMAKE_CURRENT_SOURCE_DIR}/app/ui/ui.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/app/ui/ui_port.c)
+    ${CMAKE_CURRENT_SOURCE_DIR}/app/ui/ui_names.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/app/ui/ui_port.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/app/ui/ui_status.c)
 target_sources(light-painting PRIVATE ${APP_SOURCES})
 set_source_files_properties(${APP_SOURCES}
     PROPERTIES COMPILE_OPTIONS "${PROJECT_WARNINGS}")

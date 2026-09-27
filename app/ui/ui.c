@@ -3,6 +3,7 @@
 #include "config.h"
 #include "st7789.h"
 #include "ui_port.h"
+#include "ui_status.h"
 
 #include <pico/multicore.h>
 #include <pico/time.h>
@@ -16,6 +17,7 @@ static alignas(8) uint32_t stack[UI_STACK_SIZE / sizeof(uint32_t)];
 
 static void ui_main(void) {
     lv_display_t *display;
+    lv_obj_t *status;
     uint32_t wait_ms;
 
     // Here, on core 1: its DMA interrupt is enabled on the calling core
@@ -42,6 +44,15 @@ static void ui_main(void) {
         printf("Could not initialize LVGL\n");
         return;
     }
+
+    // The compiled-in look, until the menu can change it
+    status = ui_status_create();
+    ui_status_show(&(ui_status_t){
+        .mode = VISUALIZER_MODE,
+        .palette = VISUALIZER_PALETTE,
+        .brightness_percent = 100,
+    });
+    lv_screen_load(status);
 
     // The display memory holds noise after a reset: light it only once the
     // first frame is on it
