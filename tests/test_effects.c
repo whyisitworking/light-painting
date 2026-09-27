@@ -512,6 +512,73 @@ static void test_tuned_flash_and_sparkles(void) {
     effects_deinit(&effects);
 }
 
+// At 0 everything is dark, the beat flash included
+static void test_brightness_zero_is_dark(void) {
+    effects_t effects;
+    effects_tuning_t tuning = effects_default_tuning();
+    sound_t sound = quiet();
+
+    for (size_t b = 0; b < BANDS; b++)
+        bands[b] = 1.f;
+
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
+    effects_set_mode(&effects, EFFECTS_MODE_SPECTRUM);
+    tuning.brightness = 0.f;
+    effects_tune(&effects, &tuning);
+
+    sound.beat = true;
+    sound.beat_strength = 1.f;
+    effects_render(&effects, &sound, pixels);
+    CHECK(all_dark());
+
+    effects_deinit(&effects);
+}
+
+// At half brightness the pixels are gamma of half their level, and the
+// flash half as bright to the eye too: scaled by 0.5 ^ gamma after gamma
+static void test_half_brightness(void) {
+    effects_t effects;
+    effects_tuning_t tuning = effects_default_tuning();
+    sound_t sound = quiet();
+    uint8_t full = color_gamma(1.f), half = color_gamma(0.5f);
+    long white = lroundf(EFFECTS_FLASH_LEVEL * 255.f * powf(0.5f, COLOR_GAMMA));
+
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
+    effects_set_mode(&effects, EFFECTS_MODE_SPECTRUM);
+    tuning.brightness = 0.5f;
+    effects_tune(&effects, &tuning);
+
+    // The flash alone, on silence
+    sound.beat = true;
+    sound.beat_strength = 1.f;
+    effects_render(&effects, &sound, pixels);
+    for (size_t i = 0; i < LEDS; i++) {
+        color_ws2812_t color = {.value = pixels[i]};
+
+        CHECK(color.grba.r == white && color.grba.g == white &&
+              color.grba.b == white);
+    }
+    effects_deinit(&effects);
+
+    // Full levels, no flash: no channel above gamma of half
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
+    effects_set_mode(&effects, EFFECTS_MODE_SPECTRUM);
+    effects_tune(&effects, &tuning);
+    sound = quiet();
+    for (size_t b = 0; b < BANDS; b++)
+        bands[b] = 1.f;
+    effects_render(&effects, &sound, pixels);
+    for (size_t i = 0; i < LEDS; i++) {
+        color_ws2812_t color = {.value = pixels[i]};
+
+        CHECK(color.grba.r <= half && color.grba.g <= half &&
+              color.grba.b <= half);
+    }
+    CHECK(half < full);
+
+    effects_deinit(&effects);
+}
+
 int main(void) {
     test_rejects_invalid();
     check_silence_is_dark(EFFECTS_MODE_SPECTRUM);
@@ -533,6 +600,8 @@ int main(void) {
     test_tuned_peak_hold();
     test_tuned_warmth_and_drift();
     test_tuned_flash_and_sparkles();
+    test_brightness_zero_is_dark();
+    test_half_brightness();
     check_silence_is_dark(EFFECTS_MODE_VU);
     check_silence_is_dark(EFFECTS_MODE_GLOW);
     test_vu();

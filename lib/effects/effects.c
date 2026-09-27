@@ -68,6 +68,7 @@ void effects_set_palette(effects_t *this, palette_t palette) {
 
 effects_tuning_t effects_default_tuning(void) {
     return (effects_tuning_t){
+        .brightness = 1.f,
         .river_speed = EFFECTS_RIVER_SPEED,
         .ripple_speed = EFFECTS_RIPPLE_SPEED,
         .peak_hold_ms = EFFECTS_PEAK_HOLD_MS,
@@ -85,6 +86,8 @@ static bool is_at_least(float value, float least) {
 static bool is_fraction(float value) { return value >= 0.f && value <= 1.f; }
 
 void effects_tune(effects_t *this, const effects_tuning_t *tuning) {
+    if (is_fraction(tuning->brightness))
+        this->tuning.brightness = tuning->brightness;
     if (tuning->river_speed >= 1)
         this->tuning.river_speed = tuning->river_speed;
     if (tuning->ripple_speed > 0.f && isfinite(tuning->ripple_speed))
@@ -101,6 +104,9 @@ void effects_tune(effects_t *this, const effects_tuning_t *tuning) {
         this->tuning.sparkle_rate = tuning->sparkle_rate;
 
     this->peak_hold_s = this->tuning.peak_hold_ms / 1000.f;
+    // The pixels are scaled before gamma, the flash after it: by the same
+    // factor as they end up with. Exactly 1 at full brightness
+    this->flash_duty = powf(this->tuning.brightness, COLOR_GAMMA);
 }
 
 void effects_render(effects_t *this, const sound_t *sound, uint32_t *pixels) {
@@ -119,11 +125,11 @@ void effects_render(effects_t *this, const sound_t *sound, uint32_t *pixels) {
 
     // The flash goes on after gamma, as shown: added before it, 0.35 would
     // come out as 25 / 255. Saturating, so bright pixels do not wrap dark
-    white = (uint8_t)lroundf(this->flash * 255.f);
+    white = (uint8_t)lroundf(this->flash * 255.f * this->flash_duty);
     flash = color_ws2812_from_rgb(white, white, white);
 
     for (size_t i = 0; i < this->led_count; i++) {
-        rgb_t color = this->frame[i];
+        rgb_t color = color_rgb_scale(this->frame[i], this->tuning.brightness);
 
         pixels[i] =
             color_ws2812_add(color_ws2812_from_rgb(color_gamma(color.r),

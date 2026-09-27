@@ -44,6 +44,9 @@ constexpr float EFFECTS_TREBLE_FRACTION = 0.25f;
 
 // What can be changed while running, the constants above are the defaults
 typedef struct {
+    // 0 to 1, 1 by default. Perceptual: each step looks equally brighter.
+    // Low levels leave the strip's 8 bits few steps for the colours
+    float brightness;
     // EFFECTS_RIVER_SPEED: at least 1
     size_t river_speed;
     // EFFECTS_RIPPLE_SPEED: positive
@@ -97,6 +100,8 @@ typedef struct {
     effects_tuning_t tuning;
     // tuning.peak_hold_ms in seconds
     float peak_hold_s;
+    // What the brightness scales the flash by, after gamma
+    float flash_duty;
 
     // Time since init modulo two drift periods, drives the drift. 0 while
     // the drift is disabled
