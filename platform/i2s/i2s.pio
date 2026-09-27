@@ -65,10 +65,13 @@ static inline float i2s_program_sample_rate(uint32_t sys_hz) {
 
 /**
  * Configures the pins and the state machine at the integer divider, and
- * starts it: the RX FIFO fills until the DMA drains it. Both pulls on the
- * data pin make a bus keeper, holding the level while a microphone
- * tri-states it (each drives only its own channel), and the pin bypasses
- * the input synchronizer, which would delay it by 2 cycles
+ * starts it: the RX FIFO fills until the DMA drains it.
+ *
+ * SCK and WS keep the default pad settings (4 mA, slow slew): plenty for a
+ * 3.125 MHz clock into two microphones, and gentler edges ring less on the
+ * wires. The data pin keeps its input synchronizer too: it costs 2 clk_sys
+ * cycles (~13 ns), against ~160 ns between the data changing (SCK falling)
+ * and being sampled (SCK rising)
  */
 static inline void i2s_program_init(PIO pio, uint sm, uint offset,
                                             uint sck_pin, uint ws_pin,
@@ -89,10 +92,11 @@ static inline void i2s_program_init(PIO pio, uint sm, uint offset,
     sm_config_set_in_shift(&cfg, false, true, i2s_bits_in_per_word);
     sm_config_set_fifo_join(&cfg, PIO_FIFO_JOIN_RX);
 
-    gpio_set_drive_strength(sck_pin, GPIO_DRIVE_STRENGTH_12MA);
-    gpio_set_slew_rate(sck_pin, GPIO_SLEW_RATE_FAST);
+    // Each microphone tri-states the data line outside its own channel, so
+    // with one missing or dead its half would float and read as noise. Both
+    // pulls make a bus keeper that holds the last level instead. Not a plain
+    // pull-down: RP2350-E9 input leakage can overpower the internal one
     gpio_set_pulls(data_pin, true, true);
-    hw_set_bits(&pio->input_sync_bypass, 1u << data_pin);
 
     pio_sm_init(pio, sm, offset, &cfg);
     pio_sm_set_enabled(pio, sm, true);
