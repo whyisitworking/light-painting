@@ -92,4 +92,37 @@ void settings_clamp(settings_t *this);
 // What the settings make of the visualizer. The backlight is not in it
 visualizer_tuning_t settings_tuning(const settings_t *this);
 
+/*
+ * Records: the settings as saved, in one flash page, little endian
+ *
+ *   offset 0   "LPST"
+ *          4   u16 SETTINGS_VERSION
+ *          6   u16 number of values, n
+ *          8   u32 sequence number, counting the saves
+ *         12   n x i16 values, in settings_id_t order
+ *   12 + 2 n   u32 CRC-32 of all the bytes before it
+ *
+ * and 0xFF after it, as in erased flash
+ */
+
+// A flash page
+constexpr size_t SETTINGS_RECORD_SIZE = 256;
+
+// Changes when a stored value's meaning does (e.g. reordered modes): older
+// records are ignored then. New settings appended do not need it
+constexpr uint16_t SETTINGS_VERSION = 1;
+
+// Writes the settings as a record numbered sequence
+void settings_encode(const settings_t *this, uint32_t sequence,
+                     uint8_t record[SETTINGS_RECORD_SIZE]);
+
+/**
+ * Reads a record, false if it is none: erased, cut short, damaged or of
+ * another version. Settings missing from a record of an older firmware get
+ * their defaults, values past ours from a newer one are skipped, and all
+ * are brought onto their grids
+ */
+[[nodiscard]] bool settings_decode(settings_t *this, uint32_t *sequence,
+                                   const uint8_t record[SETTINGS_RECORD_SIZE]);
+
 #endif

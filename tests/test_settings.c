@@ -2,6 +2,8 @@
 #include "settings.h"
 #include "visualizer.h"
 
+#include <string.h>
+
 // Every default and every end of a range sits on its grid
 static void test_ranges(void) {
     for (int id = 0; id < SETTINGS_ID_COUNT; id++) {
@@ -175,6 +177,90 @@ static void test_tuning_follows_the_settings(void) {
     CHECK(tuning.effects.sparkle_rate == 0.055f);
 }
 
+static void test_record_round_trip(void) {
+    settings_t saved, loaded;
+    uint8_t record[SETTINGS_RECORD_SIZE];
+    uint32_t sequence = 0;
+
+    settings_reset(&saved);
+    settings_set(&saved, SETTINGS_MODE, EFFECTS_MODE_VU);
+    settings_set(&saved, SETTINGS_QUIET_FLOOR, -40);
+    settings_set(&saved, SETTINGS_PEAK_HOLD, 1250);
+
+    settings_encode(&saved, 42, record);
+    CHECK(settings_decode(&loaded, &sequence, record));
+    CHECK(sequence == 42);
+    CHECK(memcmp(&saved, &loaded, sizeof(saved)) == 0);
+
+    // Unused bytes as in erased flash
+    CHECK(record[SETTINGS_RECORD_SIZE - 1] == 0xFF);
+}
+
+// Any byte changed in the part that counts: rejected
+static void test_record_damage_detected(void) {
+    settings_t settings, loaded;
+    uint8_t record[SETTINGS_RECORD_SIZE];
+    uint32_t sequence;
+    size_t used = 12 + 2 * SETTINGS_ID_COUNT + 4;
+    size_t accepted = 0;
+
+    settings_reset(&settings);
+    settings_encode(&settings, 1, record);
+
+    for (size_t i = 0; i < used; i++) {
+        record[i] ^= 0x10;
+        accepted += settings_decode(&loaded, &sequence, record);
+        record[i] ^= 0x10;
+    }
+
+    CHECK(accepted == 0);
+}
+
+static void test_record_rejects_erased_and_other_versions(void) {
+    settings_t settings;
+    uint8_t record[SETTINGS_RECORD_SIZE];
+    uint32_t sequence;
+
+    memset(record, 0xFF, sizeof(record));
+    CHECK(!settings_decode(&settings, &sequence, record));
+
+    settings_reset(&settings);
+    settings_encode(&settings, 1, record);
+    record[4] = (uint8_t)(SETTINGS_VERSION + 1);
+    CHECK(!settings_decode(&settings, &sequence, record));
+}
+
+// A record from a firmware with fewer settings: the rest are defaults
+static void test_record_from_older_firmware(void) {
+    settings_t settings, loaded;
+    uint8_t record[SETTINGS_RECORD_SIZE];
+    uint32_t sequence;
+    size_t count = 3, size = 12 + 2 * count;
+    uint32_t crc = 0xFFFFFFFFu;
+
+    settings_reset(&settings);
+    settings_set(&settings, SETTINGS_BRIGHTNESS, 40);
+    settings_set(&settings, SETTINGS_GAIN, 30);
+    settings_encode(&settings, 7, record);
+
+    // Cut down to the first three values, with their CRC
+    record[6] = (uint8_t)count;
+    record[7] = 0;
+    memset(record + size, 0xFF, SETTINGS_RECORD_SIZE - size);
+    for (size_t i = 0; i < size; i++) {
+        crc ^= record[i];
+        for (int bit = 0; bit < 8; bit++)
+            crc = crc & 1 ? (crc >> 1) ^ 0xEDB88320u : crc >> 1;
+    }
+    crc = ~crc;
+    for (int b = 0; b < 4; b++)
+        record[size + b] = (uint8_t)(crc >> (8 * b));
+
+    CHECK(settings_decode(&loaded, &sequence, record));
+    CHECK(settings_get(&loaded, SETTINGS_BRIGHTNESS) == 40);
+    CHECK(settings_get(&loaded, SETTINGS_GAIN) == 15);
+}
+
 int main(void) {
     test_ranges();
     test_defaults_are_the_constants();
@@ -184,6 +270,10 @@ int main(void) {
     test_clamp();
     test_default_tuning();
     test_tuning_follows_the_settings();
+    test_record_round_trip();
+    test_record_damage_detected();
+    test_record_rejects_erased_and_other_versions();
+    test_record_from_older_firmware();
 
     return CHECK_REPORT();
 }
