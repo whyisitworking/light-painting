@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same branch or pull request cancels the run in progress
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # The versions the VS Code Pico extension installs, see CMakeLists.txt
+  PICO_SDK_VERSION: 2.3.1
+  ARM_TOOLCHAIN_VERSION: 15.2.rel1
+
+jobs:
+  host-tests:
+    name: Host tests
+    # test_golden's hashes are recorded with Apple's libm
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Configure
+        run: cmake -S tests -B build-tests
+
+      - name: Build
+        run: cmake --build build-tests --parallel
+
+      - name: Test
+        run: ctest --test-dir build-tests --output-on-failure
+
+  sanitizers:
+    name: Host tests, ASan + UBSan
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Any report fails the test: out of bounds, use after free, signed
+      # overflow, misaligned or null accesses...
+      - name: Configure
+        run: >
+          cmake -S tests -B build-sanitize
+          -DCMAKE_BUILD_TYPE=Debug
+          "-DCMAKE_C_FLAGS=-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer"
+          "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined"
+
+      - name: Build
+        run: cmake --build build-sanitize --parallel
+
+      - name: Test
+        run: ctest --test-dir build-sanitize --output-on-failure
+        env:
+          ASAN_OPTIONS: detect_stack_use_after_return=1:strict_string_checks=1
+          UBSAN_OPTIONS: print_stacktrace=1
+
+  firmware:
+    name: Firmware
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Cache the Arm toolchain and the Pico SDK
+        id: cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/arm-toolchain
+            ~/pico-sdk
+          key: pico-${{ runner.os }}-${{ runner.arch }}-${{ env.ARM_TOOLCHAIN_VERSION }}-${{ env.PICO_SDK_VERSION }}
+
+      # Only tinyusb of the SDK's submodules is used, for the USB serial
+      - name: Download the Arm toolchain and the Pico SDK
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/arm-toolchain
+          curl -fsSL "https://developer.arm.com/-/media/Files/downloads/gnu/${ARM_TOOLCHAIN_VERSION}/binrel/arm-gnu-toolchain-${ARM_TOOLCHAIN_VERSION}-x86_64-arm-none-eabi.tar.xz" \
+            | tar -xJ -C ~/arm-toolchain --strip-components=1
+          git -c advice.detachedHead=false clone --quiet --depth 1 \
+            --branch "$PICO_SDK_VERSION" \
+            https://github.com/raspberrypi/pico-sdk ~/pico-sdk
+          git -C ~/pico-sdk submodule update --quiet --init --depth 1 lib/tinyusb
+
+      - name: Set up the environment
+        run: |
+          echo "PICO_SDK_PATH=$HOME/pico-sdk" >> "$GITHUB_ENV"
+          echo "$HOME/arm-toolchain/bin" >> "$GITHUB_PATH"
+
+      # Without a picotool installed, the SDK fetches and builds one
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Size
+        run: arm-none-eabi-size build/light-painting.elf
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: light-painting-${{ github.sha }}
+          path: |
+            build/light-painting.uf2
+            build/light-painting.elf
+          if-no-files-found: error

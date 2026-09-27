@@ -12,7 +12,7 @@
 [![RP2350](https://img.shields.io/badge/RP2350-Pico%202-C51A4A?logo=raspberrypi&logoColor=white)](https://www.raspberrypi.com/products/raspberry-pi-pico-2/)
 [![Pico SDK](https://img.shields.io/badge/Pico%20SDK-2.3.1-C51A4A)](https://github.com/raspberrypi/pico-sdk)
 [![CMake](https://img.shields.io/badge/CMake-%E2%89%A5%203.25-064F8C?logo=cmake&logoColor=white)](https://cmake.org)
-[![Tests](https://img.shields.io/badge/tests-host%20%C2%B7%20CTest-2EA44F)](#testing)
+[![CI](https://github.com/whyisitworking/light-painting/actions/workflows/ci.yml/badge.svg)](https://github.com/whyisitworking/light-painting/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 
 [Features](#features) · [Hardware](#hardware) · [Quick start](#quick-start) · [Modes](#modes-and-palettes) · [Configuration](#configuration) · [How it works](#how-it-works) · [Architecture](#architecture) · [Development](#development) · [License](#license)
@@ -287,6 +287,20 @@ build-tests/test_golden --print
 ```
 
 The hashes depend on the host's math library, so another platform may need its own recording.
+
+To also catch out-of-bounds accesses, use after free and undefined behaviour, build the tests with AddressSanitizer and UndefinedBehaviorSanitizer:
+
+```bash
+cmake -S tests -B build-sanitize "-DCMAKE_C_FLAGS=-fsanitize=address,undefined -fno-sanitize-recover=all" "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined"
+```
+
+```bash
+cmake --build build-sanitize && ctest --test-dir build-sanitize --output-on-failure
+```
+
+### Continuous integration
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push and pull request: the host tests and the same tests under the sanitizers on macOS, where the golden hashes were recorded, and the firmware build on Linux with the pinned Arm toolchain and Pico SDK. The firmware (`.uf2` and `.elf`) is attached to each run as an artifact.
 
 ### Profiling
 

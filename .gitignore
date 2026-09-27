@@ -1,6 +1,7 @@
 # Build outputs
 build/
 build-tests/
+build-sanitize/
 build-docker/
 
 # Editor and language server caches
