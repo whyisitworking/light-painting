@@ -1,4 +1,4 @@
-# Portable modules: plain C17, no Pico SDK, also built by tests/
+# Portable modules: plain C23, no Pico SDK, also built by tests/
 add_subdirectory(color)
 add_subdirectory(fft)
 add_subdirectory(swapchain)

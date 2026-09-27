@@ -8,7 +8,7 @@
 >
 > <sub>— the original pitch. It has since moved up to the RP2350.</sub>
 
-[![C17](https://img.shields.io/badge/C-17-00599C?logo=c&logoColor=white)](https://en.cppreference.com/w/c/17)
+[![C23](https://img.shields.io/badge/C-23-00599C?logo=c&logoColor=white)](https://en.cppreference.com/w/c/23)
 [![RP2350](https://img.shields.io/badge/RP2350-Pico%202-C51A4A?logo=raspberrypi&logoColor=white)](https://www.raspberrypi.com/products/raspberry-pi-pico-2/)
 [![Pico SDK](https://img.shields.io/badge/Pico%20SDK-2.3.1-C51A4A)](https://github.com/raspberrypi/pico-sdk)
 [![CMake](https://img.shields.io/badge/CMake-%E2%89%A5%203.25-064F8C?logo=cmake&logoColor=white)](https://cmake.org)
@@ -28,7 +28,7 @@
 - **Musical, not just loud.** 32 log-spaced bands from 60 Hz to 12 kHz, an auto-gain that follows the room, attack/decay smoothing, and beat detection on the bass.
 - **Six effects, four palettes.** Spectrum, mirrored spectrum, river, ripples, VU meters and glow, with a slow palette drift, loudness warmth, a beat flash and gamma correction.
 - **Dark when it's quiet.** Silence and microphone self-noise stay black, by design.
-- **Tested off the board.** Everything that isn't hardware is plain C17 with unit tests on your computer, including a golden snapshot of the whole pipeline.
+- **Tested off the board.** Everything that isn't hardware is plain C23 with unit tests on your computer, including a golden snapshot of the whole pipeline.
 
 ## Hardware
 
@@ -210,7 +210,7 @@ All memory is allocated once at startup, and the loop never allocates. The firmw
 ├── platform/            Pico drivers: PIO programs, DMA, interrupts, locking
 │   ├── i2s/             INMP441 input
 │   └── ws2812/          WS2812 output
-├── lib/                 portable C17, no Pico SDK, unit tested on the host
+├── lib/                 portable C23, no Pico SDK, unit tested on the host
 │   ├── visualizer/      the pipeline: spectrum → features → effects
 │   ├── spectrum/        I2S words to a magnitude spectrum
 │   ├── features/        bands, auto-gain, smoothing, beats
@@ -254,7 +254,7 @@ ws2812_submit();                                         // out on the next latc
 
 ### Testing
 
-The host tests build all of `lib/` with your native compiler, the same way the firmware does, warnings as errors:
+The host tests build all of `lib/` with your native compiler (C23: GCC 13+ or Clang 19+), the same way the firmware does, warnings as errors:
 
 ```bash
 cmake -S tests -B build-tests
@@ -306,7 +306,7 @@ Build with `-DPERF_STATS=ON`. Once per second, the USB serial output shows each 
 
 ### Conventions
 
-- C17, 4-space indent, 80 columns.
+- C23, 4-space indent, 80 columns.
 - A module is a folder, a `.c`/`.h` pair and a CMake target of the same name, e.g. `lib/spectrum/spectrum.{c,h}` and `spectrum`. Its test is `tests/test_<module>.c`.
 - Everything public carries the module prefix: the state is `<module>_t`, other types `<module>_<what>_t`, functions `<module>_<verb>()` taking the state as `this`, constants and enum values `<MODULE>_*`. Enum values repeat their type's name: `EFFECTS_MODE_RIVER` of `effects_mode_t`. Only `static` helpers inside one `.c` go unprefixed, and the two types every module passes around: `rgb_t` (color) and `sound_t` (features).
 - Names say what they count and in which unit: `fft_size`, `hop_size`, `led_count`, `word_count`, and `_s`, `_ms`, `_us`, `_hz`, `_db` suffixes (`hop_period_s`, `FEATURES_ATTACK_MS`).
