@@ -37,6 +37,7 @@
 | Raspberry Pi Pico 2 (RP2350) | 1 | `PICO_BOARD pico2` |
 | INMP441 I²S MEMS microphone | 2 | a left and a right one on the same bus, summed to mono |
 | WS2812B LED strip | 300 LEDs | GRB order, 5 V |
+| 3.3 → 5 V level shifter | 1 | on the LED data line, e.g. a 74AHCT125 or 74HCT245 |
 | 5 V power supply | 1 | sized for the strip: 300 LEDs at full white draw about 18 A |
 
 ### Wiring
@@ -46,14 +47,14 @@
 | SCK (bit clock) | **GP26** | SCK | |
 | WS (word select) | **GP27** | WS | |
 | SD (data) | **GP28** | SD | |
-| LED data | **GP8** | | DIN |
+| LED data | **GP8** → level shifter | | DIN (from the shifter's 5 V output) |
 | 3.3 V | 3V3(OUT) | VDD | |
 | Ground | GND | GND | GND |
 | Channel select | | L/R: **GND** on one, **3.3 V** on the other | |
 
 - SCK and WS must be on **consecutive** pins, in that order (one PIO side-set drives both). All pins are set in [`app/config.h`](app/config.h).
 - Power the strip from the 5 V supply, not from the Pico, and connect all grounds.
-- The Pico drives the LED data at 3.3 V. Many strips accept it; if yours flickers, a 3.3 → 5 V level shifter (e.g. a 74AHCT125) on the data line is the usual fix.
+- The strip expects 5 V logic (WS2812B: high above 0.7 × VDD, 3.5 V), so the Pico's 3.3 V data goes through a level shifter powered from the strip's 5 V. Place it close to the Pico: the pin keeps its default drive, and the shifter drives the lead to the strip. A buffer like the 74AHCT125 suits the 0.3 µs pulses better than the slow, pull-up based bidirectional shifters (BSS138 modules).
 
 ## Quick start
 
@@ -338,7 +339,7 @@ The microphones' self-noise is getting above the auto-gain floor. Raise `FEATURE
 <details>
 <summary><b>Random colours or glitches near the start of the strip</b></summary>
 
-The data signal is too weak for the strip at 3.3 V, or the grounds aren't shared. Add a level shifter and keep the data wire short.
+Check that the level shifter is powered from 5 V and shares ground with the Pico and the strip. A long lead from the shifter to the strip can ring: a 330 Ω series resistor at the shifter's output, and a shorter wire, help.
 
 </details>
 
