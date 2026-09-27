@@ -29,12 +29,15 @@ void effects_draw_sparkles(effects_t *this, const sound_t *sound);
 // Palette colour with the drift and the loudness warmth applied
 static inline rgb_t effects_color_at(const effects_t *this,
                                      const sound_t *sound, float position) {
-    float drift = this->tuning.drift_period_s > 0.f
-                      ? this->time_s / this->tuning.drift_period_s
-                      : 0.f;
-    float warmth = sound->loudness * this->tuning.warmth;
+    const effects_tuning_t *tuning = &this->tuning;
+    float drift =
+        tuning->drift_period_s > 0.f ? this->time_s / tuning->drift_period_s
+                                     : 0.f;
 
-    return palette_color(this->palette, position + drift + warmth);
+    // One expression, as before the tuning: a compiler may fuse its
+    // multiply and add, and must do it the same way to keep the pixels
+    return palette_color(this->palette,
+                         position + drift + sound->loudness * tuning->warmth);
 }
 
 // Adds a colour at a distance from the centre, on both sides
