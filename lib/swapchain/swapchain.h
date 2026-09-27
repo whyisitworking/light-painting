@@ -40,7 +40,7 @@ typedef struct {
  * interrupt handler and the main loop). Swaps are not atomic: the caller
  * makes sure the two sides never swap at the same time.
  */
-bool swapchain_init(swapchain_t *this, size_t buffer_size);
+[[nodiscard]] bool swapchain_init(swapchain_t *this, size_t buffer_size);
 
 /**
  * Producer side

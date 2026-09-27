@@ -33,7 +33,7 @@ typedef struct {
  *
  * The *_deinit functions may only be called after a successful *_init.
  */
-bool fft_init(fft_t *this, size_t count);
+[[nodiscard]] bool fft_init(fft_t *this, size_t count);
 void fft_radix2_dit(fft_t *this, float complex *samples, float *frequency_bins);
 void fft_radix2_dif(fft_t *this, float complex *samples, float *frequency_bins);
 void fft_deinit(fft_t *this);
@@ -66,7 +66,7 @@ typedef struct {
 } fft_real_t;
 
 // count: N, a power of two >= 4. False if invalid or out of memory
-bool fft_real_init(fft_real_t *this, size_t count);
+[[nodiscard]] bool fft_real_init(fft_real_t *this, size_t count);
 // Packs count real samples into count / 2 complex ones, even + i * odd
 void fft_real_pack(const float *samples, float complex *packed, size_t count);
 // Transforms packed in place, then writes the count / 2 magnitude bins

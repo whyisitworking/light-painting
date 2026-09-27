@@ -99,8 +99,8 @@ typedef struct {
  * bin_count: number of magnitude bins (>= 2), bin k centred at k * bin_hz
  * hop_period_s: time between two features_update calls
  */
-bool features_init(features_t *this, size_t bin_count, float bin_hz,
-                   float hop_period_s);
+[[nodiscard]] bool features_init(features_t *this, size_t bin_count,
+                                 float bin_hz, float hop_period_s);
 
 /**
  * Updates from the newest bins and returns the sound, valid until the next

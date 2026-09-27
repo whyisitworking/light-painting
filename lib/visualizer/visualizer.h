@@ -46,7 +46,8 @@ typedef struct {
  * Sets up all stages from the config. False if any rejects it or memory
  * runs out, with nothing left allocated
  */
-bool visualizer_init(visualizer_t *this, const visualizer_config_t *config);
+[[nodiscard]] bool visualizer_init(visualizer_t *this,
+                                   const visualizer_config_t *config);
 
 /**
  * Analyzes hop new stereo frames, left and right words as the I2S driver

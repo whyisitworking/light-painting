@@ -121,8 +121,9 @@ typedef struct {
  * Starts in EFFECTS_MODE_RIVER with PALETTE_SYNTHWAVE. False if a count is too
  * small, hop_period_s is not positive or memory runs out
  */
-bool effects_init(effects_t *this, size_t led_count, size_t band_count,
-                  float hop_period_s, uint32_t seed);
+[[nodiscard]] bool effects_init(effects_t *this, size_t led_count,
+                                size_t band_count, float hop_period_s,
+                                uint32_t seed);
 
 // Takes effect on the next render. Out of range values are ignored
 void effects_set_mode(effects_t *this, effects_mode_t mode);

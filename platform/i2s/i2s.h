@@ -26,7 +26,8 @@ typedef struct {
  * sck_pin, ws_pin: consecutive, driven by the state machine
  * data_pin: sampled, distinct from sck_pin and ws_pin
  */
-bool i2s_init(size_t word_count, uint sck_pin, uint ws_pin, uint data_pin);
+[[nodiscard]] bool i2s_init(size_t word_count, uint sck_pin, uint ws_pin,
+                            uint data_pin);
 
 /**
  * Actual sample rate in Hz, derived from the system clock: the fastest SCK

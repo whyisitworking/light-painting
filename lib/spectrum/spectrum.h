@@ -43,7 +43,8 @@ typedef struct {
  * False if the sizes are invalid or memory runs out. Silence until the
  * first fft_size samples arrived
  */
-bool spectrum_init(spectrum_t *this, size_t fft_size, size_t hop_size);
+[[nodiscard]] bool spectrum_init(spectrum_t *this, size_t fft_size,
+                                 size_t hop_size);
 
 /**
  * One analysis: feeds hop_size stereo frames, windows, applies the gain and
