@@ -30,7 +30,7 @@ typedef struct {
     uint centre_pin;
 } joystick_pins_t;
 
-// False if already initialized or a pin does not exist
+// False if already initialized, or a pin does not exist or is above GPIO 31
 [[nodiscard]] bool joystick_init(const joystick_pins_t *pins);
 
 // The directions pressed right now, joystick_direction_t bits

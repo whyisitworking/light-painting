@@ -12,8 +12,9 @@ bool joystick_init(const joystick_pins_t *config) {
     if (is_init)
         return false;
 
+    // gpio_get_all() reads GPIO 0 to 31
     for (size_t i = 0; i < sizeof(wanted) / sizeof(wanted[0]); i++)
-        if (wanted[i] >= NUM_BANK0_GPIOS)
+        if (wanted[i] >= NUM_BANK0_GPIOS || wanted[i] >= 32)
             return false;
 
     for (size_t i = 0; i < sizeof(wanted) / sizeof(wanted[0]); i++) {
