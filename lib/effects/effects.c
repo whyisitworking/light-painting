@@ -109,6 +109,10 @@ void effects_tune(effects_t *this, const effects_tuning_t *tuning) {
     this->flash_duty = powf(this->tuning.brightness, COLOR_GAMMA);
 }
 
+// At most 1. Layers add up past it (a sparkle on a lit LED), and the
+// brightness is to scale what is shown. NaN stays NaN, which shows dark
+static float cap(float value) { return value > 1.f ? 1.f : value; }
+
 void effects_render(effects_t *this, const sound_t *sound, uint32_t *pixels) {
     color_ws2812_t flash;
     uint8_t white;
@@ -129,7 +133,10 @@ void effects_render(effects_t *this, const sound_t *sound, uint32_t *pixels) {
     flash = color_ws2812_from_rgb(white, white, white);
 
     for (size_t i = 0; i < this->led_count; i++) {
-        rgb_t color = color_rgb_scale(this->frame[i], this->tuning.brightness);
+        rgb_t color = color_rgb_scale((rgb_t){cap(this->frame[i].r),
+                                              cap(this->frame[i].g),
+                                              cap(this->frame[i].b)},
+                                      this->tuning.brightness);
 
         pixels[i] =
             color_ws2812_add(color_ws2812_from_rgb(color_gamma(color.r),

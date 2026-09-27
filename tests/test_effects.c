@@ -577,6 +577,23 @@ static void test_half_brightness(void) {
     CHECK(half < full);
 
     effects_deinit(&effects);
+
+    // The VU peak dot added on the end of the bar goes past 1: capped
+    // before the brightness, it is no brighter than full white either
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
+    effects_set_mode(&effects, EFFECTS_MODE_VU);
+    effects_tune(&effects, &tuning);
+    sound = quiet();
+    sound.loudness = 0.505f;
+    effects_render(&effects, &sound, pixels);
+    for (size_t i = 0; i < LEDS; i++) {
+        color_ws2812_t color = {.value = pixels[i]};
+
+        CHECK(color.grba.r <= half && color.grba.g <= half &&
+              color.grba.b <= half);
+    }
+
+    effects_deinit(&effects);
 }
 
 int main(void) {
