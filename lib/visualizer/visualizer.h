@@ -41,6 +41,16 @@ typedef struct {
     uint32_t seed;
 } visualizer_config_t;
 
+// What can be changed while running
+typedef struct {
+    effects_mode_t mode;
+    palette_t palette;
+    // Positive, see visualizer_config_t
+    float gain;
+    features_tuning_t features;
+    effects_tuning_t effects;
+} visualizer_tuning_t;
+
 // The pipeline stages, public for inspection (e.g. features.ceiling_db)
 typedef struct {
     float gain;
@@ -55,6 +65,17 @@ typedef struct {
  */
 [[nodiscard]] bool visualizer_init(visualizer_t *this,
                                    const visualizer_config_t *config);
+
+// VISUALIZER_MODE, VISUALIZER_PALETTE, VISUALIZER_GAIN and the stages'
+// default tunings
+visualizer_tuning_t visualizer_default_tuning(void);
+
+/**
+ * Takes effect on the next hop, without resetting the analysis or the
+ * effects. A value out of range keeps its current one, see the stages'
+ * tune functions
+ */
+void visualizer_tune(visualizer_t *this, const visualizer_tuning_t *tuning);
 
 /**
  * Analyzes hop new stereo frames, left and right words as the I2S driver

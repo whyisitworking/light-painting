@@ -11,6 +11,8 @@
  * settings_value() of a default equals the constant it replaces.
  */
 
+#include "visualizer.h"
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -86,5 +88,8 @@ bool settings_step(settings_t *this, settings_id_t id, int steps);
 
 // Every value onto its grid and within its range, e.g. after loading
 void settings_clamp(settings_t *this);
+
+// What the settings make of the visualizer. The backlight is not in it
+visualizer_tuning_t settings_tuning(const settings_t *this);
 
 #endif

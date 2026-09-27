@@ -3,6 +3,8 @@
 #include "signals.h"
 #include "visualizer.h"
 
+#include <string.h>
+
 constexpr size_t FFT_SIZE = 512;
 constexpr size_t HOP_SIZE = 256;
 constexpr double FS = 48828.125;
@@ -136,11 +138,57 @@ static void test_kicks_give_beats(void) {
     visualizer_deinit(&visualizer);
 }
 
+// Tuned to its defaults, a visualizer draws exactly what an untuned one
+// does, for every mode: kicks and a tone over noise, as test_golden
+static void test_default_tuning_changes_nothing(void) {
+    for (int mode = 0; mode < EFFECTS_MODE_COUNT; mode++) {
+        visualizer_t plain, tuned;
+        visualizer_config_t settings = config((effects_mode_t)mode);
+        visualizer_tuning_t tuning = visualizer_default_tuning();
+        static uint32_t tuned_pixels[LEDS];
+        uint32_t noise = 12345;
+        size_t different = 0;
+
+        settings.gain = VISUALIZER_GAIN;
+        tuning.mode = (effects_mode_t)mode;
+        tuning.palette = settings.palette;
+
+        CHECK(visualizer_init(&plain, &settings));
+        CHECK(visualizer_init(&tuned, &settings));
+        visualizer_tune(&tuned, &tuning);
+
+        for (size_t hop = 0; hop < 400; hop++) {
+            for (size_t i = 0; i < HOP_SIZE; i++) {
+                double t = (double)(hop * HOP_SIZE + i) / FS;
+                double beat_t = fmod(t, 0.5);
+
+                signal_put_mono(frames, i,
+                                20000.0 * signal_noise(&noise) +
+                                    150000.0 * sin(2.0 * M_PI * 1000.0 * t) +
+                                    600000.0 * exp(-beat_t / 0.04) *
+                                        sin(2.0 * M_PI * 55.0 * beat_t));
+            }
+
+            visualizer_analyze(&plain, frames);
+            visualizer_analyze(&tuned, frames);
+            visualizer_render(&plain, pixels);
+            visualizer_render(&tuned, tuned_pixels);
+            different += memcmp(pixels, tuned_pixels, sizeof(pixels)) != 0;
+        }
+
+        CHECK(different == 0);
+
+        visualizer_deinit(&plain);
+        visualizer_deinit(&tuned);
+    }
+}
+
 int main(void) {
     test_rejects_invalid();
     test_silence_is_dark();
     test_tone_lights_its_position();
     test_kicks_give_beats();
+    test_default_tuning_changes_nothing();
 
     return CHECK_REPORT();
 }

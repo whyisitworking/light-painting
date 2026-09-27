@@ -1,7 +1,5 @@
 #include "settings.h"
 
-#include "visualizer.h"
-
 /*
  * The initial values are the constants they replace, written on the grid:
  * dividing one by its divisor gives exactly that constant, as float division
@@ -102,6 +100,32 @@ bool settings_step(settings_t *this, settings_id_t id, int steps) {
     index = ((index + steps) % count + count) % count;
 
     return settings_set(this, id, range->min + index * range->step);
+}
+
+visualizer_tuning_t settings_tuning(const settings_t *this) {
+    visualizer_tuning_t tuning = visualizer_default_tuning();
+
+    tuning.mode = (effects_mode_t)settings_get(this, SETTINGS_MODE);
+    tuning.palette = (palette_t)settings_get(this, SETTINGS_PALETTE);
+    tuning.gain = settings_value(this, SETTINGS_GAIN);
+
+    tuning.features.attack_ms = settings_value(this, SETTINGS_ATTACK);
+    tuning.features.decay_ms = settings_value(this, SETTINGS_DECAY);
+    tuning.features.min_ceiling_db = settings_value(this, SETTINGS_QUIET_FLOOR);
+    tuning.features.beat_threshold =
+        settings_value(this, SETTINGS_BEAT_THRESHOLD);
+
+    tuning.effects.brightness = settings_value(this, SETTINGS_BRIGHTNESS);
+    tuning.effects.river_speed =
+        (size_t)settings_get(this, SETTINGS_RIVER_SPEED);
+    tuning.effects.ripple_speed = settings_value(this, SETTINGS_RIPPLE_SPEED);
+    tuning.effects.peak_hold_ms = settings_value(this, SETTINGS_PEAK_HOLD);
+    tuning.effects.drift_period_s = settings_value(this, SETTINGS_DRIFT);
+    tuning.effects.warmth = settings_value(this, SETTINGS_WARMTH);
+    tuning.effects.flash_level = settings_value(this, SETTINGS_FLASH);
+    tuning.effects.sparkle_rate = settings_value(this, SETTINGS_SPARKLES);
+
+    return tuning;
 }
 
 void settings_clamp(settings_t *this) {

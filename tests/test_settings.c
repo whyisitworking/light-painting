@@ -43,7 +43,8 @@ static void test_defaults_are_the_constants(void) {
           (float)EFFECTS_RIVER_SPEED);
     CHECK(settings_value(&settings, SETTINGS_RIPPLE_SPEED) ==
           EFFECTS_RIPPLE_SPEED);
-    CHECK(settings_value(&settings, SETTINGS_PEAK_HOLD) == EFFECTS_PEAK_HOLD_MS);
+    CHECK(settings_value(&settings, SETTINGS_PEAK_HOLD) ==
+          EFFECTS_PEAK_HOLD_MS);
 }
 
 static void test_set_snaps_and_clamps(void) {
@@ -127,6 +128,53 @@ static void test_clamp(void) {
     CHECK(settings_get(&settings, SETTINGS_MODE) == 0);
 }
 
+// The defaults make the visualizer's default tuning, field for field
+static void test_default_tuning(void) {
+    settings_t settings;
+    visualizer_tuning_t tuning, defaults = visualizer_default_tuning();
+
+    settings_reset(&settings);
+    tuning = settings_tuning(&settings);
+
+    CHECK(tuning.mode == defaults.mode);
+    CHECK(tuning.palette == defaults.palette);
+    CHECK(tuning.gain == defaults.gain);
+    CHECK(tuning.features.attack_ms == defaults.features.attack_ms);
+    CHECK(tuning.features.decay_ms == defaults.features.decay_ms);
+    CHECK(tuning.features.min_ceiling_db == defaults.features.min_ceiling_db);
+    CHECK(tuning.features.beat_threshold == defaults.features.beat_threshold);
+    CHECK(tuning.effects.brightness == defaults.effects.brightness);
+    CHECK(tuning.effects.river_speed == defaults.effects.river_speed);
+    CHECK(tuning.effects.ripple_speed == defaults.effects.ripple_speed);
+    CHECK(tuning.effects.peak_hold_ms == defaults.effects.peak_hold_ms);
+    CHECK(tuning.effects.drift_period_s == defaults.effects.drift_period_s);
+    CHECK(tuning.effects.warmth == defaults.effects.warmth);
+    CHECK(tuning.effects.flash_level == defaults.effects.flash_level);
+    CHECK(tuning.effects.sparkle_rate == defaults.effects.sparkle_rate);
+}
+
+// Each setting lands in its field, divided by its divisor
+static void test_tuning_follows_the_settings(void) {
+    settings_t settings;
+    visualizer_tuning_t tuning;
+
+    settings_reset(&settings);
+    settings_set(&settings, SETTINGS_MODE, EFFECTS_MODE_GLOW);
+    settings_set(&settings, SETTINGS_BRIGHTNESS, 50);
+    settings_set(&settings, SETTINGS_GAIN, 25);
+    settings_set(&settings, SETTINGS_DRIFT, 0);
+    settings_set(&settings, SETTINGS_RIVER_SPEED, 3);
+    settings_set(&settings, SETTINGS_SPARKLES, 55);
+    tuning = settings_tuning(&settings);
+
+    CHECK(tuning.mode == EFFECTS_MODE_GLOW);
+    CHECK(tuning.effects.brightness == 0.5f);
+    CHECK(tuning.gain == 2.5f);
+    CHECK(tuning.effects.drift_period_s == 0.f);
+    CHECK(tuning.effects.river_speed == 3);
+    CHECK(tuning.effects.sparkle_rate == 0.055f);
+}
+
 int main(void) {
     test_ranges();
     test_defaults_are_the_constants();
@@ -134,6 +182,8 @@ int main(void) {
     test_step_stops_at_the_ends();
     test_step_wraps_modes_and_palettes();
     test_clamp();
+    test_default_tuning();
+    test_tuning_follows_the_settings();
 
     return CHECK_REPORT();
 }
