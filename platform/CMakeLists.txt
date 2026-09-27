@@ -1,2 +1,2 @@
 add_subdirectory(i2s)
-add_subdirectory(neopixel)
+add_subdirectory(ws2812)

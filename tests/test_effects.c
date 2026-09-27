@@ -18,7 +18,7 @@ static features_t quiet(void) {
 }
 
 static unsigned brightness(uint32_t pixel) {
-    color_neopixel_t color = {.value = pixel};
+    color_ws2812_t color = {.value = pixel};
     return color.grba.r + color.grba.g + color.grba.b;
 }
 
@@ -113,7 +113,7 @@ static void test_beat_flash(void) {
 
     // White added after gamma, as it will be shown
     for (size_t i = 0; i < LEDS; i++) {
-        color_neopixel_t color = {.value = pixels[i]};
+        color_ws2812_t color = {.value = pixels[i]};
         long white = lroundf(EFFECTS_FLASH_LEVEL * 255.f);
 
         CHECK(color.grba.r == white && color.grba.g == white &&
@@ -155,8 +155,8 @@ static void test_beat_flash_saturates(void) {
     effects_deinit(&effects);
 
     for (size_t i = 0; i < LEDS; i++) {
-        color_neopixel_t before = {.value = plain[i]};
-        color_neopixel_t after = {.value = pixels[i]};
+        color_ws2812_t before = {.value = plain[i]};
+        color_ws2812_t after = {.value = pixels[i]};
 
         CHECK(after.grba.r == (before.grba.r + white > 255
                                    ? 255
@@ -322,7 +322,7 @@ static void test_drift_clock_wraps(void) {
     effects.time_s = 10.f + 2.f * EFFECTS_DRIFT_PERIOD_S;
     effects_render(&effects, &features, pixels);
     for (size_t i = 0; i < LEDS; i++) {
-        color_neopixel_t a = {.value = early[i]}, b = {.value = pixels[i]};
+        color_ws2812_t a = {.value = early[i]}, b = {.value = pixels[i]};
 
         CHECK(abs(a.grba.r - b.grba.r) <= 1 && abs(a.grba.g - b.grba.g) <= 1 &&
               abs(a.grba.b - b.grba.b) <= 1);

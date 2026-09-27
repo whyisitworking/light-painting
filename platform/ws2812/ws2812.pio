@@ -4,7 +4,7 @@
 ; the line LO for the reset/latch pulse, raises IRQ (0 rel) to tell the CPU,
 ; then stalls LO on the empty FIFO until the next frame arrives
 
-.program neopixel
+.program ws2812
 .side_set 1
 
 ; 1 cycle = 3 / baud = 0.3us
@@ -41,21 +41,21 @@ sync_loop:
  * The pin keeps the default pad settings (4 mA, slow slew): it only drives
  * the 3.3 -> 5 V level shifter next to it, which drives the strip
  */
-static inline void neopixel_program_init(PIO pio, uint sm, uint offset, uint pin) {
+static inline void ws2812_program_init(PIO pio, uint sm, uint offset, uint pin) {
     pio_gpio_init(pio, pin);
     pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
 
-    pio_sm_config c = neopixel_program_get_default_config(offset);
+    pio_sm_config c = ws2812_program_get_default_config(offset);
     sm_config_set_sideset_pins(&c, pin);
     sm_config_set_out_shift(&c, false, true, 24);
     sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
-    sm_config_set_clkdiv(&c, 3.f * clock_get_hz(clk_sys) / neopixel_baud);
+    sm_config_set_clkdiv(&c, 3.f * clock_get_hz(clk_sys) / ws2812_baud);
 
     pio_sm_init(pio, sm, offset, &c);
     pio_sm_set_enabled(pio, sm, true);
 }
 
-static inline void neopixel_program_deinit(PIO pio, uint sm) {
+static inline void ws2812_program_deinit(PIO pio, uint sm) {
     pio_sm_set_enabled(pio, sm, false);
     pio_sm_unclaim(pio, sm);
 }

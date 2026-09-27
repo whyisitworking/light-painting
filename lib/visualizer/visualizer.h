@@ -55,7 +55,7 @@ bool visualizer_init(visualizer_t *this, const visualizer_config_t *config);
 void visualizer_analyze(visualizer_t *this, const int32_t *frames);
 
 /**
- * Renders the newest analysis into led_count color_neopixel_t words.
+ * Renders the newest analysis into led_count color_ws2812_t words.
  * Returns the features it was rendered from, valid until the next call
  */
 const features_t *visualizer_render(visualizer_t *this, uint32_t *pixels);

@@ -7,13 +7,13 @@
  * once per frame.
  */
 
-#include "neopixel.h"
+#include "ws2812.h"
 #include "hardware/dma.h"
 #include "hardware/pio.h"
-#include "neopixel.pio.h"
 #include "pico/stdlib.h"
 #include "pico/sync.h"
 #include "swapchain.h"
+#include "ws2812.pio.h"
 #include <stdlib.h>
 
 typedef struct {
@@ -43,9 +43,9 @@ typedef struct {
 
     // Whether a frame is in flight, from DMA start until it is latched
     volatile bool is_sending;
-} neopixel_t;
+} ws2812_t;
 
-static neopixel_t driver = {
+static ws2812_t driver = {
     .is_init = false,
     .is_transmitting = false,
     .is_sending = false,
@@ -89,11 +89,11 @@ static void pio_irq_handler() {
     send_fresh_frame();
 }
 
-static size_t neopixel_required_buffer_size(size_t led_count) {
+static size_t ws2812_required_buffer_size(size_t led_count) {
     return led_count * sizeof(uint32_t);
 }
 
-bool neopixel_init(size_t count, uint pin) {
+bool ws2812_init(size_t count, uint pin) {
     PIO pio;
     uint pio_sm, pio_offset;
     int dma_channel;
@@ -102,27 +102,26 @@ bool neopixel_init(size_t count, uint pin) {
     if (driver.is_init)
         return false;
 
-    if (!swapchain_init(&driver.swapchain,
-                        neopixel_required_buffer_size(count)))
+    if (!swapchain_init(&driver.swapchain, ws2812_required_buffer_size(count)))
         return false;
 
     // Find any PIO (3 on RP2350) with room for the program and a free State
     // Machine, and load the program there
     if (!pio_claim_free_sm_and_add_program_for_gpio_range(
-            &neopixel_program, &pio, &pio_sm, &pio_offset, pin, 1, true)) {
+            &ws2812_program, &pio, &pio_sm, &pio_offset, pin, 1, true)) {
         swapchain_deinit(&driver.swapchain);
         return false;
     }
 
     if ((dma_channel = dma_claim_unused_channel(false)) == -1) {
-        pio_remove_program_and_unclaim_sm(&neopixel_program, pio, pio_sm,
+        pio_remove_program_and_unclaim_sm(&ws2812_program, pio, pio_sm,
                                           pio_offset);
         swapchain_deinit(&driver.swapchain);
         return false;
     }
 
     // Initialize the loaded PIO program
-    neopixel_program_init(pio, pio_sm, pio_offset, pin);
+    ws2812_program_init(pio, pio_sm, pio_offset, pin);
 
     // Setup the DMA for data bursts
     dma_config = dma_channel_get_default_config(dma_channel);
@@ -149,7 +148,7 @@ bool neopixel_init(size_t count, uint pin) {
     return true;
 }
 
-void neopixel_start_transmission(void) {
+void ws2812_start_transmission(void) {
     uint32_t saved_irq;
 
     if (!driver.is_init || driver.is_transmitting)
@@ -169,12 +168,12 @@ void neopixel_start_transmission(void) {
     restore_interrupts(saved_irq);
 }
 
-uint32_t *neopixel_frame(void) {
+uint32_t *ws2812_frame(void) {
     // Only this side swaps the producer buffer, no need to lock
     return (uint32_t *)swapchain_producer_buffer(&driver.swapchain);
 }
 
-void neopixel_submit(void) {
+void ws2812_submit(void) {
     uint32_t saved_irq;
 
     if (!driver.is_init)
@@ -192,7 +191,7 @@ void neopixel_submit(void) {
     restore_interrupts(saved_irq);
 }
 
-void neopixel_stop_transmission(void) {
+void ws2812_stop_transmission(void) {
     uint32_t saved_irq;
     uint32_t tx_stall = 1u << (PIO_FDEBUG_TXSTALL_LSB + driver.pio_sm);
 
@@ -224,8 +223,8 @@ void neopixel_stop_transmission(void) {
     driver.is_sending = false;
 }
 
-neopixel_stats_t neopixel_take_stats(void) {
-    neopixel_stats_t stats;
+ws2812_stats_t ws2812_take_stats(void) {
+    ws2812_stats_t stats;
     uint32_t saved_irq;
 
     // Take and reset in one go, interrupts keep counting
@@ -239,11 +238,11 @@ neopixel_stats_t neopixel_take_stats(void) {
     return stats;
 }
 
-void neopixel_deinit(void) {
+void ws2812_deinit(void) {
     if (!driver.is_init)
         return;
 
-    neopixel_stop_transmission();
+    ws2812_stop_transmission();
 
     // Release the interrupt and the DMA channel
     irq_set_enabled(pio_get_irq_num(driver.pio, 0), false);
@@ -251,11 +250,11 @@ void neopixel_deinit(void) {
     dma_channel_unclaim(driver.dma_channel);
 
     // PIO ciao, this also unclaims the State Machine
-    neopixel_program_deinit(driver.pio, driver.pio_sm);
-    pio_remove_program(driver.pio, &neopixel_program, driver.pio_offset);
+    ws2812_program_deinit(driver.pio, driver.pio_sm);
+    pio_remove_program(driver.pio, &ws2812_program, driver.pio_offset);
     swapchain_deinit(&driver.swapchain);
 
-    driver = (neopixel_t){
+    driver = (ws2812_t){
         .is_init = false,
         .is_transmitting = false,
         .is_sending = false,

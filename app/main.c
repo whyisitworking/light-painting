@@ -6,9 +6,9 @@
 
 #include "config.h"
 #include "i2s.h"
-#include "neopixel.h"
 #include "perf.h"
 #include "visualizer.h"
+#include "ws2812.h"
 
 #include <pico/stdlib.h>
 #include <stdio.h>
@@ -36,7 +36,7 @@ int main() {
 
     printf("Sample rate %.3f Hz\n", i2s_sample_rate());
 
-    if (!init_step(neopixel_init(LED_COUNT, LED_DATA_PIN), "WS2812 driver"))
+    if (!init_step(ws2812_init(LED_COUNT, LED_DATA_PIN), "WS2812 driver"))
         return EXIT_FAILURE;
 
     // After i2s_init(): the sample rate comes from the I2S clock
@@ -55,7 +55,7 @@ int main() {
         return EXIT_FAILURE;
 
     i2s_start_sampling();
-    neopixel_start_transmission();
+    ws2812_start_transmission();
 
     printf("Started sampling\n");
 
@@ -74,8 +74,8 @@ int main() {
         visualizer_analyze(&visualizer, frames);
         perf_lap(PERF_ANALYZE);
 
-        sound = visualizer_render(&visualizer, neopixel_frame());
-        neopixel_submit();
+        sound = visualizer_render(&visualizer, ws2812_frame());
+        ws2812_submit();
         perf_lap(PERF_RENDER);
 
         perf_end(&visualizer, sound);

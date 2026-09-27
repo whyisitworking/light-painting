@@ -183,7 +183,7 @@ flowchart TB
         direction LR
         AUDIO["audio<br/>mono · window · FFT"] -- "256 bins" --> FEAT["features<br/>bands · gain · beats"] -- "features_t" --> FX["effects<br/>mode · palette · gamma"]
     end
-    subgraph output ["Output · platform/neopixel"]
+    subgraph output ["Output · platform/ws2812"]
         direction LR
         PION["DMA + PIO"] -- "~1.1 Mbit/s" --> STRIP["300 × WS2812B"]
     end
@@ -209,7 +209,7 @@ All memory is allocated once at startup, and the loop never allocates. The firmw
 │   └── perf.c/.h        opt-in statistics, no-ops unless PERF_STATS
 ├── platform/            Pico drivers: PIO programs, DMA, interrupts, locking
 │   ├── i2s/             INMP441 input
-│   └── neopixel/        WS2812 output
+│   └── ws2812/          WS2812 output
 ├── lib/                 portable C17, no Pico SDK, unit tested on the host
 │   ├── visualizer/      the pipeline: audio → features → effects
 │   ├── audio/           I2S words to a magnitude spectrum
@@ -229,7 +229,7 @@ flowchart TB
     end
     subgraph platform ["platform/ (Pico)"]
         i2s
-        neopixel
+        ws2812
     end
     subgraph lib ["lib/ (portable)"]
         visualizer --> audio & features & effects
@@ -237,8 +237,8 @@ flowchart TB
         effects --> features & color
         swapchain
     end
-    main --> i2s & neopixel & visualizer
-    i2s & neopixel --> swapchain
+    main --> i2s & ws2812 & visualizer
+    i2s & ws2812 --> swapchain
 ```
 
 **The rule:** dependencies only point down (`app → platform → lib`), and anything that can run without hardware goes in `lib/` so the host tests can cover it. Each module has a header with an overview and its API documented. The main loop is four calls:
@@ -246,8 +246,8 @@ flowchart TB
 ```c
 frames = i2s_wait_buffer();                              // the newest audio
 visualizer_analyze(&visualizer, frames);                 // spectrum
-sound = visualizer_render(&visualizer, neopixel_frame()); // features, pixels
-neopixel_submit();                                       // out on the next latch
+sound = visualizer_render(&visualizer, ws2812_frame());  // features, pixels
+ws2812_submit();                                         // out on the next latch
 ```
 
 ## Development
@@ -346,7 +346,7 @@ Check that the level shifter is powered from 5 V and shares ground with the Pico
 <details>
 <summary><b>Colours are swapped</b></summary>
 
-The driver sends GRB, the WS2812B order. For another order, change the byte layout of `color_neopixel_t` in `lib/color/color.h`.
+The driver sends GRB, the WS2812B order. For another order, change the byte layout of `color_ws2812_t` in `lib/color/color.h`.
 
 </details>
 

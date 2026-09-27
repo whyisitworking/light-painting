@@ -62,7 +62,7 @@ target_include_directories(light-painting
 target_link_libraries(light-painting
     PRIVATE
         i2s
-        neopixel
+        ws2812
         visualizer
         pico_stdlib)
 

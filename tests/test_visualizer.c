@@ -25,7 +25,7 @@ static visualizer_config_t config(effects_mode_t mode) {
 }
 
 static unsigned brightness(uint32_t pixel) {
-    color_neopixel_t color = {.value = pixel};
+    color_ws2812_t color = {.value = pixel};
     return color.grba.r + color.grba.g + color.grba.b;
 }
 

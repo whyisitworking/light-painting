@@ -4,15 +4,15 @@
 #include <math.h>
 
 static void test_layout(void) {
-    // The neopixel driver shifts out the top 24 bits MSB first: G, R, B
-    color_neopixel_t color = color_neopixel_from_rgb(0x11, 0x22, 0x33);
+    // The WS2812 driver shifts out the top 24 bits MSB first: G, R, B
+    color_ws2812_t color = color_ws2812_from_rgb(0x11, 0x22, 0x33);
 
     CHECK(color.value == 0x22113300u);
 }
 
 static void test_add(void) {
-    color_neopixel_t sum = color_neopixel_add(
-        color_neopixel_from_rgb(10, 20, 30), color_neopixel_from_rgb(1, 2, 3));
+    color_ws2812_t sum = color_ws2812_add(color_ws2812_from_rgb(10, 20, 30),
+                                          color_ws2812_from_rgb(1, 2, 3));
 
     CHECK(sum.grba.r == 11);
     CHECK(sum.grba.g == 22);
@@ -20,9 +20,8 @@ static void test_add(void) {
 }
 
 static void test_add_saturates(void) {
-    color_neopixel_t sum =
-        color_neopixel_add(color_neopixel_from_rgb(200, 255, 128),
-                           color_neopixel_from_rgb(100, 1, 127));
+    color_ws2812_t sum = color_ws2812_add(color_ws2812_from_rgb(200, 255, 128),
+                                          color_ws2812_from_rgb(100, 1, 127));
 
     CHECK(sum.grba.r == 255);
     CHECK(sum.grba.g == 255);
@@ -40,9 +39,9 @@ static void test_gamma(void) {
 
 // The primaries, and grey without saturation
 static void test_hsv(void) {
-    color_neopixel_t red = color_neopixel_from_hsv(0, 255, 255);
-    color_neopixel_t green = color_neopixel_from_hsv_f(120.f, 1.f, 1.f);
-    color_neopixel_t grey = color_neopixel_from_hsv(100, 0, 128);
+    color_ws2812_t red = color_ws2812_from_hsv(0, 255, 255);
+    color_ws2812_t green = color_ws2812_from_hsv_f(120.f, 1.f, 1.f);
+    color_ws2812_t grey = color_ws2812_from_hsv(100, 0, 128);
 
     CHECK(red.grba.r == 255 && red.grba.g == 0 && red.grba.b == 0);
     CHECK(green.grba.r == 0 && green.grba.g == 255 && green.grba.b == 0);

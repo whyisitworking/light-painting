@@ -3,7 +3,7 @@
 #ifdef PERF_STATS
 
 #include "i2s.h"
-#include "neopixel.h"
+#include "ws2812.h"
 
 #include <pico/time.h>
 #include <stdio.h>
@@ -51,7 +51,7 @@ void perf_lap(perf_stage_t stage) {
 
 void perf_end(const visualizer_t *visualizer, const features_t *sound) {
     i2s_stats_t audio;
-    neopixel_stats_t leds;
+    ws2812_stats_t leds;
 
     if (sound->beat)
         beats++;
@@ -65,7 +65,7 @@ void perf_end(const visualizer_t *visualizer, const features_t *sound) {
         perf_print(stage_names[stage], &stages[stage]);
 
     audio = i2s_take_stats();
-    leds = neopixel_take_stats();
+    leds = ws2812_take_stats();
 
     printf("Audio buffers dropped %zu, LED frames dropped %zu\n",
            audio.dropped, leds.dropped);

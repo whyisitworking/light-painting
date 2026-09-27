@@ -3,7 +3,7 @@
 
 /**
  * Colours: linear RGB as the effects compute it, gamma correction, and the
- * WS2812 word the neopixel driver shifts out
+ * WS2812 word the LED driver shifts out
  */
 
 #include <stdint.h>
@@ -15,7 +15,7 @@ typedef struct {
     float b;
 } rgb_t;
 
-// The word the neopixel driver shifts out, MSB first: G, R, B, then 8
+// The word the WS2812 driver shifts out, MSB first: G, R, B, then 8
 // unused bits
 typedef union {
     struct {
@@ -26,7 +26,7 @@ typedef union {
         uint8_t g;
     } grba;
     uint32_t value;
-} color_neopixel_t;
+} color_ws2812_t;
 
 /**
  * Linear 0..1 to a gamma 2.2 corrected 0..255 channel, clamped
@@ -34,9 +34,9 @@ typedef union {
 uint8_t color_gamma(float value);
 
 // 0..255 channels, after gamma
-static inline color_neopixel_t color_neopixel_from_rgb(uint8_t r, uint8_t g,
-                                                       uint8_t b) {
-    return (color_neopixel_t){
+static inline color_ws2812_t color_ws2812_from_rgb(uint8_t r, uint8_t g,
+                                                   uint8_t b) {
+    return (color_ws2812_t){
         .grba =
             {
                 .r = r,
@@ -48,12 +48,12 @@ static inline color_neopixel_t color_neopixel_from_rgb(uint8_t r, uint8_t g,
 }
 
 // 8-bit HSV, hue 0..255 around the circle, to a WS2812 word without gamma
-static inline color_neopixel_t color_neopixel_from_hsv(uint8_t h, uint8_t s,
-                                                       uint8_t v) {
+static inline color_ws2812_t color_ws2812_from_hsv(uint8_t h, uint8_t s,
+                                                   uint8_t v) {
     uint8_t region, remainder, p, q, t;
 
     if (s == 0)
-        return color_neopixel_from_rgb(v, v, v);
+        return color_ws2812_from_rgb(v, v, v);
 
     region = h / 43;
     remainder = (h - (region * 43)) * 6;
@@ -64,23 +64,23 @@ static inline color_neopixel_t color_neopixel_from_hsv(uint8_t h, uint8_t s,
 
     switch (region) {
     case 0:
-        return color_neopixel_from_rgb(v, t, p);
+        return color_ws2812_from_rgb(v, t, p);
     case 1:
-        return color_neopixel_from_rgb(q, v, p);
+        return color_ws2812_from_rgb(q, v, p);
     case 2:
-        return color_neopixel_from_rgb(p, v, t);
+        return color_ws2812_from_rgb(p, v, t);
     case 3:
-        return color_neopixel_from_rgb(p, q, v);
+        return color_ws2812_from_rgb(p, q, v);
     case 4:
-        return color_neopixel_from_rgb(t, p, v);
+        return color_ws2812_from_rgb(t, p, v);
     default:
-        return color_neopixel_from_rgb(v, p, q);
+        return color_ws2812_from_rgb(v, p, q);
     }
 }
 
 // Float HSV, hue 0..360 degrees, saturation and value 0..1
-static inline color_neopixel_t color_neopixel_from_hsv_f(float h, float s,
-                                                         float v) {
+static inline color_ws2812_t color_ws2812_from_hsv_f(float h, float s,
+                                                     float v) {
     float hh, p, q, t, ff, r, g, b;
     int i;
 
@@ -137,8 +137,8 @@ static inline color_neopixel_t color_neopixel_from_hsv_f(float h, float s,
         }
     }
 
-    return color_neopixel_from_rgb((uint8_t)(r * 255), (uint8_t)(g * 255),
-                                   (uint8_t)(b * 255));
+    return color_ws2812_from_rgb((uint8_t)(r * 255), (uint8_t)(g * 255),
+                                 (uint8_t)(b * 255));
 }
 
 // left + right, at most 255
@@ -149,10 +149,10 @@ static inline uint8_t color_saturating_add(uint8_t left, uint8_t right) {
 }
 
 // Channel by channel, saturating
-static inline color_neopixel_t color_neopixel_add(color_neopixel_t left,
-                                                  color_neopixel_t right) {
+static inline color_ws2812_t color_ws2812_add(color_ws2812_t left,
+                                              color_ws2812_t right) {
     // Saturate, a plain uint8_t sum would wrap bright colors to dark ones
-    return (color_neopixel_t){
+    return (color_ws2812_t){
         .grba =
             {
                 .r = color_saturating_add(left.grba.r, right.grba.r),

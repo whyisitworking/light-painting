@@ -133,7 +133,7 @@ void effects_set_mode(effects_t *this, effects_mode_t mode);
 void effects_set_palette(effects_t *this, effects_palette_t palette);
 
 /**
- * Renders one frame into led_count color_neopixel_t words
+ * Renders one frame into led_count color_ws2812_t words
  */
 void effects_render(effects_t *this, const features_t *features,
                     uint32_t *pixels);

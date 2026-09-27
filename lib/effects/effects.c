@@ -66,7 +66,7 @@ void effects_set_palette(effects_t *this, effects_palette_t palette) {
 
 void effects_render(effects_t *this, const features_t *features,
                     uint32_t *pixels) {
-    color_neopixel_t flash;
+    color_ws2812_t flash;
     uint8_t white;
 
     memset(this->frame, 0, this->led_count * sizeof(rgb_t));
@@ -82,17 +82,17 @@ void effects_render(effects_t *this, const features_t *features,
     // The flash goes on after gamma, as shown: added before it, 0.35 would
     // come out as 25 / 255. Saturating, so bright pixels do not wrap dark
     white = (uint8_t)lroundf(this->flash * 255.f);
-    flash = color_neopixel_from_rgb(white, white, white);
+    flash = color_ws2812_from_rgb(white, white, white);
 
     for (size_t i = 0; i < this->led_count; i++) {
         rgb_t color = this->frame[i];
 
-        pixels[i] = color_neopixel_add(
-                        color_neopixel_from_rgb(color_gamma(color.r),
-                                                color_gamma(color.g),
-                                                color_gamma(color.b)),
-                        flash)
-                        .value;
+        pixels[i] =
+            color_ws2812_add(color_ws2812_from_rgb(color_gamma(color.r),
+                                                   color_gamma(color.g),
+                                                   color_gamma(color.b)),
+                             flash)
+                .value;
     }
 
     this->flash *= this->flash_k;
