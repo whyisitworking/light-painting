@@ -2,24 +2,30 @@
 
 #include "config.h"
 #include "joystick.h"
+#include "settings.h"
 #include "st7789.h"
+#include "ui_menu.h"
 #include "ui_port.h"
-#include "ui_status.h"
-#include "visualizer.h"
 
 #include <pico/multicore.h>
 #include <pico/time.h>
 #include <stdio.h>
 
-// Backlight level, once the first frame is on the screen
-constexpr float BACKLIGHT_LEVEL = 0.8f;
-
 // Core 1's stack, 8-byte aligned as the Arm procedure call standard asks
 static alignas(8) uint32_t stack[UI_STACK_SIZE / sizeof(uint32_t)];
 
+// What the menu shows and changes
+static settings_t settings;
+
+// After each change in the menu
+static void changed(const settings_t *changed_settings, settings_id_t id) {
+    if (id == SETTINGS_BACKLIGHT)
+        st7789_set_backlight(
+            settings_value(changed_settings, SETTINGS_BACKLIGHT));
+}
+
 static void ui_main(void) {
     lv_display_t *display;
-    lv_obj_t *status;
     uint32_t wait_ms;
 
     // Here, on core 1: its DMA interrupt is enabled on the calling core
@@ -58,21 +64,15 @@ static void ui_main(void) {
         return;
     }
 
-    // The compiled-in look, until the menu can change it
-    status = ui_status_create();
-    ui_status_show(&(ui_status_t){
-        .mode = VISUALIZER_MODE,
-        .palette = VISUALIZER_PALETTE,
-        .brightness_percent = 100,
-    });
-    lv_screen_load(status);
+    settings_reset(&settings);
+    ui_menu_start(&settings, changed);
 
     // The display memory holds noise after a reset: light it only once the
     // first frame is on it
     lv_refr_now(display);
     while (st7789_is_busy())
         tight_loop_contents();
-    st7789_set_backlight(BACKLIGHT_LEVEL);
+    st7789_set_backlight(settings_value(&settings, SETTINGS_BACKLIGHT));
 
     printf("LCD init!\n");
 

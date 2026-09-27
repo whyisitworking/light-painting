@@ -1,0 +1,29 @@
+#ifndef APP_UI_UI_MENU_H
+#define APP_UI_UI_MENU_H
+
+/**
+ * The screens and how the switch moves through them:
+ *
+ *   status ──centre──► Menu ──► Look · Sound · Effects · System
+ *
+ * On a page, up and down move between rows, left and right change the
+ * focused setting at once (held, they repeat), and the centre opens the
+ * page a row leads to. Left on the "‹ title" row, or the centre held, goes
+ * back a level. 30 s without input, the status screen returns.
+ */
+
+#include "settings.h"
+
+#include <lvgl/lvgl.h>
+
+// Called after a setting changed, with all the settings
+typedef void ui_menu_changed_t(const settings_t *settings, settings_id_t id);
+
+/**
+ * Shows the status screen and takes the switch from then on. settings are
+ * shown and changed in place, and must outlive the menu. Once, on the
+ * LVGL core, after ui_port_init()
+ */
+void ui_menu_start(settings_t *settings, ui_menu_changed_t *changed);
+
+#endif

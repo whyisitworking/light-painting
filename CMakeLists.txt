@@ -81,6 +81,7 @@ set(APP_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/app/main.c
     ${CMAKE_CURRENT_SOURCE_DIR}/app/perf.c
     ${CMAKE_CURRENT_SOURCE_DIR}/app/ui/ui.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/app/ui/ui_menu.c
     ${CMAKE_CURRENT_SOURCE_DIR}/app/ui/ui_names.c
     ${CMAKE_CURRENT_SOURCE_DIR}/app/ui/ui_port.c
     ${CMAKE_CURRENT_SOURCE_DIR}/app/ui/ui_status.c)
@@ -97,6 +98,7 @@ target_link_libraries(light-painting
         i2s
         ws2812
         joystick
+        settings
         st7789
         visualizer
         lvgl
