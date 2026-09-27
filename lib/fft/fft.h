@@ -34,8 +34,8 @@ typedef struct {
  * The *_deinit functions may only be called after a successful *_init.
  */
 bool fft_init(fft_t *this, size_t count);
-void fft_rad2_dit(fft_t *this, float complex *samples, float *frequency_bins);
-void fft_rad2_dif(fft_t *this, float complex *samples, float *frequency_bins);
+void fft_radix2_dit(fft_t *this, float complex *samples, float *frequency_bins);
+void fft_radix2_dif(fft_t *this, float complex *samples, float *frequency_bins);
 void fft_deinit(fft_t *this);
 
 /**
@@ -48,8 +48,8 @@ void fft_deinit(fft_t *this);
  * imaginary parts.
  *
  * Usage:
- *   fft_real_pack(real_samples, packed, N);   // packed holds N/2 entries
- *   fft_real(&fft, packed, frequency_bins);   // N/2 bins
+ *   fft_real_pack(real_samples, packed, N);            // packed: N/2 entries
+ *   fft_real_transform(&fft, packed, frequency_bins);  // N/2 bins
  *
  * count must be a power of two >= 4. frequency_bins receives the same
  * |X[k]| / (N/2) for k < N/2 as the complex transforms. packed is used as
@@ -70,7 +70,8 @@ bool fft_real_init(fft_real_t *this, size_t count);
 // Packs count real samples into count / 2 complex ones, even + i * odd
 void fft_real_pack(const float *samples, float complex *packed, size_t count);
 // Transforms packed in place, then writes the count / 2 magnitude bins
-void fft_real(fft_real_t *this, float complex *packed, float *frequency_bins);
+void fft_real_transform(fft_real_t *this, float complex *packed,
+                        float *frequency_bins);
 void fft_real_deinit(fft_real_t *this);
 
 #endif

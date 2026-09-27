@@ -134,7 +134,8 @@ bool fft_init(fft_t *this, size_t count) {
     return true;
 }
 
-void fft_rad2_dit(fft_t *this, float complex *samples, float *frequency_bins) {
+void fft_radix2_dit(fft_t *this, float complex *samples,
+                    float *frequency_bins) {
     unsigned int halfN, set_count, ops_per_set, set, start, butterfly,
         butterfly_top_idx, butterfly_bottom_idx;
     float complex twiddle, butterfly_top, butterfly_bottom;
@@ -191,7 +192,8 @@ void fft_rad2_dit(fft_t *this, float complex *samples, float *frequency_bins) {
     }
 }
 
-void fft_rad2_dif(fft_t *this, float complex *samples, float *frequency_bins) {
+void fft_radix2_dif(fft_t *this, float complex *samples,
+                    float *frequency_bins) {
     unsigned int halfN, set_count, ops_per_set, set, start, butterfly,
         butterfly_top_idx, butterfly_bottom_idx;
     float complex twiddle, butterfly_top, butterfly_bottom;
@@ -293,7 +295,8 @@ void fft_real_pack(const float *samples, float complex *packed, size_t count) {
         packed[m] = CMPLXF(samples[2 * m], samples[2 * m + 1]);
 }
 
-void fft_real(fft_real_t *this, float complex *packed, float *frequency_bins) {
+void fft_real_transform(fft_real_t *this, float complex *packed,
+                        float *frequency_bins) {
     size_t halfN;
     const unsigned int *reversed_indices;
 
@@ -304,7 +307,7 @@ void fft_real(fft_real_t *this, float complex *packed, float *frequency_bins) {
     reversed_indices = this->half.reversed_indices;
 
     // The heavy lifting, output lands in bit-reversed order
-    fft_rad2_dif(&this->half, packed, NULL);
+    fft_radix2_dif(&this->half, packed, NULL);
 
     if (frequency_bins == NULL)
         return;

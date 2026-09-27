@@ -66,7 +66,7 @@ static void test_dif_matches_dft(size_t n) {
         samples[i] = (float complex)signal[i];
 
     CHECK(fft_init(&fft, n));
-    fft_rad2_dif(&fft, samples, bins);
+    fft_radix2_dif(&fft, samples, bins);
 
     // DIF leaves the spectrum in bit-reversed order
     for (size_t k = 0; k < n; k++) {
@@ -97,7 +97,7 @@ static void test_dit_matches_dft(size_t n) {
         samples[i] = (float complex)signal[i];
 
     CHECK(fft_init(&fft, n));
-    fft_rad2_dit(&fft, samples, bins);
+    fft_radix2_dit(&fft, samples, bins);
 
     // DIT works in place on the bit-reversed view, so the spectrum ends up
     // in bit-reversed memory order too
@@ -130,7 +130,7 @@ static void test_real_matches_dft(size_t n) {
 
     CHECK(fft_real_init(&fft, n));
     fft_real_pack(real_samples, packed, n);
-    fft_real(&fft, packed, bins);
+    fft_real_transform(&fft, packed, bins);
 
     // Same bins, same normalization as the complex FFTs, k = 0 included
     for (size_t k = 0; k < n / 2; k++)
@@ -159,7 +159,7 @@ static void test_real_tone(size_t n, size_t k0, float amplitude) {
 
     CHECK(fft_real_init(&fft, n));
     fft_real_pack(real_samples, packed, n);
-    fft_real(&fft, packed, bins);
+    fft_real_transform(&fft, packed, bins);
 
     for (size_t k = 0; k < n / 2; k++)
         CHECK_NEAR(bins[k], k == k0 ? amplitude : 0.f, FLOAT_TONE_TOLERANCE);
@@ -178,7 +178,7 @@ static void test_dif_tone(size_t n, size_t k0, float amplitude) {
         samples[i] = amplitude * cosf(2.f * (float)M_PI * k0 * i / n);
 
     CHECK(fft_init(&fft, n));
-    fft_rad2_dif(&fft, samples, bins);
+    fft_radix2_dif(&fft, samples, bins);
 
     for (size_t k = 0; k < n / 2; k++)
         CHECK_NEAR(bins[k], k == k0 ? amplitude : 0.f, FLOAT_TONE_TOLERANCE);

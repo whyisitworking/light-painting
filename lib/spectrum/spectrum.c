@@ -109,7 +109,7 @@ void spectrum_apply_gain(spectrum_t *this, float gain) {
 
 void spectrum_transform(spectrum_t *this) {
     fft_real_pack(this->samples, this->packed, this->fft_size);
-    fft_real(&this->fft, this->packed, this->bins);
+    fft_real_transform(&this->fft, this->packed, this->bins);
 }
 
 const float *spectrum_bins(spectrum_t *this) { return this->bins; }
