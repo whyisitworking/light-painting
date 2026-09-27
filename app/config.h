@@ -39,7 +39,7 @@ _Static_assert((AUDIO_FFT_HOP & (AUDIO_FFT_HOP - 1)) == 0 &&
 #define VISUALIZER_MODE EFFECTS_RIVER
 #define VISUALIZER_PALETTE PALETTE_SYNTHWAVE
 
-// On top of the microphone's AUDIO_INPUT_GAIN, x12 in total: the features'
+// On top of the microphone's SPECTRUM_INPUT_GAIN, x12 in total: the features'
 // FEATURES_MIN_CEILING_DB is tuned for it
 #define VISUALIZER_GAIN 1.5f
 

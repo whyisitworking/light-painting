@@ -18,11 +18,11 @@
 // loudest band up at once, falls back slowly, and never goes below
 // FEATURES_MIN_CEILING_DB so that silence stays dark. Band power is per
 // bin: the INMP441 self-noise (-87 dBFS) with the x12 input gain (+21.6 dB:
-// AUDIO_INPUT_GAIN 8 in audio.c times VISUALIZER_GAIN 1.5 in app/config.h)
-// is -65 dB in total but spread over N / 2 = 256 bins, -24 dB each, so a
-// quiet room is about -88 dB per bin. Keep that below the floor, ceiling
-// minus range = -77 dB, with 11 dB of margin for its fluctuations: tune on
-// hardware
+// SPECTRUM_INPUT_GAIN 8 in spectrum.c times VISUALIZER_GAIN 1.5 in
+// app/config.h) is -65 dB in total but spread over N / 2 = 256 bins, -24 dB
+// each, so a quiet room is about -88 dB per bin. Keep that below the floor,
+// ceiling minus range = -77 dB, with 11 dB of margin for its fluctuations:
+// tune on hardware
 #define FEATURES_RANGE_DB 45.f
 #define FEATURES_CEILING_FALL_DB_PER_S 6.f
 #define FEATURES_MIN_CEILING_DB -32.f

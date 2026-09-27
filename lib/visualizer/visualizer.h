@@ -4,15 +4,15 @@
 /**
  * The visualizer pipeline, hardware independent: I2S frames in, pixels out.
  *
- *   frames ──► audio ──bins──► features ──features_t──► effects ──► pixels
+ *   frames ──► spectrum ──bins──► features ──features_t──► effects ──► pixels
  *
  * Once per hop: visualizer_analyze() with the newest frames, then
  * visualizer_render() into the next LED frame.
  */
 
-#include "audio.h"
 #include "effects.h"
 #include "features.h"
+#include "spectrum.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -26,7 +26,7 @@ typedef struct {
     size_t fft_size;
     size_t hop;
     size_t led_count;
-    // Applied after the window, on top of the microphone's AUDIO_INPUT_GAIN
+    // Applied after the window, on top of the microphone's SPECTRUM_INPUT_GAIN
     float gain;
     effects_mode_t mode;
     effects_palette_t palette;
@@ -37,7 +37,7 @@ typedef struct {
 // The pipeline stages, public for inspection (e.g. features.ceiling_db)
 typedef struct {
     float gain;
-    audio_t audio;
+    spectrum_t spectrum;
     features_state_t features;
     effects_t effects;
 } visualizer_t;

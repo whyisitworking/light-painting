@@ -63,7 +63,7 @@ static void test_rejects_invalid(void) {
     bad.hop = FFT_SIZE + 1;
     CHECK(!visualizer_init(&visualizer, &bad));
 
-    // Fails late, in the effects, after audio and features are set up
+    // Fails late, in the effects, after the spectrum and features are set up
     bad = config(EFFECTS_SPECTRUM);
     bad.led_count = 1;
     CHECK(!visualizer_init(&visualizer, &bad));

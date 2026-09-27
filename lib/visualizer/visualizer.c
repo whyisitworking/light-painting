@@ -4,23 +4,22 @@ bool visualizer_init(visualizer_t *this, const visualizer_config_t *config) {
     float hop_seconds;
 
     if (!(config->sample_rate > 0.f) ||
-        !audio_init(&this->audio, config->fft_size, config->hop))
+        !spectrum_init(&this->spectrum, config->fft_size, config->hop))
         return false;
 
     hop_seconds = (float)config->hop / config->sample_rate;
 
-    if (!features_init(&this->features,
-                       audio_get_frequency_bin_count(&this->audio),
+    if (!features_init(&this->features, spectrum_bin_count(&this->spectrum),
                        config->sample_rate / (float)config->fft_size,
                        hop_seconds)) {
-        audio_deinit(&this->audio);
+        spectrum_deinit(&this->spectrum);
         return false;
     }
 
     if (!effects_init(&this->effects, config->led_count, FEATURES_BAND_COUNT,
                       hop_seconds, config->seed)) {
         features_deinit(&this->features);
-        audio_deinit(&this->audio);
+        spectrum_deinit(&this->spectrum);
         return false;
     }
 
@@ -32,12 +31,12 @@ bool visualizer_init(visualizer_t *this, const visualizer_config_t *config) {
 }
 
 void visualizer_analyze(visualizer_t *this, const int32_t *frames) {
-    audio_analyze(&this->audio, frames, this->gain);
+    spectrum_analyze(&this->spectrum, frames, this->gain);
 }
 
 const features_t *visualizer_render(visualizer_t *this, uint32_t *pixels) {
-    const features_t *features = features_update(
-        &this->features, audio_get_frequency_bins(&this->audio));
+    const features_t *features =
+        features_update(&this->features, spectrum_bins(&this->spectrum));
 
     effects_render(&this->effects, features, pixels);
 
@@ -47,5 +46,5 @@ const features_t *visualizer_render(visualizer_t *this, uint32_t *pixels) {
 void visualizer_deinit(visualizer_t *this) {
     effects_deinit(&this->effects);
     features_deinit(&this->features);
-    audio_deinit(&this->audio);
+    spectrum_deinit(&this->spectrum);
 }

@@ -2,7 +2,7 @@
 add_subdirectory(color)
 add_subdirectory(fft)
 add_subdirectory(swapchain)
-add_subdirectory(audio)
+add_subdirectory(spectrum)
 add_subdirectory(features)
 add_subdirectory(effects)
 add_subdirectory(visualizer)

@@ -1,7 +1,8 @@
 /**
  * Golden snapshot of the whole pipeline: I2S words through the visualizer
- * (audio, features and effects) into pixels, for every mode. Each mode's frames are hashed and
- * compared with hashes recorded from a known good build.
+ * (spectrum, features and effects) into pixels, for every mode. Each mode's
+ * frames are hashed and compared with hashes recorded from a known good
+ * build.
  *
  * A change of hash means the pixels changed. That is expected only when a
  * change is meant to alter the look (tuning, a new colour step...): then

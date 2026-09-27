@@ -181,7 +181,7 @@ flowchart TB
     end
     subgraph analysis ["Analysis · lib/visualizer"]
         direction LR
-        AUDIO["audio<br/>mono · window · FFT"] -- "256 bins" --> FEAT["features<br/>bands · gain · beats"] -- "features_t" --> FX["effects<br/>mode · palette · gamma"]
+        SPECTRUM["spectrum<br/>mono · window · FFT"] -- "256 bins" --> FEAT["features<br/>bands · gain · beats"] -- "features_t" --> FX["effects<br/>mode · palette · gamma"]
     end
     subgraph output ["Output · platform/ws2812"]
         direction LR
@@ -211,8 +211,8 @@ All memory is allocated once at startup, and the loop never allocates. The firmw
 │   ├── i2s/             INMP441 input
 │   └── ws2812/          WS2812 output
 ├── lib/                 portable C17, no Pico SDK, unit tested on the host
-│   ├── visualizer/      the pipeline: audio → features → effects
-│   ├── audio/           I2S words to a magnitude spectrum
+│   ├── visualizer/      the pipeline: spectrum → features → effects
+│   ├── spectrum/        I2S words to a magnitude spectrum
 │   ├── features/        bands, auto-gain, smoothing, beats
 │   ├── effects/         one mode_*.c per mode, palettes, sparkles
 │   ├── fft/             radix-2 complex and real FFTs
@@ -232,8 +232,8 @@ flowchart TB
         ws2812
     end
     subgraph lib ["lib/ (portable)"]
-        visualizer --> audio & features & effects
-        audio --> fft
+        visualizer --> spectrum & features & effects
+        spectrum --> fft
         effects --> features & color
         swapchain
     end
@@ -273,7 +273,7 @@ ctest --test-dir build-tests --output-on-failure
 | `fft` | Every size against a naive DFT, the real FFT, tones |
 | `swapchain` | Ordering, newest wins, drop counting |
 | `color` | The WS2812 word layout, saturation, gamma |
-| `audio` | Scaling, the stereo sum, the sliding window, tones in their bin |
+| `spectrum` | Scaling, the stereo sum, the sliding window, tones in their bin |
 | `features` | Bands, silence, self-noise, auto-gain, beats on kicks and none on noise |
 | `palette` | Stops, interpolation, wrapping and reflecting |
 | `effects` | Every mode: silence, positions, motion, the flash, determinism |
