@@ -12,8 +12,8 @@
 #define SILENCE_POWER 1e-12f
 
 // Fraction of the way to the target per hop for a time constant
-static float smoothing_factor(float hop_seconds, float time_constant_ms) {
-    return 1.f - expf(-hop_seconds / (time_constant_ms / 1000.f));
+static float smoothing_factor(float hop_period_s, float time_constant_ms) {
+    return 1.f - expf(-hop_period_s / (time_constant_ms / 1000.f));
 }
 
 static float clamp01(float value) {
@@ -22,10 +22,10 @@ static float clamp01(float value) {
 
 // Precomputes the band edges and the per hop factors, starts silent
 bool features_init(features_t *this, size_t bin_count, float bin_hz,
-                   float hop_seconds) {
+                   float hop_period_s) {
     float ratio;
 
-    if (bin_count < 2 || !(bin_hz > 0.f) || !(hop_seconds > 0.f))
+    if (bin_count < 2 || !(bin_hz > 0.f) || !(hop_period_s > 0.f))
         return false;
 
     // Geometric edges, each band ~18 % wider than the one below
@@ -45,13 +45,13 @@ bool features_init(features_t *this, size_t bin_count, float bin_hz,
 
     this->bin_count = bin_count;
     this->bin_hz = bin_hz;
-    this->hop_seconds = hop_seconds;
+    this->hop_period_s = hop_period_s;
     this->ceiling_db = FEATURES_MIN_CEILING_DB;
-    this->ceiling_fall_db = FEATURES_CEILING_FALL_DB_PER_S * hop_seconds;
-    this->attack_k = smoothing_factor(hop_seconds, FEATURES_ATTACK_MS);
-    this->decay_k = smoothing_factor(hop_seconds, FEATURES_DECAY_MS);
-    this->average_k = smoothing_factor(hop_seconds, FEATURES_BEAT_AVERAGE_MS);
-    this->smooth_k = smoothing_factor(hop_seconds, FEATURES_BEAT_SMOOTH_MS);
+    this->ceiling_fall_db = FEATURES_CEILING_FALL_DB_PER_S * hop_period_s;
+    this->attack_k = smoothing_factor(hop_period_s, FEATURES_ATTACK_MS);
+    this->decay_k = smoothing_factor(hop_period_s, FEATURES_DECAY_MS);
+    this->average_k = smoothing_factor(hop_period_s, FEATURES_BEAT_AVERAGE_MS);
+    this->smooth_k = smoothing_factor(hop_period_s, FEATURES_BEAT_SMOOTH_MS);
     this->bass_smooth = 0.f;
     this->bass_average = 0.f;
     this->beat_armed = true;
@@ -105,7 +105,7 @@ static void detect_beat(features_t *this, const float *power) {
 
     this->bass_smooth += (bass - this->bass_smooth) * this->smooth_k;
 
-    this->since_beat_s += this->hop_seconds;
+    this->since_beat_s += this->hop_period_s;
     this->sound.beat = false;
     this->sound.beat_strength = 0.f;
     trigger = this->bass_average * FEATURES_BEAT_THRESHOLD;

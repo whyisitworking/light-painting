@@ -10,7 +10,7 @@ void effects_mode_vu(effects_t *this, const sound_t *sound) {
         this->vu.peak = length;
         this->vu.hold_s = EFFECTS_PEAK_HOLD_MS / 1000.f;
     } else if (this->vu.hold_s > 0.f) {
-        this->vu.hold_s -= this->hop_seconds;
+        this->vu.hold_s -= this->hop_period_s;
     } else {
         this->vu.peak = fmaxf(length, this->vu.peak - EFFECTS_PEAK_FALL);
     }

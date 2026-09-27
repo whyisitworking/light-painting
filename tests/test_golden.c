@@ -68,7 +68,7 @@ static uint32_t run_mode(effects_mode_t mode) {
                           &(visualizer_config_t){
                               .sample_rate = (float)FS,
                               .fft_size = FFT_SIZE,
-                              .hop = HOP,
+                              .hop_size = HOP,
                               .led_count = LEDS,
                               .gain = GAIN,
                               .mode = mode,

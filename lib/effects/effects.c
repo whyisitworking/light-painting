@@ -18,12 +18,12 @@ static effects_renderer_t *const renderers[EFFECTS_MODE_COUNT] = {
 };
 
 bool effects_init(effects_t *this, size_t led_count, size_t band_count,
-                  float hop_seconds, uint32_t seed) {
+                  float hop_period_s, uint32_t seed) {
     size_t half_led_count = (led_count + 1) / 2;
     rgb_t *frame, *river;
     float *sparkles;
 
-    if (led_count < 2 || band_count < 2 || !(hop_seconds > 0.f))
+    if (led_count < 2 || band_count < 2 || !(hop_period_s > 0.f))
         return false;
 
     frame = (rgb_t *)calloc(led_count, sizeof(rgb_t));
@@ -41,10 +41,10 @@ bool effects_init(effects_t *this, size_t led_count, size_t band_count,
         .led_count = led_count,
         .band_count = band_count,
         .half_led_count = half_led_count,
-        .hop_seconds = hop_seconds,
+        .hop_period_s = hop_period_s,
         .mode = EFFECTS_MODE_RIVER,
         .palette = PALETTE_SYNTHWAVE,
-        .flash_k = expf(-hop_seconds / (EFFECTS_FLASH_MS / 1000.f)),
+        .flash_k = expf(-hop_period_s / (EFFECTS_FLASH_MS / 1000.f)),
         .frame = frame,
         .river.history = river,
         .sparkles.levels = sparkles,
@@ -98,7 +98,7 @@ void effects_render(effects_t *this, const sound_t *sound, uint32_t *pixels) {
 
     // Wrapped where the drift repeats (two periods, for reflecting palettes
     // too): a float growing forever loses precision and freezes after ~36 h
-    this->time_s += this->hop_seconds;
+    this->time_s += this->hop_period_s;
     if (EFFECTS_DRIFT_PERIOD_S > 0.f)
         this->time_s = fmodf(this->time_s, 2.f * EFFECTS_DRIFT_PERIOD_S);
 }

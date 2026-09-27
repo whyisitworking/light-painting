@@ -15,7 +15,7 @@ static visualizer_config_t config(effects_mode_t mode) {
     return (visualizer_config_t){
         .sample_rate = (float)FS,
         .fft_size = FFT_SIZE,
-        .hop = HOP,
+        .hop_size = HOP,
         .led_count = LEDS,
         .gain = 1.5f,
         .mode = mode,
@@ -60,7 +60,7 @@ static void test_rejects_invalid(void) {
     CHECK(!visualizer_init(&visualizer, &bad));
 
     bad = config(EFFECTS_MODE_SPECTRUM);
-    bad.hop = FFT_SIZE + 1;
+    bad.hop_size = FFT_SIZE + 1;
     CHECK(!visualizer_init(&visualizer, &bad));
 
     // Fails late, in the effects, after the spectrum and features are set up

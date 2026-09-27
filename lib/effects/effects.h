@@ -73,7 +73,7 @@ typedef struct {
     // LEDs from the centre to one end, (led_count + 1) / 2
     size_t half_led_count;
     // Time between two renders
-    float hop_seconds;
+    float hop_period_s;
 
     effects_mode_t mode;
     palette_t palette;
@@ -119,10 +119,10 @@ typedef struct {
  * seed: for the sparkles, renders are deterministic for a seed
  *
  * Starts in EFFECTS_MODE_RIVER with PALETTE_SYNTHWAVE. False if a count is too
- * small, hop_seconds is not positive or memory runs out
+ * small, hop_period_s is not positive or memory runs out
  */
 bool effects_init(effects_t *this, size_t led_count, size_t band_count,
-                  float hop_seconds, uint32_t seed);
+                  float hop_period_s, uint32_t seed);
 
 // Takes effect on the next render. Out of range values are ignored
 void effects_set_mode(effects_t *this, effects_mode_t mode);

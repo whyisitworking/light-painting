@@ -1,23 +1,23 @@
 #include "visualizer.h"
 
 bool visualizer_init(visualizer_t *this, const visualizer_config_t *config) {
-    float hop_seconds;
+    float hop_period_s;
 
     if (!(config->sample_rate > 0.f) ||
-        !spectrum_init(&this->spectrum, config->fft_size, config->hop))
+        !spectrum_init(&this->spectrum, config->fft_size, config->hop_size))
         return false;
 
-    hop_seconds = (float)config->hop / config->sample_rate;
+    hop_period_s = (float)config->hop_size / config->sample_rate;
 
     if (!features_init(&this->features, spectrum_bin_count(&this->spectrum),
                        config->sample_rate / (float)config->fft_size,
-                       hop_seconds)) {
+                       hop_period_s)) {
         spectrum_deinit(&this->spectrum);
         return false;
     }
 
     if (!effects_init(&this->effects, config->led_count, FEATURES_BAND_COUNT,
-                      hop_seconds, config->seed)) {
+                      hop_period_s, config->seed)) {
         features_deinit(&this->features);
         spectrum_deinit(&this->spectrum);
         return false;

@@ -6,11 +6,11 @@
  */
 
 // Each analysis covers the last AUDIO_FFT_SIZE mono samples and runs every
-// AUDIO_FFT_HOP new ones. At fs = 48828 Hz, 512 / 256:
+// AUDIO_HOP_SIZE new ones. At fs = 48828 Hz, 512 / 256:
 //   window 10.5 ms, bin width fs / size = 95 Hz, a new analysis every 5.2 ms
 // Larger sizes resolve lower frequencies, smaller ones react faster
 #define AUDIO_FFT_SIZE 512
-#define AUDIO_FFT_HOP 256
+#define AUDIO_HOP_SIZE 256
 
 // One mono sample per stereo frame: a left and a right word
 #define AUDIO_WORDS_PER_FRAME 2
@@ -18,13 +18,13 @@
 _Static_assert(AUDIO_FFT_SIZE >= 4 &&
                    (AUDIO_FFT_SIZE & (AUDIO_FFT_SIZE - 1)) == 0,
                "AUDIO_FFT_SIZE must be a power of two >= 4");
-_Static_assert(AUDIO_FFT_HOP >= 1 && AUDIO_FFT_HOP <= AUDIO_FFT_SIZE,
-               "AUDIO_FFT_HOP must be between 1 and AUDIO_FFT_SIZE");
+_Static_assert(AUDIO_HOP_SIZE >= 1 && AUDIO_HOP_SIZE <= AUDIO_FFT_SIZE,
+               "AUDIO_HOP_SIZE must be between 1 and AUDIO_FFT_SIZE");
 // The audio DMA streams into a hardware ring of two hops: a power of two, at
 // most 32 KB
-_Static_assert((AUDIO_FFT_HOP & (AUDIO_FFT_HOP - 1)) == 0 &&
-                   AUDIO_FFT_HOP <= 2048,
-               "AUDIO_FFT_HOP must be a power of two, at most 2048");
+_Static_assert((AUDIO_HOP_SIZE & (AUDIO_HOP_SIZE - 1)) == 0 &&
+                   AUDIO_HOP_SIZE <= 2048,
+               "AUDIO_HOP_SIZE must be a power of two, at most 2048");
 
 #define LED_COUNT 300
 

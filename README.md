@@ -150,7 +150,7 @@ These apply to every mode:
 | `MIC_SCK_PIN`, `MIC_WS_PIN`, `MIC_DATA_PIN` | `26`, `27`, `28` | Microphone bus |
 | `LED_DATA_PIN` | `8` | Strip data |
 | `AUDIO_FFT_SIZE` | `512` | Samples per analysis. Larger resolves lower notes, smaller reacts faster |
-| `AUDIO_FFT_HOP` | `256` | New samples per analysis |
+| `AUDIO_HOP_SIZE` | `256` | New samples per analysis |
 | `VISUALIZER_MODE` | `EFFECTS_MODE_RIVER` | See [modes](#modes-and-palettes) |
 | `VISUALIZER_PALETTE` | `PALETTE_SYNTHWAVE` | See [palettes](#modes-and-palettes) |
 | `VISUALIZER_GAIN` | `1.5f` | Input gain on top of the microphone's ×8 |

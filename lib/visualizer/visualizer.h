@@ -24,7 +24,7 @@ typedef struct {
     float sample_rate;
     // Mono samples per analysis (a power of two >= 4), and new ones per hop
     size_t fft_size;
-    size_t hop;
+    size_t hop_size;
     size_t led_count;
     // Applied after the window, on top of the microphone's SPECTRUM_INPUT_GAIN
     float gain;

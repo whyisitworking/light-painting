@@ -29,8 +29,8 @@ int main() {
 
     stdio_usb_init();
 
-    if (!init_step(i2s_init(AUDIO_FFT_HOP * AUDIO_WORDS_PER_FRAME,
-                            MIC_SCK_PIN, MIC_WS_PIN, MIC_DATA_PIN),
+    if (!init_step(i2s_init(AUDIO_HOP_SIZE * AUDIO_WORDS_PER_FRAME, MIC_SCK_PIN,
+                            MIC_WS_PIN, MIC_DATA_PIN),
                    "INMP441 i2s driver"))
         return EXIT_FAILURE;
 
@@ -44,7 +44,7 @@ int main() {
                                    &(visualizer_config_t){
                                        .sample_rate = i2s_sample_rate(),
                                        .fft_size = AUDIO_FFT_SIZE,
-                                       .hop = AUDIO_FFT_HOP,
+                                       .hop_size = AUDIO_HOP_SIZE,
                                        .led_count = LED_COUNT,
                                        .gain = VISUALIZER_GAIN,
                                        .mode = VISUALIZER_MODE,
