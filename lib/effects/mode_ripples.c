@@ -5,7 +5,7 @@
 // Beats launch pulses from the centre, the treble sparkles
 void effects_mode_ripples(effects_t *this, const sound_t *sound) {
     if (sound->beat) {
-        effects_pulse_t *slot = NULL;
+        effects_pulse_t *slot = nullptr;
 
         // A free slot, or else the pulse furthest out
         for (size_t r = 0; r < EFFECTS_RIPPLE_MAX_PULSES; r++) {
@@ -16,7 +16,7 @@ void effects_mode_ripples(effects_t *this, const sound_t *sound) {
                 break;
             }
 
-            if (slot == NULL || pulse->position > slot->position)
+            if (slot == nullptr || pulse->position > slot->position)
                 slot = pulse;
         }
 

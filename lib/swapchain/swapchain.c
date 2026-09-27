@@ -14,7 +14,7 @@ static inline void swap_slots(void *volatile slots[], size_t first,
 
 bool swapchain_init(swapchain_t *this, size_t buffer_size) {
     char *memory = (char *)malloc(SWAPCHAIN_BUFFER_COUNT * buffer_size);
-    if (memory == NULL)
+    if (memory == nullptr)
         return false;
 
     for (size_t i = 0; i < SWAPCHAIN_BUFFER_COUNT; i++)

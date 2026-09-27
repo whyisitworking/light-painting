@@ -20,16 +20,16 @@ constexpr size_t AUDIO_HOP_SIZE = 256;
 // One mono sample per stereo frame: a left and a right word
 constexpr size_t AUDIO_WORDS_PER_FRAME = 2;
 
-_Static_assert(AUDIO_FFT_SIZE >= 4 &&
-                   (AUDIO_FFT_SIZE & (AUDIO_FFT_SIZE - 1)) == 0,
-               "AUDIO_FFT_SIZE must be a power of two >= 4");
-_Static_assert(AUDIO_HOP_SIZE >= 1 && AUDIO_HOP_SIZE <= AUDIO_FFT_SIZE,
-               "AUDIO_HOP_SIZE must be between 1 and AUDIO_FFT_SIZE");
+static_assert(AUDIO_FFT_SIZE >= 4 &&
+                  (AUDIO_FFT_SIZE & (AUDIO_FFT_SIZE - 1)) == 0,
+              "AUDIO_FFT_SIZE must be a power of two >= 4");
+static_assert(AUDIO_HOP_SIZE >= 1 && AUDIO_HOP_SIZE <= AUDIO_FFT_SIZE,
+              "AUDIO_HOP_SIZE must be between 1 and AUDIO_FFT_SIZE");
 // The audio DMA streams into a hardware ring of two hops: a power of two, at
 // most 32 KB
-_Static_assert((AUDIO_HOP_SIZE & (AUDIO_HOP_SIZE - 1)) == 0 &&
-                   AUDIO_HOP_SIZE <= 2048,
-               "AUDIO_HOP_SIZE must be a power of two, at most 2048");
+static_assert((AUDIO_HOP_SIZE & (AUDIO_HOP_SIZE - 1)) == 0 &&
+                  AUDIO_HOP_SIZE <= 2048,
+              "AUDIO_HOP_SIZE must be a power of two, at most 2048");
 
 constexpr size_t LED_COUNT = 300;
 
@@ -38,8 +38,8 @@ constexpr unsigned MIC_SCK_PIN = 26;
 constexpr unsigned MIC_WS_PIN = 27;
 constexpr unsigned MIC_DATA_PIN = 28;
 
-_Static_assert(MIC_WS_PIN == MIC_SCK_PIN + 1,
-               "MIC_WS_PIN must follow MIC_SCK_PIN, one side-set drives both");
+static_assert(MIC_WS_PIN == MIC_SCK_PIN + 1,
+              "MIC_WS_PIN must follow MIC_SCK_PIN, one side-set drives both");
 
 constexpr unsigned LED_DATA_PIN = 8;
 

@@ -30,7 +30,7 @@ bool effects_init(effects_t *this, size_t led_count, size_t band_count,
     river = (rgb_t *)calloc(half_led_count, sizeof(rgb_t));
     sparkles = (float *)calloc(led_count, sizeof(float));
 
-    if (frame == NULL || river == NULL || sparkles == NULL) {
+    if (frame == nullptr || river == nullptr || sparkles == nullptr) {
         free(frame);
         free(river);
         free(sparkles);
@@ -71,7 +71,7 @@ void effects_render(effects_t *this, const sound_t *sound, uint32_t *pixels) {
     memset(this->frame, 0, this->led_count * sizeof(rgb_t));
 
     // A mode without a renderer stays dark
-    if (renderers[this->mode] != NULL)
+    if (renderers[this->mode] != nullptr)
         renderers[this->mode](this, sound);
 
     if (sound->beat)

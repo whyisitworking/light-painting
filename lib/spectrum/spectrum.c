@@ -36,8 +36,9 @@ bool spectrum_init(spectrum_t *this, size_t fft_size, size_t hop_size) {
     bins = (float *)malloc((fft_size / 2) * sizeof(float));
     window = (float *)malloc(fft_size * sizeof(float));
 
-    if (history == NULL || samples == NULL || packed == NULL || bins == NULL ||
-        window == NULL || !fft_real_init(&this->fft, fft_size)) {
+    if (history == nullptr || samples == nullptr || packed == nullptr ||
+        bins == nullptr || window == nullptr ||
+        !fft_real_init(&this->fft, fft_size)) {
         free(history);
         free(samples);
         free(packed);

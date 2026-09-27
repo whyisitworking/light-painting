@@ -1,7 +1,6 @@
 #include "palette.h"
 
 #include <math.h>
-#include <stdbool.h>
 
 typedef struct {
     const rgb_t *stops;

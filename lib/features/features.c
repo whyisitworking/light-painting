@@ -164,4 +164,4 @@ const sound_t *features_update(features_t *this, const float *bins) {
     return &this->sound;
 }
 
-void features_deinit(features_t *this) { (void)this; }
+void features_deinit([[maybe_unused]] features_t *this) {}

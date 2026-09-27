@@ -130,7 +130,7 @@ bool ws2812_init(size_t led_count, uint pin) {
     channel_config_set_write_increment(&dma_config, false);
     channel_config_set_transfer_data_size(&dma_config, DMA_SIZE_32);
     channel_config_set_dreq(&dma_config, pio_get_dreq(pio, pio_sm, true));
-    dma_channel_configure(dma_channel, &dma_config, &pio->txf[pio_sm], NULL,
+    dma_channel_configure(dma_channel, &dma_config, &pio->txf[pio_sm], nullptr,
                           led_count, false);
 
     // Frame latched interrupt, 'irq 0 rel' raises the flag numbered after

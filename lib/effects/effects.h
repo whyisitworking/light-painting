@@ -10,7 +10,6 @@
 #include "features.h"
 #include "palette.h"
 
-#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 

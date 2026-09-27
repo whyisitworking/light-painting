@@ -61,7 +61,7 @@ static void test_rejects_invalid(void) {
 
 static void test_tone_lands_in_its_band(void) {
     features_t features;
-    const sound_t *sound = NULL;
+    const sound_t *sound = nullptr;
 
     CHECK(features_init(&features, BINS, BIN_HZ, HOP_PERIOD_S));
 
@@ -78,7 +78,7 @@ static void test_tone_lands_in_its_band(void) {
 
 static void test_silence_stays_dark(void) {
     features_t features;
-    const sound_t *sound = NULL;
+    const sound_t *sound = nullptr;
 
     CHECK(features_init(&features, BINS, BIN_HZ, HOP_PERIOD_S));
 
@@ -130,7 +130,7 @@ static void test_microphone_noise_stays_dark(void) {
 // above FEATURES_MIN_CEILING_DB
 static void test_auto_gain(void) {
     features_t features;
-    const sound_t *sound = NULL;
+    const sound_t *sound = nullptr;
     size_t band;
 
     CHECK(features_init(&features, BINS, BIN_HZ, HOP_PERIOD_S));
@@ -175,7 +175,7 @@ static void test_attack_faster_than_decay(void) {
 
 static void test_loudness_and_centroid(void) {
     features_t features;
-    const sound_t *sound = NULL;
+    const sound_t *sound = nullptr;
 
     CHECK(features_init(&features, BINS, BIN_HZ, HOP_PERIOD_S));
 

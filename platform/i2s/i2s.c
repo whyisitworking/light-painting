@@ -153,7 +153,7 @@ bool i2s_init(size_t word_count, uint sck_pin, uint ws_pin, uint data_pin) {
 
     ring_memory = malloc(ring_bytes + ring_bytes - 1);
 
-    if (ring_memory == NULL) {
+    if (ring_memory == nullptr) {
         swapchain_deinit(&driver.swapchain);
         return false;
     }

@@ -6,7 +6,6 @@
  * the sound, once per hop
  */
 
-#include <stdbool.h>
 #include <stddef.h>
 
 // Log-spaced bands between FEATURES_LOW_HZ and FEATURES_HIGH_HZ

@@ -12,7 +12,6 @@
  * missed is counted as dropped. Nothing is copied, only pointers swap.
  */
 
-#include <stdbool.h>
 #include <stdlib.h>
 
 // A producer, a shared and a consumer buffer
@@ -60,7 +59,7 @@ void swapchain_producer_swap(swapchain_t *this);
 const void *swapchain_consumer_buffer(swapchain_t *this);
 bool swapchain_consumer_swap(swapchain_t *this);
 
-// Frees the buffers, the buffer getters return NULL afterwards
+// Frees the buffers, the buffer getters return nullptr afterwards
 void swapchain_deinit(swapchain_t *this);
 
 #endif

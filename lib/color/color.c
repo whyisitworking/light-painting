@@ -1,7 +1,6 @@
 #include "color.h"
 
 #include <math.h>
-#include <stdbool.h>
 
 constexpr float GAMMA = 2.2f;
 

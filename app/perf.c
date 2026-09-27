@@ -56,7 +56,7 @@ void perf_end(const visualizer_t *visualizer, const sound_t *sound) {
     if (sound->beat)
         beats++;
 
-    if (lap_us - report_us < 1000000)
+    if (lap_us - report_us < 1'000'000)
         return;
 
     report_us = lap_us;

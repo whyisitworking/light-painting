@@ -114,12 +114,12 @@ bool fft_init(fft_t *this, size_t count) {
 
     reversed_indices = (unsigned int *)malloc(count * sizeof(unsigned int));
 
-    if (reversed_indices == NULL)
+    if (reversed_indices == nullptr)
         return false;
 
     twiddles = (float complex *)malloc((count / 2) * sizeof(float complex));
 
-    if (twiddles == NULL) {
+    if (twiddles == nullptr) {
         free(reversed_indices);
         return false;
     }
@@ -141,7 +141,7 @@ void fft_radix2_dit(fft_t *this, float complex *samples,
     float complex twiddle, butterfly_top, butterfly_bottom;
 
     // Don't mess with me
-    if (samples == NULL)
+    if (samples == nullptr)
         return;
 
     // Mr. Clean
@@ -183,7 +183,7 @@ void fft_radix2_dit(fft_t *this, float complex *samples,
         }
     }
 
-    if (frequency_bins != NULL) {
+    if (frequency_bins != nullptr) {
         for (size_t i = 0; i < halfN; i++) {
             // Butterflies ran on the bit-reversed view, so is the output
             float complex sample = samples[this->reversed_indices[i]];
@@ -199,7 +199,7 @@ void fft_radix2_dif(fft_t *this, float complex *samples,
     float complex twiddle, butterfly_top, butterfly_bottom;
 
     // Don't mess with me
-    if (samples == NULL)
+    if (samples == nullptr)
         return;
 
     // Mr. Clean!
@@ -239,7 +239,7 @@ void fft_radix2_dif(fft_t *this, float complex *samples,
         }
     }
 
-    if (frequency_bins != NULL) {
+    if (frequency_bins != nullptr) {
         for (size_t i = 0; i < halfN; i++) {
             float complex sample = samples[this->reversed_indices[i]];
             frequency_bins[i] = cabsf(sample) / halfN;
@@ -274,7 +274,7 @@ bool fft_real_init(fft_real_t *this, size_t count) {
 
     twiddles = (float complex *)malloc((count / 2) * sizeof(float complex));
 
-    if (twiddles == NULL)
+    if (twiddles == nullptr)
         return false;
 
     if (!fft_init(&this->half, count / 2)) {
@@ -300,16 +300,16 @@ void fft_real_transform(fft_real_t *this, float complex *packed,
     size_t halfN;
     const unsigned int *reversed_indices;
 
-    if (packed == NULL)
+    if (packed == nullptr)
         return;
 
     halfN = this->count / 2;
     reversed_indices = this->half.reversed_indices;
 
     // The heavy lifting, output lands in bit-reversed order
-    fft_radix2_dif(&this->half, packed, NULL);
+    fft_radix2_dif(&this->half, packed, nullptr);
 
-    if (frequency_bins == NULL)
+    if (frequency_bins == nullptr)
         return;
 
     for (size_t k = 0; k < halfN; k++) {

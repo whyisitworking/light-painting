@@ -45,13 +45,10 @@ static inline void perf_init(void) {}
 
 static inline void perf_begin(void) {}
 
-static inline void perf_lap(perf_stage_t stage) { (void)stage; }
+static inline void perf_lap([[maybe_unused]] perf_stage_t stage) {}
 
-static inline void perf_end(const visualizer_t *visualizer,
-                            const sound_t *sound) {
-    (void)visualizer;
-    (void)sound;
-}
+static inline void perf_end([[maybe_unused]] const visualizer_t *visualizer,
+                            [[maybe_unused]] const sound_t *sound) {}
 
 #endif
 

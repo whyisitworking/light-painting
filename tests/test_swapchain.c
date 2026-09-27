@@ -96,8 +96,8 @@ static void test_deinit_forgets_buffers(void) {
     publish(&chain, 1);
     swapchain_deinit(&chain);
 
-    CHECK(swapchain_producer_buffer(&chain) == NULL);
-    CHECK(swapchain_consumer_buffer(&chain) == NULL);
+    CHECK(swapchain_producer_buffer(&chain) == nullptr);
+    CHECK(swapchain_consumer_buffer(&chain) == nullptr);
     CHECK(!swapchain_consumer_swap(&chain));
 }
 
