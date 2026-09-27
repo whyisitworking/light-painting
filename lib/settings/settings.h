@@ -125,4 +125,40 @@ void settings_encode(const settings_t *this, uint32_t sequence,
 [[nodiscard]] bool settings_decode(settings_t *this, uint32_t *sequence,
                                    const uint8_t record[SETTINGS_RECORD_SIZE]);
 
+/*
+ * The log: records one after the other in two erase blocks of flash, so a
+ * save only programs an erased page and a block is erased once per 16
+ * saves. The block holding the newest record is never erased: power lost
+ * during a save leaves the previous record, and the block erased is always
+ * the other one, whose records are older
+ */
+
+// A flash sector, the smallest part that can be erased
+constexpr size_t SETTINGS_LOG_BLOCK_SIZE = 4096;
+constexpr size_t SETTINGS_LOG_BLOCK_COUNT = 2;
+constexpr size_t SETTINGS_LOG_SIZE =
+    SETTINGS_LOG_BLOCK_SIZE * SETTINGS_LOG_BLOCK_COUNT;
+
+// What settings_log_scan() found, and where the next record goes
+typedef struct {
+    // Whether there is a valid record, and the newest one's sequence
+    bool found;
+    uint32_t sequence;
+    // Where the next record goes, from the start of the log, and whether
+    // its block has to be erased first
+    size_t next_offset;
+    bool erase_first;
+} settings_log_t;
+
+/**
+ * Reads the log, SETTINGS_LOG_SIZE bytes as in flash: the newest valid
+ * record into settings, or the defaults if there is none. Damaged or
+ * partly written records are skipped
+ */
+void settings_log_scan(settings_log_t *this, settings_t *settings,
+                       const uint8_t *log);
+
+// The sequence number of the next record
+uint32_t settings_log_next_sequence(const settings_log_t *this);
+
 #endif

@@ -261,6 +261,152 @@ static void test_record_from_older_firmware(void) {
     CHECK(settings_get(&loaded, SETTINGS_GAIN) == 15);
 }
 
+// NOR flash as the log sees it: erasing sets a block to 0xFF, programming
+// can only clear bits
+static uint8_t flash[SETTINGS_LOG_SIZE];
+static size_t erases;
+
+static void flash_erase(size_t offset) {
+    memset(flash + offset, 0xFF, SETTINGS_LOG_BLOCK_SIZE);
+    erases++;
+}
+
+static void flash_program(size_t offset, const uint8_t *data, size_t size) {
+    for (size_t i = 0; i < size; i++)
+        flash[offset + i] &= data[i];
+}
+
+// What the firmware does to save: scan, erase if needed, program
+static void save(const settings_t *settings) {
+    settings_log_t log;
+    settings_t current;
+    uint8_t record[SETTINGS_RECORD_SIZE];
+
+    settings_log_scan(&log, &current, flash);
+    if (log.erase_first)
+        flash_erase(log.next_offset);
+    settings_encode(settings, settings_log_next_sequence(&log), record);
+    flash_program(log.next_offset, record, sizeof(record));
+}
+
+static void test_log_empty(void) {
+    settings_log_t log;
+    settings_t settings, defaults;
+
+    memset(flash, 0xFF, sizeof(flash));
+    settings_log_scan(&log, &settings, flash);
+    settings_reset(&defaults);
+
+    CHECK(!log.found);
+    CHECK(memcmp(&settings, &defaults, sizeof(settings)) == 0);
+    CHECK(log.next_offset == 0);
+    CHECK(!log.erase_first);
+    CHECK(settings_log_next_sequence(&log) == 1);
+}
+
+// Many saves: always the last one back, one erase per block filled
+static void test_log_saves_and_loads(void) {
+    settings_log_t log;
+    settings_t settings, loaded;
+    int wrong = 0;
+
+    memset(flash, 0xFF, sizeof(flash));
+    erases = 0;
+    settings_reset(&settings);
+
+    for (int i = 0; i < 100; i++) {
+        settings_set(&settings, SETTINGS_PEAK_HOLD, (i % 40) * 50);
+        settings_set(&settings, SETTINGS_MODE, i % EFFECTS_MODE_COUNT);
+        save(&settings);
+
+        settings_log_scan(&log, &loaded, flash);
+        wrong += !log.found || log.sequence != (uint32_t)i + 1 ||
+                 memcmp(&settings, &loaded, sizeof(settings)) != 0;
+    }
+
+    CHECK(wrong == 0);
+    // Block 1 is still erased when block 0 fills up. From then on a block
+    // is erased every 16 saves: saves 33, 49, 65, 81 and 97
+    CHECK(erases == 5);
+}
+
+// A record cut off halfway, as by a power loss: skipped, the previous one
+// loads, and the next save goes past it
+static void test_log_torn_record(void) {
+    settings_log_t log;
+    settings_t first, second, loaded;
+    uint8_t record[SETTINGS_RECORD_SIZE];
+
+    memset(flash, 0xFF, sizeof(flash));
+    settings_reset(&first);
+    settings_set(&first, SETTINGS_GAIN, 20);
+    save(&first);
+
+    second = first;
+    settings_set(&second, SETTINGS_GAIN, 30);
+    settings_encode(&second, 2, record);
+    flash_program(SETTINGS_RECORD_SIZE, record, 20);
+
+    settings_log_scan(&log, &loaded, flash);
+    CHECK(log.found && log.sequence == 1);
+    CHECK(settings_get(&loaded, SETTINGS_GAIN) == 20);
+    CHECK(log.next_offset == 2 * SETTINGS_RECORD_SIZE);
+
+    save(&second);
+    settings_log_scan(&log, &loaded, flash);
+    CHECK(settings_get(&loaded, SETTINGS_GAIN) == 30);
+}
+
+// Whatever a fresh chip held: defaults, and block 0 is erased first
+static void test_log_garbage(void) {
+    settings_log_t log;
+    settings_t settings, defaults;
+    uint32_t state = 99;
+
+    for (size_t i = 0; i < sizeof(flash); i++) {
+        state ^= state << 13;
+        state ^= state >> 17;
+        state ^= state << 5;
+        flash[i] = (uint8_t)state;
+    }
+
+    settings_log_scan(&log, &settings, flash);
+    settings_reset(&defaults);
+
+    CHECK(!log.found);
+    CHECK(memcmp(&settings, &defaults, sizeof(settings)) == 0);
+    CHECK(log.next_offset == 0);
+    CHECK(log.erase_first);
+}
+
+// Power lost after erasing the other block, before programming it: the
+// newest record is still there
+static void test_log_power_lost_after_erase(void) {
+    settings_log_t log;
+    settings_t settings, loaded;
+
+    memset(flash, 0xFF, sizeof(flash));
+    erases = 0;
+    settings_reset(&settings);
+
+    // Both blocks full: records 1 to 16 in block 0, 17 to 32 in block 1
+    for (int i = 0; i < 32; i++) {
+        settings_set(&settings, SETTINGS_WARMTH, (i % 20) * 5);
+        save(&settings);
+    }
+
+    // The next save erases block 0, with the older records
+    settings_log_scan(&log, &loaded, flash);
+    CHECK(log.erase_first);
+    CHECK(log.next_offset == 0);
+
+    flash_erase(log.next_offset);
+
+    settings_log_scan(&log, &loaded, flash);
+    CHECK(log.found && log.sequence == 32);
+    CHECK(memcmp(&settings, &loaded, sizeof(settings)) == 0);
+}
+
 int main(void) {
     test_ranges();
     test_defaults_are_the_constants();
@@ -274,6 +420,11 @@ int main(void) {
     test_record_damage_detected();
     test_record_rejects_erased_and_other_versions();
     test_record_from_older_firmware();
+    test_log_empty();
+    test_log_saves_and_loads();
+    test_log_torn_record();
+    test_log_garbage();
+    test_log_power_lost_after_erase();
 
     return CHECK_REPORT();
 }
