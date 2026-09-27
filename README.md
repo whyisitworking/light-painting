@@ -278,6 +278,7 @@ ctest --test-dir build-tests --output-on-failure
 | `effects` | Every mode: silence, positions, motion, the flash, determinism |
 | `visualizer` | End to end from I²S words: silence, a tone, kicks |
 | `golden` | The exact pixels of every mode for a fixed input |
+| `settings` | Ranges and steps, wrapping and clamping, and every default equal to the constant it replaces |
 
 `test_golden` is a tripwire: it fails on **any** change to the pixels. When a change is meant to alter the look, check that the other tests still pass, then record the new hashes into [`tests/test_golden.c`](tests/test_golden.c):
 
