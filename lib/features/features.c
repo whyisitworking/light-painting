@@ -20,6 +20,32 @@ static float clamp01(float value) {
     return value < 0.f ? 0.f : value > 1.f ? 1.f : value;
 }
 
+static bool is_positive(float value) { return value > 0.f && isfinite(value); }
+
+features_tuning_t features_default_tuning(void) {
+    return (features_tuning_t){
+        .attack_ms = FEATURES_ATTACK_MS,
+        .decay_ms = FEATURES_DECAY_MS,
+        .min_ceiling_db = FEATURES_MIN_CEILING_DB,
+        .beat_threshold = FEATURES_BEAT_THRESHOLD,
+    };
+}
+
+void features_tune(features_t *this, const features_tuning_t *tuning) {
+    if (is_positive(tuning->attack_ms))
+        this->tuning.attack_ms = tuning->attack_ms;
+    if (is_positive(tuning->decay_ms))
+        this->tuning.decay_ms = tuning->decay_ms;
+    if (isfinite(tuning->min_ceiling_db))
+        this->tuning.min_ceiling_db = tuning->min_ceiling_db;
+    if (is_positive(tuning->beat_threshold))
+        this->tuning.beat_threshold = tuning->beat_threshold;
+
+    this->attack_k =
+        smoothing_factor(this->hop_period_s, this->tuning.attack_ms);
+    this->decay_k = smoothing_factor(this->hop_period_s, this->tuning.decay_ms);
+}
+
 // Precomputes the band edges and the per hop factors, starts silent
 bool features_init(features_t *this, size_t bin_count, float bin_hz,
                    float hop_period_s) {
@@ -46,10 +72,10 @@ bool features_init(features_t *this, size_t bin_count, float bin_hz,
     this->bin_count = bin_count;
     this->bin_hz = bin_hz;
     this->hop_period_s = hop_period_s;
-    this->ceiling_db = FEATURES_MIN_CEILING_DB;
+    this->tuning = features_default_tuning();
+    features_tune(this, &this->tuning);
+    this->ceiling_db = this->tuning.min_ceiling_db;
     this->ceiling_fall_db = FEATURES_CEILING_FALL_DB_PER_S * hop_period_s;
-    this->attack_k = smoothing_factor(hop_period_s, FEATURES_ATTACK_MS);
-    this->decay_k = smoothing_factor(hop_period_s, FEATURES_DECAY_MS);
     this->average_k = smoothing_factor(hop_period_s, FEATURES_BEAT_AVERAGE_MS);
     this->smooth_k = smoothing_factor(hop_period_s, FEATURES_BEAT_SMOOTH_MS);
     this->bass_smooth = 0.f;
@@ -108,7 +134,7 @@ static void detect_beat(features_t *this, const float *power) {
     this->since_beat_s += this->hop_period_s;
     this->sound.beat = false;
     this->sound.beat_strength = 0.f;
-    trigger = this->bass_average * FEATURES_BEAT_THRESHOLD;
+    trigger = this->bass_average * this->tuning.beat_threshold;
 
     if (this->bass_smooth <= trigger) {
         this->beat_armed = true;
@@ -143,7 +169,7 @@ const sound_t *features_update(features_t *this, const float *bins) {
     // Auto-gain: up to the loudest band at once, back down slowly, never
     // below the silence floor
     this->ceiling_db = fmaxf(this->ceiling_db - this->ceiling_fall_db, loudest);
-    this->ceiling_db = fmaxf(this->ceiling_db, FEATURES_MIN_CEILING_DB);
+    this->ceiling_db = fmaxf(this->ceiling_db, this->tuning.min_ceiling_db);
     floor_db = this->ceiling_db - FEATURES_RANGE_DB;
 
     for (size_t b = 0; b < FEATURES_BAND_COUNT; b++) {

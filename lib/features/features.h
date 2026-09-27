@@ -46,6 +46,17 @@ constexpr float FEATURES_BEAT_MIN_LEVEL = 0.3f;
 constexpr float FEATURES_BEAT_REFRACTORY_MS = 150.f;
 constexpr float FEATURES_BEAT_MAX_HZ = 150.f;
 
+// What can be changed while running, the constants above are the defaults
+typedef struct {
+    // FEATURES_ATTACK_MS, FEATURES_DECAY_MS: positive
+    float attack_ms;
+    float decay_ms;
+    // FEATURES_MIN_CEILING_DB: finite
+    float min_ceiling_db;
+    // FEATURES_BEAT_THRESHOLD: positive
+    float beat_threshold;
+} features_tuning_t;
+
 // The sound of one hop, what the effects render from
 typedef struct {
     // FEATURES_BAND_COUNT levels, 0..1, smoothed
@@ -66,6 +77,8 @@ typedef struct {
     size_t bin_count;
     float bin_hz;
     float hop_period_s;
+
+    features_tuning_t tuning;
 
     // Band edges in Hz, band b spans [edges[b], edges[b + 1])
     float edges[FEATURES_BAND_COUNT + 1];
@@ -100,6 +113,16 @@ typedef struct {
  */
 [[nodiscard]] bool features_init(features_t *this, size_t bin_count,
                                  float bin_hz, float hop_period_s);
+
+// The FEATURES_* constants, what features_init() starts with
+features_tuning_t features_default_tuning(void);
+
+/**
+ * Takes effect on the next update, without resetting the levels, the
+ * auto-gain or the beat detection. A field out of its range (see
+ * features_tuning_t) or NaN keeps its current value
+ */
+void features_tune(features_t *this, const features_tuning_t *tuning);
 
 /**
  * Updates from the newest bins and returns the sound, valid until the next

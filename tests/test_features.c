@@ -285,6 +285,135 @@ static void test_no_beat_without_onsets(void) {
     features_deinit(&features);
 }
 
+// Tuned to the defaults, the factors are the ones features_init() computed
+static void test_default_tuning_changes_nothing(void) {
+    features_t features;
+    features_tuning_t defaults = features_default_tuning();
+    float attack_k, decay_k;
+
+    CHECK(features_init(&features, BINS, BIN_HZ, HOP_PERIOD_S));
+    attack_k = features.attack_k;
+    decay_k = features.decay_k;
+
+    features_tune(&features, &defaults);
+    CHECK(features.attack_k == attack_k);
+    CHECK(features.decay_k == decay_k);
+    CHECK(features.tuning.beat_threshold == FEATURES_BEAT_THRESHOLD);
+    CHECK(features.tuning.min_ceiling_db == FEATURES_MIN_CEILING_DB);
+
+    features_deinit(&features);
+}
+
+// Out of range fields keep their values, the others still apply
+static void test_tuning_ignores_invalid(void) {
+    features_t features;
+    features_tuning_t tuning;
+
+    CHECK(features_init(&features, BINS, BIN_HZ, HOP_PERIOD_S));
+
+    tuning = features_default_tuning();
+    tuning.attack_ms = 0.f;
+    tuning.decay_ms = NAN;
+    tuning.min_ceiling_db = INFINITY;
+    tuning.beat_threshold = 4.f;
+    features_tune(&features, &tuning);
+
+    CHECK(features.tuning.attack_ms == FEATURES_ATTACK_MS);
+    CHECK(features.tuning.decay_ms == FEATURES_DECAY_MS);
+    CHECK(features.tuning.min_ceiling_db == FEATURES_MIN_CEILING_DB);
+    CHECK(features.tuning.beat_threshold == 4.f);
+
+    features_deinit(&features);
+}
+
+// Hops for a tone to bring its band to 0.63, with the given attack
+static int hops_to_rise(float attack_ms) {
+    features_t features;
+    features_tuning_t tuning;
+    size_t band;
+    int hops = 0;
+
+    CHECK(features_init(&features, BINS, BIN_HZ, HOP_PERIOD_S));
+    tuning = features_default_tuning();
+    tuning.attack_ms = attack_ms;
+    features_tune(&features, &tuning);
+    band = band_of(&features, 10 * BIN_HZ);
+
+    fill(1e-6f);
+    bins[10] = 0.1f;
+    while (features_update(&features, bins)->bands[band] < 0.63f && hops < 1000)
+        hops++;
+
+    features_deinit(&features);
+
+    return hops;
+}
+
+static void test_tuned_attack(void) {
+    CHECK(hops_to_rise(50.f) > hops_to_rise(FEATURES_ATTACK_MS));
+}
+
+// Beats at 120 BPM with the given threshold, as in test_beat_per_kick
+static int kick_beats(float beat_threshold) {
+    features_t features;
+    features_tuning_t tuning;
+    int beats = 0;
+
+    CHECK(features_init(&features, BINS, BIN_HZ, HOP_PERIOD_S));
+    tuning = features_default_tuning();
+    tuning.beat_threshold = beat_threshold;
+    features_tune(&features, &tuning);
+
+    for (int n = 0; n * HOP_PERIOD_S < 5.f; n++) {
+        float t = n * HOP_PERIOD_S, since_kick = fmodf(t, 0.5f);
+
+        fill(1e-5f);
+        bins[0] += 0.5f * expf(-since_kick / 0.05f);
+        bins[1] += 0.5f * expf(-since_kick / 0.05f);
+        if (features_update(&features, bins)->beat && t >= 1.f)
+            beats++;
+    }
+
+    features_deinit(&features);
+
+    return beats;
+}
+
+// These kicks rise at most ~10 times above their average (the first one,
+// while the average is still low): a threshold of 20 sees none
+static void test_tuned_beat_threshold(void) {
+    CHECK(kick_beats(FEATURES_BEAT_THRESHOLD) == 8);
+    CHECK(kick_beats(20.f) == 0);
+}
+
+// A quiet tone shows with the default floor, not once the floor is raised
+// above it
+static void test_tuned_quiet_floor(void) {
+    features_t features;
+    features_tuning_t tuning;
+    const sound_t *sound = nullptr;
+    size_t band;
+
+    CHECK(features_init(&features, BINS, BIN_HZ, HOP_PERIOD_S));
+    band = band_of(&features, 10 * BIN_HZ);
+
+    // About -46 dB, 0.6 up the default range
+    fill(1e-6f);
+    bins[10] = 5e-3f;
+    for (int i = 0; i < 500; i++)
+        sound = features_update(&features, bins);
+    CHECK(sound->bands[band] > 0.5f);
+
+    tuning = features_default_tuning();
+    tuning.min_ceiling_db = 0.f;
+    features_tune(&features, &tuning);
+    for (int i = 0; i < 500; i++)
+        sound = features_update(&features, bins);
+    CHECK(sound->bands[band] < 0.1f);
+
+    features_deinit(&features);
+}
+
 int main(void) {
     test_rejects_invalid();
     test_tone_lands_in_its_band();
@@ -295,6 +424,11 @@ int main(void) {
     test_loudness_and_centroid();
     test_beat_per_kick();
     test_no_beat_without_onsets();
+    test_default_tuning_changes_nothing();
+    test_tuning_ignores_invalid();
+    test_tuned_attack();
+    test_tuned_beat_threshold();
+    test_tuned_quiet_floor();
     test_no_beat_on_noise();
 
     return CHECK_REPORT();
