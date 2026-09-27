@@ -24,7 +24,7 @@ static bool init_step(bool ok, const char *what) {
     return ok;
 }
 
-int main() {
+int main(void) {
     visualizer_t visualizer;
 
     stdio_usb_init();

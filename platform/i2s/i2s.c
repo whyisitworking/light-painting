@@ -76,7 +76,7 @@ static size_t i2s_required_buffer_size(size_t word_count) {
 }
 
 // A ring chunk is full. The DMA already streams into the other one
-static void dma_irq_handler() {
+static void dma_irq_handler(void) {
     size_t chunk_bytes = i2s_required_buffer_size(driver.word_count);
     uintptr_t writing;
     uint32_t *full;

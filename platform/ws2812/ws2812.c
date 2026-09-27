@@ -58,7 +58,7 @@ static volatile size_t frames_latched = 0;
  * Starts sending the newest frame, if there is one we have not sent yet.
  * Must run with interrupts disabled or from the PIO interrupt.
  */
-static void send_fresh_frame() {
+static void send_fresh_frame(void) {
     if (!swapchain_consumer_swap(&driver.swapchain)) {
         // Nothing new, the LEDs keep showing the last frame
         driver.is_sending = false;
@@ -71,7 +71,7 @@ static void send_fresh_frame() {
 }
 
 // The state machine raises its IRQ once a frame has been latched
-static void pio_irq_handler() {
+static void pio_irq_handler(void) {
     pio_interrupt_clear(driver.pio, driver.pio_sm);
     frames_latched++;
 
