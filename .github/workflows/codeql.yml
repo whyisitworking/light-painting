@@ -1,0 +1,40 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly, for queries added since the last push
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze C
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: c-cpp
+          build-mode: manual
+
+      # The portable modules and their tests: platform/ and app/ need the
+      # Pico SDK, see the firmware job in ci.yml
+      - name: Build
+        run: |
+          cmake -S tests -B build-tests
+          cmake --build build-tests --parallel
+
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:c-cpp
