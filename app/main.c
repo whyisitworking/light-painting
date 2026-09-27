@@ -7,6 +7,8 @@
 #include "config.h"
 #include "i2s.h"
 #include "perf.h"
+#include "settings.h"
+#include "tuning_link.h"
 #include "ui.h"
 #include "visualizer.h"
 #include "ws2812.h"
@@ -27,6 +29,8 @@ static bool init_step(bool ok, const char *what) {
 
 int main(void) {
     visualizer_t visualizer;
+    visualizer_tuning_t tuning;
+    settings_t settings;
 
     stdio_usb_init();
 
@@ -55,8 +59,16 @@ int main(void) {
                    "Visualizer"))
         return EXIT_FAILURE;
 
+    // The settings the menu starts from, applied to the visualizer
+    settings_reset(&settings);
+    tuning = settings_tuning(&settings);
+    visualizer_tune(&visualizer, &tuning);
+
+    if (!init_step(tuning_link_init(), "Tuning link"))
+        return EXIT_FAILURE;
+
     // The menu, on core 1. The lights do not wait for it
-    ui_start();
+    ui_start(&settings);
 
     i2s_start_sampling();
     ws2812_start_transmission();
@@ -66,6 +78,7 @@ int main(void) {
     perf_init();
 
     while (true) {
+        const visualizer_tuning_t *newest;
         const int32_t *frames;
         const sound_t *sound;
 
@@ -74,6 +87,10 @@ int main(void) {
         // Wait for audio we have not processed yet
         frames = i2s_wait_buffer();
         perf_lap(PERF_WAIT);
+
+        // What the menu changed since the last hop, if anything
+        if ((newest = tuning_link_take()) != nullptr)
+            visualizer_tune(&visualizer, newest);
 
         visualizer_analyze(&visualizer, frames);
         perf_lap(PERF_ANALYZE);

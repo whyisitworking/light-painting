@@ -80,6 +80,7 @@ target_compile_options(lvgl PRIVATE -Os)
 set(APP_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/app/main.c
     ${CMAKE_CURRENT_SOURCE_DIR}/app/perf.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/app/tuning_link.c
     ${CMAKE_CURRENT_SOURCE_DIR}/app/ui/ui.c
     ${CMAKE_CURRENT_SOURCE_DIR}/app/ui/ui_menu.c
     ${CMAKE_CURRENT_SOURCE_DIR}/app/ui/ui_names.c

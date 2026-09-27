@@ -4,6 +4,7 @@
 #include "joystick.h"
 #include "settings.h"
 #include "st7789.h"
+#include "tuning_link.h"
 #include "ui_menu.h"
 #include "ui_port.h"
 
@@ -17,11 +18,18 @@ static alignas(8) uint32_t stack[UI_STACK_SIZE / sizeof(uint32_t)];
 // What the menu shows and changes
 static settings_t settings;
 
-// After each change in the menu
+// After each change in the menu: the backlight here, the rest on core 0
 static void changed(const settings_t *changed_settings, settings_id_t id) {
-    if (id == SETTINGS_BACKLIGHT)
+    visualizer_tuning_t tuning;
+
+    if (id == SETTINGS_BACKLIGHT) {
         st7789_set_backlight(
             settings_value(changed_settings, SETTINGS_BACKLIGHT));
+        return;
+    }
+
+    tuning = settings_tuning(changed_settings);
+    tuning_link_publish(&tuning);
 }
 
 static void ui_main(void) {
@@ -64,7 +72,6 @@ static void ui_main(void) {
         return;
     }
 
-    settings_reset(&settings);
     ui_menu_start(&settings, changed);
 
     // The display memory holds noise after a reset: light it only once the
@@ -82,6 +89,7 @@ static void ui_main(void) {
     }
 }
 
-void ui_start(void) {
+void ui_start(const settings_t *initial) {
+    settings = *initial;
     multicore_launch_core1_with_stack(ui_main, stack, sizeof(stack));
 }
