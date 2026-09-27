@@ -193,9 +193,8 @@ static struct {
     ui_menu_changed_t *changed;
     page_t page;
     const char *note;
-    // Whether the reset waits for its second press, since when
-    bool reset_armed;
-    uint32_t reset_armed_ms;
+    // While the reset waits for its second press: gives up on it
+    lv_timer_t *reset_timer;
 } menu;
 
 static void show(page_t page);
@@ -286,19 +285,36 @@ static void show_values(lv_obj_t *screen) {
     }
 }
 
-// The first press asks for a second, which resets every setting
+// No second press in time: the reset row reads as before
+static void reset_expired(lv_timer_t *timer) {
+    lv_label_set_text(lv_timer_get_user_data(timer), "");
+    menu.reset_timer = nullptr;
+}
+
+// Stops waiting for a second press, and clears label unless nullptr
+static void reset_cancel(lv_obj_t *label) {
+    if (menu.reset_timer != nullptr) {
+        lv_timer_delete(menu.reset_timer);
+        menu.reset_timer = nullptr;
+    }
+
+    if (label != nullptr)
+        lv_label_set_text(label, "");
+}
+
+// The first press asks for a second within CONFIRM_MS, which resets every
+// setting
 static void reset(lv_obj_t *row_obj) {
     lv_obj_t *label = lv_obj_get_child(row_obj, 1);
 
-    if (!menu.reset_armed ||
-        lv_tick_elaps(menu.reset_armed_ms) > CONFIRM_MS) {
-        menu.reset_armed = true;
-        menu.reset_armed_ms = lv_tick_get();
+    if (menu.reset_timer == nullptr) {
+        menu.reset_timer = lv_timer_create(reset_expired, CONFIRM_MS, label);
+        lv_timer_set_repeat_count(menu.reset_timer, 1);
         lv_label_set_text(label, "Press again");
         return;
     }
 
-    menu.reset_armed = false;
+    reset_cancel(nullptr);
     settings_reset(menu.settings);
     menu.changed(menu.settings, SETTINGS_ID_COUNT);
     show_values(lv_obj_get_parent(row_obj));
@@ -346,10 +362,13 @@ static void row_event(lv_event_t *event) {
         if (row->kind == ROW_SETTING)
             show_value(row_obj);
         // Leaving the row cancels a reset waiting for its second press
-        if (row->kind == ROW_RESET) {
-            menu.reset_armed = false;
-            lv_label_set_text(lv_obj_get_child(row_obj, 1), "");
-        }
+        if (row->kind == ROW_RESET)
+            reset_cancel(lv_obj_get_child(row_obj, 1));
+        break;
+    case LV_EVENT_DELETE:
+        // The screen goes, the timer must not reach its label
+        if (row->kind == ROW_RESET)
+            reset_cancel(nullptr);
         break;
     default:
         break;
