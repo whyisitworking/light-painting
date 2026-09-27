@@ -113,7 +113,7 @@ The lights start right away, so a serial monitor attached late misses these line
 
 ## Modes and palettes
 
-Pick a mode with `VISUALIZER_MODE` and a palette with `VISUALIZER_PALETTE` in [`app/config.h`](app/config.h).
+The defaults are `VISUALIZER_MODE` and `VISUALIZER_PALETTE` in [`lib/visualizer/visualizer.h`](lib/visualizer/visualizer.h).
 
 | Mode | What you see |
 |---|---|
@@ -151,10 +151,9 @@ These apply to every mode:
 | `LED_DATA_PIN` | `8` | Strip data |
 | `AUDIO_FFT_SIZE` | `512` | Samples per analysis. Larger resolves lower notes, smaller reacts faster |
 | `AUDIO_HOP_SIZE` | `256` | New samples per analysis |
-| `VISUALIZER_MODE` | `EFFECTS_MODE_RIVER` | See [modes](#modes-and-palettes) |
-| `VISUALIZER_PALETTE` | `PALETTE_SYNTHWAVE` | See [palettes](#modes-and-palettes) |
-| `VISUALIZER_GAIN` | `1.5f` | Input gain on top of the microphone's ×8 |
 | `VISUALIZER_SEED` | `1` | Sparkle pattern |
+
+The default mode, palette and input gain (`VISUALIZER_MODE`, `VISUALIZER_PALETTE`, `VISUALIZER_GAIN`: River, Synthwave, 1.5 on top of the microphone's ×8) are in [`lib/visualizer/visualizer.h`](lib/visualizer/visualizer.h).
 
 ### Tuning
 

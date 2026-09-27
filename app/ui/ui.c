@@ -5,6 +5,7 @@
 #include "st7789.h"
 #include "ui_port.h"
 #include "ui_status.h"
+#include "visualizer.h"
 
 #include <pico/multicore.h>
 #include <pico/time.h>

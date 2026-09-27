@@ -17,6 +17,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// The default look, see effects.h and palette.h
+constexpr effects_mode_t VISUALIZER_MODE = EFFECTS_MODE_RIVER;
+constexpr palette_t VISUALIZER_PALETTE = PALETTE_SYNTHWAVE;
+
+// On top of the microphone's SPECTRUM_INPUT_GAIN, x12 in total: the features'
+// FEATURES_MIN_CEILING_DB is tuned for it
+constexpr float VISUALIZER_GAIN = 1.5f;
+
 // Everything the pipeline needs, read by visualizer_init() only
 typedef struct {
     // Actual I2S sample rate in Hz

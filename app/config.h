@@ -79,14 +79,6 @@ constexpr unsigned JOYSTICK_CENTRE_PIN = 4;
 // Core 1's stack, for the menu. LVGL asks for more than 8 KB
 constexpr size_t UI_STACK_SIZE = 16 * 1024;
 
-// Visualizer look, see lib/effects/effects.h and lib/effects/palette.h
-constexpr effects_mode_t VISUALIZER_MODE = EFFECTS_MODE_RIVER;
-constexpr palette_t VISUALIZER_PALETTE = PALETTE_SYNTHWAVE;
-
-// On top of the microphone's SPECTRUM_INPUT_GAIN, x12 in total: the features'
-// FEATURES_MIN_CEILING_DB is tuned for it
-constexpr float VISUALIZER_GAIN = 1.5f;
-
 // Sparkle pattern, renders are deterministic for a seed
 constexpr uint32_t VISUALIZER_SEED = 1;
 
