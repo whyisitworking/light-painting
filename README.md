@@ -2,7 +2,7 @@
 
 # Light Painting
 
-**A real-time music visualizer for the RP2350: two MEMS microphones in, 300 WS2812 LEDs out.**
+**A real-time music visualizer for the RP2350: two MEMS microphones in, 300 WS2812 LEDs out, and a menu on the board's LCD to tune it.**
 
 > Simple and ultra fast music visualizer using RP2040 (Raspberry Pi Pico). It uses the trustworthy MEMS microphone i2s and outputs the visualization into an RGB addressable LED strip WS2812
 >
@@ -15,7 +15,7 @@
 [![CI](https://github.com/whyisitworking/light-painting/actions/workflows/ci.yml/badge.svg)](https://github.com/whyisitworking/light-painting/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 
-[Features](#features) · [Hardware](#hardware) · [Quick start](#quick-start) · [Modes](#modes-and-palettes) · [Configuration](#configuration) · [How it works](#how-it-works) · [Architecture](#architecture) · [Development](#development) · [License](#license)
+[Features](#features) · [Hardware](#hardware) · [Quick start](#quick-start) · [Modes](#modes-and-palettes) · [Menu](#the-menu) · [Configuration](#configuration) · [How it works](#how-it-works) · [Architecture](#architecture) · [Development](#development) · [License](#license)
 
 </div>
 
@@ -28,6 +28,7 @@
 - **Musical, not just loud.** 32 log-spaced bands from 60 Hz to 12 kHz, an auto-gain that follows the room, attack/decay smoothing, and beat detection on the bass.
 - **Six effects, four palettes.** Spectrum, mirrored spectrum, river, ripples, VU meters and glow, with a slow palette drift, loudness warmth, a beat flash and gamma correction.
 - **Dark when it's quiet.** Silence and microphone self-noise stay black, by design.
+- **Tuned on the device.** A menu on the board's 1.47" LCD, driven by a 5-way switch: mode, palette, brightness, the sound response and every effect layer, saved to flash. It runs on the second core, and the lights never wait for it.
 - **Tested off the board.** Everything that isn't hardware is plain C23 with unit tests on your computer, including a golden snapshot of the whole pipeline.
 
 ## Hardware
@@ -39,6 +40,7 @@
 | WS2812B LED strip | 300 LEDs | GRB order, 5 V |
 | 3.3 → 5 V level shifter | 1 | on the LED data line, e.g. a 74AHCT125 or 74HCT245 |
 | 5 V power supply | 1 | sized for the strip: 300 LEDs at full white draw about 18 A |
+| 5-way navigation switch | 1 | up, down, left, right and a centre press to a common pin, e.g. a module labelled COM, UP, DWN, LFT, RHT, MID (SET and RST unused) |
 
 ### Wiring
 
@@ -51,6 +53,13 @@
 | 3.3 V | 3V3 | VDD | |
 | Ground | GND | GND | GND |
 | Channel select | | L/R: **GND** on one, **3.3 V** on the other | |
+
+| Switch | Board pin |
+|---|---|
+| COM | GND |
+| UP, DOWN, LEFT, RIGHT, MID | **GP0**, **GP1**, **GP2**, **GP3**, **GP4** |
+
+The LCD is on the board (SPI0, GP16–GP21). The switch's directions use internal pull-ups; which one is on which pin is set in [`app/config.h`](app/config.h), to match how it is mounted.
 
 - SCK and WS must be on **consecutive** pins, in that order (one PIO side-set drives both). All pins are set in [`app/config.h`](app/config.h).
 - Power the strip from the 5 V supply, not from the board, and connect all grounds.
@@ -65,6 +74,12 @@ Easiest: VS Code with the [Raspberry Pi Pico extension](https://marketplace.visu
 Or bring your own Pico SDK and point `PICO_SDK_PATH` at it.
 
 ### 2. Build
+
+[LVGL](https://lvgl.io), for the menu, is a git submodule in `third_party/lvgl`. Clone with `git clone --recursive`, or in an existing clone:
+
+```bash
+git submodule update --init
+```
 
 ```bash
 cmake -S . -B build -G Ninja
@@ -106,14 +121,17 @@ INMP441 i2s driver init!
 Sample rate 48828.125 Hz
 WS2812 driver init!
 Visualizer init!
+Settings storage init!
+Tuning link init!
 Started sampling
+LCD init!
 ```
 
-The lights start right away, so a serial monitor attached late misses these lines. Build with `-DWAIT_FOR_USB_HOST=ON` to wait up to 2 s for one.
+The LCD comes on about 125 ms later with the status screen. The lights start right away, so a serial monitor attached late misses these lines. Build with `-DWAIT_FOR_USB_HOST=ON` to wait up to 2 s for one.
 
 ## Modes and palettes
 
-The defaults are `VISUALIZER_MODE` and `VISUALIZER_PALETTE` in [`lib/visualizer/visualizer.h`](lib/visualizer/visualizer.h).
+Pick them in the [menu](#the-menu), under Look. The defaults are `VISUALIZER_MODE` and `VISUALIZER_PALETTE` in [`lib/visualizer/visualizer.h`](lib/visualizer/visualizer.h).
 
 | Mode | What you see |
 |---|---|
@@ -131,14 +149,46 @@ The defaults are `VISUALIZER_MODE` and `VISUALIZER_PALETTE` in [`lib/visualizer/
 | `PALETTE_FIRE` | ember → red → orange → gold → white-hot |
 | `PALETTE_OCEAN` | abyss → deep blue → teal → aqua → foam |
 
-These apply to every mode:
+These apply to every mode, and the menu changes all but gamma:
 
-| Layer | Effect | Constant (`lib/effects/effects.h`) |
+| Layer | Effect | Default (`lib/effects/effects.h`) |
 |---|---|---|
 | Drift | The palette slowly shifts, one full span per minute | `EFFECTS_DRIFT_PERIOD_S` (0 disables it) |
 | Warmth | Louder music shifts colours towards the palette's end | `EFFECTS_WARMTH` (0 disables it) |
 | Beat flash | A white flash on each beat, fading with an 80 ms time constant | `EFFECTS_FLASH_LEVEL`, `EFFECTS_FLASH_MS` |
 | Gamma | 2.2, so fades look even to the eye | `COLOR_GAMMA` in `lib/color/color.h` |
+
+## The menu
+
+The LCD shows the status screen: the mode, the palette with a swatch of its colours, the brightness, and how the last save went. Press the switch's centre to open the menu.
+
+| Key | On a page |
+|---|---|
+| Up, down | Move between rows |
+| Left, right | Change the focused setting at once; hold to repeat |
+| Centre | Open the page a row leads to |
+| Left on the "‹ title" row, or centre held | Back a level |
+
+After 30 s without a key, the status screen comes back. Changes apply to the lights on the next hop, and are saved to flash 3 s after the last one ("Saved" on the status screen): the menu pauses while the flash is busy, up to about 400 ms, the lights do not.
+
+| Page | Setting | Range, step | Default | Replaces |
+|---|---|---|---|---|
+| Look | Mode | the six modes | River | `VISUALIZER_MODE` |
+| | Palette | the four palettes | Synthwave | `VISUALIZER_PALETTE` |
+| | Brightness | 10–100 %, 5 | 100 % | |
+| Sound | Gain | 0.5–4.0×, 0.1 | 1.5× | `VISUALIZER_GAIN` |
+| | Beat threshold (lower: more beats) | 1.5–6.0×, 0.1 | 2.8× | `FEATURES_BEAT_THRESHOLD` |
+| | Quiet floor | −45…−10 dB, 1 | −32 dB | `FEATURES_MIN_CEILING_DB` |
+| | Attack, decay | 2–60 ms, 2; 20–600 ms, 10 | 10 ms, 120 ms | `FEATURES_ATTACK_MS`, `FEATURES_DECAY_MS` |
+| Effects | Palette drift | Off, 10–300 s, 10 | 60 s | `EFFECTS_DRIFT_PERIOD_S` |
+| | Warmth, beat flash | 0–100 %, 5 | 25 %, 35 % | `EFFECTS_WARMTH`, `EFFECTS_FLASH_LEVEL` |
+| | Sparkles | 0–10 %, 0.5 | 3 % | `EFFECTS_SPARKLE_RATE` |
+| | River speed, ripple speed | 1–4; 0.5–6.0, 0.5 (LEDs per frame) | 1, 2.0 | `EFFECTS_RIVER_SPEED`, `EFFECTS_RIPPLE_SPEED` |
+| | VU peak hold | 0–2000 ms, 50 | 300 ms | `EFFECTS_PEAK_HOLD_MS` |
+| System | Screen (LCD backlight) | 10–100 %, 10 | 80 % | |
+| | Reset to defaults | press twice within 3 s | | |
+
+Brightness is perceptual: each step looks equally brighter. Below about 20 % the strip's 8 bits leave few levels, so colours lose their shading. The defaults are the constants they replace, exactly: with nothing saved, the lights are what they were before the menu.
 
 ## Configuration
 
@@ -152,12 +202,16 @@ These apply to every mode:
 | `AUDIO_FFT_SIZE` | `512` | Samples per analysis. Larger resolves lower notes, smaller reacts faster |
 | `AUDIO_HOP_SIZE` | `256` | New samples per analysis |
 | `VISUALIZER_SEED` | `1` | Sparkle pattern |
+| `LCD_*` | from the board header | The LCD's SPI and pins, 320 × 172 landscape, `LCD_MADCTL` `0x70` (`0xB0` turns it 180°) |
+| `JOYSTICK_*_PIN` | `0`–`4` | The switch's up, down, left, right and centre |
+| `UI_IDLE_TIMEOUT_MS` | `30'000` | Back to the status screen after this long without a key |
+| `UI_SAVE_DELAY_MS`, `UI_SAVE_RETRY_MS` | `3'000`, `30'000` | Save this long after the last change; retry after a failed save |
 
 The default mode, palette and input gain (`VISUALIZER_MODE`, `VISUALIZER_PALETTE`, `VISUALIZER_GAIN`: River, Synthwave, 1.5 on top of the microphone's ×8) are in [`lib/visualizer/visualizer.h`](lib/visualizer/visualizer.h).
 
 ### Tuning
 
-The sound analysis and the effects each have their constants at the top of their header, with the reasoning behind every default:
+The sound analysis and the effects each have their constants at the top of their header, with the reasoning behind every default. Those the [menu](#the-menu) changes are its defaults:
 
 - [`lib/features/features.h`](lib/features/features.h): the band range, auto-gain (`FEATURES_RANGE_DB`, `FEATURES_MIN_CEILING_DB`), smoothing, and beat detection (`FEATURES_BEAT_THRESHOLD`, `FEATURES_BEAT_MIN_LEVEL`, …).
 - [`lib/effects/effects.h`](lib/effects/effects.h): river and ripple speeds, the VU peak hold, drift, warmth, flash and sparkles.
@@ -196,20 +250,34 @@ flowchart TB
 4. **Effects.** The current mode draws into a linear RGB frame. Gamma correction, the beat flash and the packing into WS2812 words follow, for every mode.
 5. **Output.** DMA feeds the frame to a second PIO state machine, which generates the WS2812 timing and the latch, and raises an interrupt. That interrupt starts the newest frame, so the strip always shows the latest render and never a torn one (about 150 frames/s at 300 LEDs).
 
-All memory is allocated once at startup, and the loop never allocates. The firmware takes about 54 KB of flash.
+All of that runs on core 0. The menu runs on core 1, with its own stack:
+
+6. **Menu.** [LVGL](https://lvgl.io) draws the screens into two 20-line buffers in turn, while DMA sends the other one to the ST7789 LCD over SPI at 37.5 MHz. The switch is read every 33 ms as LVGL's keypad.
+7. **Tuning link.** Each change becomes a `visualizer_tuning_t`, handed to core 0 through a lock-free triple buffer: a single atomic exchange per side, so neither core ever waits. Core 0 takes the newest, if any, once per hop.
+8. **Saving.** The settings are records of 256 bytes in the last 8 KB of the flash, two erase blocks of 16 records: each save programs the next erased record, and a block is erased once per 16 saves, never the one holding the newest record. The firmware runs from RAM (`copy_to_ram`), so core 0 never reads the flash and carries on while core 1 writes it.
+
+All memory is allocated once at startup, and neither loop allocates. The firmware runs from RAM: its code and static data take about 333 KB of the RP2350's 512 KB, LVGL included, and the visualizer allocates the buffers it needs on top at startup.
 
 ## Architecture
 
 ```
 .
 ├── app/                 firmware entry point (Pico)
-│   ├── main.c           startup, then the loop: wait → analyze → render → submit
-│   ├── config.h         board wiring and visualizer settings
-│   └── perf.c/.h        opt-in statistics, no-ops unless PERF_STATS
+│   ├── main.c           startup, then the loop: wait → tune → analyze → render → submit
+│   ├── config.h         board wiring and build time settings
+│   ├── tuning_link.c/.h the menu's settings, from core 1 to core 0
+│   ├── persist.c/.h     the settings in flash
+│   ├── perf.c/.h        opt-in statistics, no-ops unless PERF_STATS
+│   └── ui/              the menu on core 1: LVGL, its screens, lv_conf.h
+├── boards/              the Waveshare RP2350-LCD-1.47-A, for the Pico SDK
 ├── platform/            Pico drivers: PIO programs, DMA, interrupts, locking
 │   ├── i2s/             INMP441 input
-│   └── ws2812/          WS2812 output
+│   ├── ws2812/          WS2812 output
+│   ├── st7789/          the LCD, SPI with DMA
+│   ├── joystick/        the 5-way switch
+│   └── storage/         a flash region, written from core 1
 ├── lib/                 portable C23, no Pico SDK, unit tested on the host
+│   ├── settings/        the menu's settings, their records and log in flash
 │   ├── visualizer/      the pipeline: spectrum → features → effects
 │   ├── spectrum/        I2S words to a magnitude spectrum
 │   ├── features/        bands, auto-gain, smoothing, beats
@@ -217,6 +285,7 @@ All memory is allocated once at startup, and the loop never allocates. The firmw
 │   ├── fft/             radix-2 complex and real FFTs
 │   ├── color/           linear RGB, gamma, the WS2812 word
 │   └── swapchain/       lock-free triple buffer between contexts or cores
+├── third_party/lvgl     LVGL v9.6.0, a git submodule
 ├── cmake/modules.cmake  lp_add_module(): one definition per module, for both builds
 └── tests/               host tests (CTest)
 ```
@@ -225,25 +294,37 @@ All memory is allocated once at startup, and the loop never allocates. The firmw
 flowchart TB
     subgraph app ["app/"]
         main["main.c"]
+        ui["ui/ (core 1)"]
+        link["tuning_link"]
+        persist
     end
     subgraph platform ["platform/ (Pico)"]
         i2s
         ws2812
+        st7789
+        joystick
+        storage
     end
     subgraph lib ["lib/ (portable)"]
+        settings --> visualizer
         visualizer --> spectrum & features & effects
         spectrum --> fft
         effects --> features & color
         swapchain
     end
-    main --> i2s & ws2812 & visualizer
+    main --> i2s & ws2812 & visualizer & link & persist & ui
+    ui --> st7789 & joystick & settings & link & persist
+    persist --> storage & settings
+    link --> swapchain
     i2s & ws2812 --> swapchain
 ```
 
-**The rule:** dependencies only point down (`app → platform → lib`), and anything that can run without hardware goes in `lib/` so the host tests can cover it. Each module has a header with an overview and its API documented. The main loop is four calls:
+**The rule:** dependencies only point down (`app → platform → lib`), and anything that can run without hardware goes in `lib/` so the host tests can cover it. Each module has a header with an overview and its API documented. The main loop is five calls:
 
 ```c
 frames = i2s_wait_buffer();                              // the newest audio
+if ((newest = tuning_link_take()) != nullptr)            // the menu's settings,
+    visualizer_tune(&visualizer, newest);                // if they changed
 visualizer_analyze(&visualizer, frames);                 // spectrum
 sound = visualizer_render(&visualizer, ws2812_frame());  // features, pixels
 ws2812_submit();                                         // out on the next latch
@@ -273,12 +354,12 @@ ctest --test-dir build-tests --output-on-failure
 | `swapchain` | Ordering, newest wins, and two threads at full speed: never torn, never older |
 | `color` | The WS2812 word layout, saturation, gamma |
 | `spectrum` | Scaling, the stereo sum, the sliding window, tones in their bin |
-| `features` | Bands, silence, self-noise, auto-gain, beats on kicks and none on noise |
+| `features` | Bands, silence, self-noise, auto-gain, beats on kicks and none on noise, and each tuning |
 | `palette` | Stops, interpolation, wrapping and reflecting |
-| `effects` | Every mode: silence, positions, motion, the flash, determinism |
-| `visualizer` | End to end from I²S words: silence, a tone, kicks |
+| `effects` | Every mode: silence, positions, motion, the flash, determinism, each tuning and the brightness |
+| `visualizer` | End to end from I²S words: silence, a tone, kicks, and tuned to the defaults drawing the same pixels |
 | `golden` | The exact pixels of every mode for a fixed input |
-| `settings` | Ranges and steps, wrapping and clamping, and every default equal to the constant it replaces |
+| `settings` | Ranges and steps, every default equal to the constant it replaces, records and their damage, and the flash log on a simulated NOR flash: torn writes, garbage, power lost after an erase |
 
 `test_golden` is a tripwire: it fails on **any** change to the pixels. When a change is meant to alter the look, check that the other tests still pass, then record the new hashes into [`tests/test_golden.c`](tests/test_golden.c):
 
@@ -372,13 +453,45 @@ The driver sends GRB, the WS2812B order. For another order, change the byte layo
 <details>
 <summary><b>Beats are missed, or fire on everything</b></summary>
 
-Tune `FEATURES_BEAT_THRESHOLD` (lower is more sensitive) and `FEATURES_BEAT_MIN_LEVEL` in `lib/features/features.h`. Each constant's comment explains the measurements behind its default.
+Change the beat threshold in the menu (Sound, lower is more sensitive), or `FEATURES_BEAT_MIN_LEVEL` in `lib/features/features.h`. Each constant's comment explains the measurements behind its default.
+
+</details>
+
+<details>
+<summary><b>The LCD stays dark, or shows noise along an edge</b></summary>
+
+- Check the startup messages: "Could not initialize the LCD" or "Could not initialize LVGL" name the part that failed. The lights run on without the menu.
+- The backlight only comes on once the first frame is drawn. Check that Screen, under System, is not at its lowest.
+- Noise along the top or bottom edge means the row offset is off: the panel's 172 lines sit 34 lines into the controller's 240 (`LCD_ROW_OFFSET`).
+
+</details>
+
+<details>
+<summary><b>The screen is upside down or mirrored, or its colours are wrong</b></summary>
+
+- Upside down: set `LCD_MADCTL` to `0xB0` in `app/config.h`.
+- Red and blue swapped: the RGB order bit, 0x08 of `LCD_MADCTL`.
+- Colours look like a negative: the panel needs inversion on (`INVON`, in `platform/st7789/st7789.c`).
+
+</details>
+
+<details>
+<summary><b>The switch moves the wrong way</b></summary>
+
+Swap the `JOYSTICK_*_PIN` numbers in `app/config.h` to match how the switch is mounted. Its common pin must go to ground.
+
+</details>
+
+<details>
+<summary><b>The settings are back to their defaults after a power cycle</b></summary>
+
+They are saved 3 s after the last change: a power cut within those 3 s loses that change. "Not saved" on the status screen means the flash refused, and it is tried again 30 s later. A firmware that changes what a stored value means (e.g. reordered modes) raises `SETTINGS_VERSION`, and starts from the defaults once.
 
 </details>
 
 ## Roadmap
 
-- [ ] An on-device menu (LCD) to switch modes and palettes at runtime. The setters are already in place.
+- [x] An on-device menu (LCD) to switch modes and palettes at runtime, and much more.
 - [ ] Stereo effects, using the two microphones separately.
 - [ ] Stopping and restarting sampling at runtime.
 
