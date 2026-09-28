@@ -15,6 +15,8 @@
 typedef struct {
     // DMA interrupts, one per completed buffer
     size_t irq_hits;
+    // Buffers replaced by a newer one before the main loop took them
+    size_t buffers_lost;
 } i2s_stats_t;
 
 /**

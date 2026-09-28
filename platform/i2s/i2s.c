@@ -5,7 +5,7 @@
  * after each chunk (TRIGGER_SELF) and its writes wrap around the ring. Each
  * completed chunk raises DMA_IRQ_0, whose handler copies it into the
  * swapchain for the main loop. The only state shared with the handler is
- * `driver` and `irq_hits`.
+ * `driver`, `irq_hits` and `buffers_lost`.
  */
 
 #include "i2s.h"
@@ -72,6 +72,8 @@ static i2s_t driver = {
 
 // Updated from the DMA interrupt
 static volatile size_t irq_hits = 0;
+// Buffers replaced before the main loop took them
+static volatile size_t buffers_lost = 0;
 
 static size_t i2s_required_buffer_size(size_t word_count) {
     return word_count * sizeof(uint32_t);
@@ -102,7 +104,8 @@ static void dma_irq_handler(void) {
                : driver.ring;
 
     memcpy(swapchain_producer_buffer(&driver.swapchain), full, chunk_bytes);
-    swapchain_producer_swap(&driver.swapchain);
+    if (swapchain_producer_swap(&driver.swapchain))
+        buffers_lost++;
 }
 
 // Validates everything first, then claims resources, releasing them on failure
@@ -291,6 +294,8 @@ i2s_stats_t i2s_take_stats(void) {
     saved_irq = save_and_disable_interrupts();
     stats.irq_hits = irq_hits;
     irq_hits = 0;
+    stats.buffers_lost = buffers_lost;
+    buffers_lost = 0;
     restore_interrupts(saved_irq);
 
     return stats;
