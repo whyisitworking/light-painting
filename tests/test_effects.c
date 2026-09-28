@@ -348,7 +348,17 @@ static void test_default_tuning_changes_nothing(void) {
 
     effects_tune(&effects, &defaults);
     CHECK(effects.peak_hold_s == peak_hold_s);
-    CHECK(memcmp(&effects.tuning, &defaults, sizeof(defaults)) == 0);
+
+    // Field by field: memcmp would compare padding too, which is left
+    // unset (4 bytes before river_speed on a 64-bit host)
+    CHECK(effects.tuning.brightness == defaults.brightness);
+    CHECK(effects.tuning.river_speed == defaults.river_speed);
+    CHECK(effects.tuning.ripple_speed == defaults.ripple_speed);
+    CHECK(effects.tuning.peak_hold_ms == defaults.peak_hold_ms);
+    CHECK(effects.tuning.drift_period_s == defaults.drift_period_s);
+    CHECK(effects.tuning.warmth == defaults.warmth);
+    CHECK(effects.tuning.flash_level == defaults.flash_level);
+    CHECK(effects.tuning.sparkle_rate == defaults.sparkle_rate);
 
     effects_deinit(&effects);
 }
