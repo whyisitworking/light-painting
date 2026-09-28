@@ -28,8 +28,8 @@ constexpr size_t HOPS = 400;
 
 // Recorded hashes, in effects_mode_t order
 static const uint32_t expected[EFFECTS_MODE_COUNT] = {
-    0x5048769cu, 0x26df914cu, 0x137d2edcu,
-    0x03413ae8u, 0x6a6784f4u, 0x648a73d4u,
+    0x1ec6cc05u, 0x39da4550u, 0x1fc8f1fcu,
+    0xc523dd4cu, 0x67a1bd8cu, 0xb07b1c7cu,
 };
 
 static uint32_t fnv1a(uint32_t hash, const void *data, size_t size) {

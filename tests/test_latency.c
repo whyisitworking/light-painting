@@ -35,8 +35,8 @@ constexpr double NOISY_ROOM = 20000.0;
 constexpr double LOUD_ROOM = 200000.0;
 
 // Loose bounds, see the header
-constexpr double MAX_BEAT_LATENCY_MS = 120.0;
-constexpr double MAX_BAND_LATENCY_MS = 40.0;
+constexpr double MAX_BEAT_LATENCY_MS = 14.0;
+constexpr double MAX_BAND_LATENCY_MS = 11.0;
 constexpr size_t MAX_FALSE_BEATS_PER_MINUTE = 2;
 
 // A tone of 1 kHz starting mid hop, after 20 quiet hops

@@ -32,14 +32,19 @@ constexpr float FEATURES_DECAY_MS = 120.f;
 
 // A beat is a jump of the bass energy (bands up to FEATURES_BEAT_MAX_HZ).
 // The bass bands all come from the lowest ~2 bins, one noisy draw per hop,
-// so the energy is first smoothed over FEATURES_BEAT_SMOOTH_MS: smoothed
-// steady noise exceeds 2.6 times its average in only 0.01 % of hops, while
-// 120 BPM kicks peak ~6.5 times above theirs. A beat fires when the
+// so the energy is first smoothed over FEATURES_BEAT_SMOOTH_MS. Chosen with
+// the latency bench (tests/test_latency.c), sweeping 30, 24, 20, 16, 12, 8
+// ms: at 30 ms a synthetic kick is detected after a median 9.4 ms (worst
+// 12.0 ms); at 24 ms after 8.7 ms (worst 11.1 ms), with no kick missed
+// (0 of 19) and the same false beats in 58 s of steady noise (0 at noise
+// 650, 1 at 20000, 1 at 200000). At 20 ms and below the noise at 20000
+// gives 4 (20 ms), 11 (16), 30 (12) and 86 (8) false beats, so 24 ms is the
+// shortest that does not add any. A beat fires when the
 // smoothed energy exceeds FEATURES_BEAT_THRESHOLD times its average over
 // FEATURES_BEAT_AVERAGE_MS and the bass is audible, its bands' mean
 // smoothed level above FEATURES_BEAT_MIN_LEVEL. At most one beat per
 // refractory time, and the energy must fall back below the trigger first
-constexpr float FEATURES_BEAT_SMOOTH_MS = 30.f;
+constexpr float FEATURES_BEAT_SMOOTH_MS = 24.f;
 constexpr float FEATURES_BEAT_THRESHOLD = 2.8f;
 constexpr float FEATURES_BEAT_AVERAGE_MS = 1000.f;
 constexpr float FEATURES_BEAT_MIN_LEVEL = 0.3f;
