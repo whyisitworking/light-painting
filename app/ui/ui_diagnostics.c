@@ -67,6 +67,7 @@ static lv_obj_t *cell_create(lv_obj_t *row, const char *name) {
 
 static void meter_create(lv_obj_t *parent, size_t channel, const char *name) {
     lv_obj_t *row = row_create(parent), *label = lv_label_create(row);
+    lv_point_t size;
 
     lv_label_set_text(label, name);
     lv_obj_add_style(label, ui_theme_muted(), 0);
@@ -76,6 +77,13 @@ static void meter_create(lv_obj_t *parent, size_t channel, const char *name) {
     lv_bar_set_range(view.meters[channel], METER_MIN_DBFS, 0);
 
     view.levels[channel] = lv_label_create(row);
+
+    // A fixed width, the widest a level ever prints, so the bar beside it
+    // does not resize as the text changes
+    lv_text_get_size(&size, "-120 dBFS", LV_FONT_DEFAULT, 0, 0, LV_COORD_MAX,
+                     LV_TEXT_FLAG_NONE);
+    lv_obj_set_width(view.levels[channel], size.x);
+    lv_obj_set_style_text_align(view.levels[channel], LV_TEXT_ALIGN_RIGHT, 0);
 }
 
 lv_obj_t *ui_diagnostics_create(void) {
