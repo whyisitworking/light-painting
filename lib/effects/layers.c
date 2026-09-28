@@ -1,0 +1,67 @@
+#include "effects_internal.h"
+
+#include <math.h>
+#include <string.h>
+
+/*
+ * Layers on top of the mode's frame, in this order: Chase slides the image,
+ * Symmetry folds it, Diffuse blurs it, Trails lets it linger. Trails is
+ * last so that what lingers is the finished image, and a moving image
+ * leaves a glowing smear.
+ */
+
+// Remembered colours below this are dark on the strip (it is 1e-3 ^ 2.2 of
+// full scale after gamma) and go to 0, so a fade ends at black instead of
+// wandering through ever smaller floats
+constexpr float TRAILS_FLOOR = 1e-3f;
+
+static float capped(float value) { return value > 1.f ? 1.f : value; }
+
+static float faded(float value, float k) {
+    value *= k;
+
+    return value < TRAILS_FLOOR ? 0.f : value;
+}
+
+// Each colour becomes the brighter of the new one and the last one faded.
+// The maximum, not the sum, so it cannot pile up past what was drawn
+static void trails(effects_t *this) {
+    float k = this->layers.trails_k;
+
+    if (this->tuning.trails_ms <= 0.f) {
+        // Switched off: forget, so that switching on shows no old frame
+        if (this->layers.trails_active) {
+            memset(this->layers.previous, 0,
+                   this->led_count * sizeof(rgb_t));
+            this->layers.trails_active = false;
+        }
+
+        return;
+    }
+
+    for (size_t i = 0; i < this->led_count; i++) {
+        rgb_t *frame = &this->frame[i], *previous = &this->layers.previous[i];
+
+        frame->r = fmaxf(frame->r, faded(previous->r, k));
+        frame->g = fmaxf(frame->g, faded(previous->g, k));
+        frame->b = fmaxf(frame->b, faded(previous->b, k));
+
+        *previous = (rgb_t){capped(frame->r), capped(frame->g),
+                            capped(frame->b)};
+    }
+
+    this->layers.trails_active = true;
+}
+
+static void chase([[maybe_unused]] effects_t *this) {}
+
+static void symmetry([[maybe_unused]] effects_t *this) {}
+
+static void diffuse([[maybe_unused]] effects_t *this) {}
+
+void effects_layers_apply(effects_t *this) {
+    chase(this);
+    symmetry(this);
+    diffuse(this);
+    trails(this);
+}

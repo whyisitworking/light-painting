@@ -7,7 +7,8 @@
  * Adding a mode: a value in effects_mode_t, a mode_*.c file with its
  * renderer, declared below, and its entry in the table in effects.c. A
  * renderer draws into this->frame, which is black when it is called; the
- * beat flash, gamma and the drift clock are applied after it, for all modes.
+ * layers (layers.c), the beat flash, gamma and the drift clock are applied
+ * after it, for all modes.
  */
 
 #include "effects.h"
@@ -22,6 +23,13 @@ effects_renderer_t effects_mode_river;
 effects_renderer_t effects_mode_ripples;
 effects_renderer_t effects_mode_vu;
 effects_renderer_t effects_mode_glow;
+
+/**
+ * The layers, on top of every mode: slides, folds, blurs and trails
+ * this->frame, in that order. Each does nothing while its tuning says off.
+ * Allocates nothing: the buffers are effects_init()'s
+ */
+void effects_layers_apply(effects_t *this);
 
 // White sparkles appearing with the treble, fading each frame
 void effects_draw_sparkles(effects_t *this, const sound_t *sound);

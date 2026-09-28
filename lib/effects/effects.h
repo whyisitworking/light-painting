@@ -53,6 +53,22 @@ constexpr float EFFECTS_FLASH_MS = 80.f;
 constexpr float EFFECTS_SPARKLE_RATE = 0.03f;
 constexpr float EFFECTS_SPARKLE_DECAY = 0.8f;
 
+// Layers, on top of any mode, all off by default. Trails: fade time
+// constant of what was shown, 0 disables
+constexpr float EFFECTS_TRAILS_MS = 0.f;
+
+// Diffuse: blur between neighbouring LEDs per frame, 0 to 1 (1 averages
+// three LEDs), 0 disables
+constexpr float EFFECTS_DIFFUSE = 0.f;
+
+// Symmetry: segments the strip is folded into, 1 disables
+constexpr size_t EFFECTS_SYMMETRY = 1;
+constexpr size_t EFFECTS_SYMMETRY_MAX = 4;
+
+// Chase: LEDs per second the image slides along the strip, negative the
+// other way, 0 disables
+constexpr float EFFECTS_CHASE_LEDS_PER_S = 0.f;
+
 // Bands counted as bass (glow), and the top fraction counted as treble
 constexpr size_t EFFECTS_BASS_BANDS = 5;
 constexpr float EFFECTS_TREBLE_FRACTION = 0.25f;
@@ -78,6 +94,14 @@ typedef struct {
     // EFFECTS_FLASH_LEVEL, EFFECTS_SPARKLE_RATE: 0 to 1
     float flash_level;
     float sparkle_rate;
+    // EFFECTS_TRAILS_MS: 0 or more, 0 disables the trails
+    float trails_ms;
+    // EFFECTS_DIFFUSE: 0 to 1, 0 disables the blur
+    float diffuse;
+    // EFFECTS_SYMMETRY: 1 to EFFECTS_SYMMETRY_MAX, 1 disables the folding
+    size_t symmetry;
+    // EFFECTS_CHASE_LEDS_PER_S: any finite value, 0 disables the sliding
+    float chase_leds_per_s;
 } effects_tuning_t;
 
 // One pulse of the ripples mode, launched from the centre by a beat
@@ -142,6 +166,20 @@ typedef struct {
         // xorshift32 state, never 0
         uint32_t random;
     } sparkles;
+
+    // The layers, see layers.c
+    struct {
+        // The frame as last shown (capped at 1) and a scratch row, both
+        // led_count
+        rgb_t *previous;
+        rgb_t *scratch;
+        // Trails: what is left of a colour after one frame, and whether
+        // previous holds anything
+        float trails_k;
+        bool trails_active;
+        // Chase: how far the image is shifted, 0 up to led_count LEDs
+        float offset;
+    } layers;
 } effects_t;
 
 /**

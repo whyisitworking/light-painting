@@ -20,7 +20,7 @@ static effects_renderer_t *const renderers[EFFECTS_MODE_COUNT] = {
 bool effects_init(effects_t *this, size_t led_count, size_t band_count,
                   float hop_period_s, uint32_t seed) {
     size_t half_led_count = (led_count + 1) / 2;
-    rgb_t *frame, *river;
+    rgb_t *frame, *river, *previous, *scratch;
     float *sparkles;
 
     if (led_count < 2 || band_count < 2 || !(hop_period_s > 0.f))
@@ -29,11 +29,16 @@ bool effects_init(effects_t *this, size_t led_count, size_t band_count,
     frame = (rgb_t *)calloc(led_count, sizeof(rgb_t));
     river = (rgb_t *)calloc(half_led_count, sizeof(rgb_t));
     sparkles = (float *)calloc(led_count, sizeof(float));
+    previous = (rgb_t *)calloc(led_count, sizeof(rgb_t));
+    scratch = (rgb_t *)calloc(led_count, sizeof(rgb_t));
 
-    if (frame == nullptr || river == nullptr || sparkles == nullptr) {
+    if (frame == nullptr || river == nullptr || sparkles == nullptr ||
+        previous == nullptr || scratch == nullptr) {
         free(frame);
         free(river);
         free(sparkles);
+        free(previous);
+        free(scratch);
         return false;
     }
 
@@ -48,6 +53,8 @@ bool effects_init(effects_t *this, size_t led_count, size_t band_count,
         .river.history = river,
         .sparkles.levels = sparkles,
         .sparkles.random = seed != 0 ? seed : 1,
+        .layers.previous = previous,
+        .layers.scratch = scratch,
     };
     effects_tune(this, &this->tuning);
 
@@ -66,6 +73,10 @@ effects_tuning_t effects_default_tuning(void) {
         .warmth = EFFECTS_WARMTH,
         .flash_level = EFFECTS_FLASH_LEVEL,
         .sparkle_rate = EFFECTS_SPARKLE_RATE,
+        .trails_ms = EFFECTS_TRAILS_MS,
+        .diffuse = EFFECTS_DIFFUSE,
+        .symmetry = EFFECTS_SYMMETRY,
+        .chase_leds_per_s = EFFECTS_CHASE_LEDS_PER_S,
     };
 }
 
@@ -96,11 +107,24 @@ void effects_tune(effects_t *this, const effects_tuning_t *tuning) {
         this->tuning.flash_level = tuning->flash_level;
     if (is_fraction(tuning->sparkle_rate))
         this->tuning.sparkle_rate = tuning->sparkle_rate;
+    if (is_at_least(tuning->trails_ms, 0.f))
+        this->tuning.trails_ms = tuning->trails_ms;
+    if (is_fraction(tuning->diffuse))
+        this->tuning.diffuse = tuning->diffuse;
+    if (tuning->symmetry >= 1 && tuning->symmetry <= EFFECTS_SYMMETRY_MAX)
+        this->tuning.symmetry = tuning->symmetry;
+    if (isfinite(tuning->chase_leds_per_s))
+        this->tuning.chase_leds_per_s = tuning->chase_leds_per_s;
 
     this->peak_hold_s = this->tuning.peak_hold_ms / 1000.f;
     // The pixels are scaled before gamma, the flash after it: by the same
     // factor as they end up with. Exactly 1 at full brightness
     this->flash_duty = powf(this->tuning.brightness, COLOR_GAMMA);
+    // What a frame keeps of the one before, per hop: 0 with the trails off
+    this->layers.trails_k =
+        this->tuning.trails_ms > 0.f
+            ? expf(-this->hop_period_s / (this->tuning.trails_ms / 1000.f))
+            : 0.f;
 }
 
 // At most 1. Layers add up past it (a sparkle on a lit LED), and the
@@ -116,6 +140,8 @@ void effects_render(effects_t *this, const sound_t *sound, uint32_t *pixels) {
     // A mode without a renderer stays dark
     if (renderers[this->tuning.mode] != nullptr)
         renderers[this->tuning.mode](this, sound);
+
+    effects_layers_apply(this);
 
     if (sound->beat)
         this->flash =
@@ -155,4 +181,6 @@ void effects_deinit(effects_t *this) {
     free(this->frame);
     free(this->river.history);
     free(this->sparkles.levels);
+    free(this->layers.previous);
+    free(this->layers.scratch);
 }

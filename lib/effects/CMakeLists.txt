@@ -3,6 +3,7 @@ lp_add_module(effects
         effects.c
         palette.c
         sparkles.c
+        layers.c
         mode_spectrum.c
         mode_river.c
         mode_ripples.c
