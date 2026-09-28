@@ -30,13 +30,18 @@ void stats_add_hop(stats_t *this, const int32_t *frames, size_t frame_count,
     this->loudness_total += sound->loudness;
 }
 
+// A mic that is present never reads below its self-noise (-87 dBFS for the
+// INMP441), and a missing one reads about -141 dBFS through the data pin's
+// bus keeper, which holds the other mic's last bit
+constexpr double SILENT_DBFS = -120.0;
+
 /**
  * A sine's peak is its RMS times sqrt(2), and 0 dBFS a sine peaking at
  * full scale. The standard deviation rather than the RMS: an offset is no
  * sound. -INFINITY if there is none
  */
 static float level_dbfs(const stats_channel_t *channel, uint64_t count) {
-    double mean, variance;
+    double mean, variance, dbfs;
 
     if (count == 0)
         return -INFINITY;
@@ -47,7 +52,9 @@ static float level_dbfs(const stats_channel_t *channel, uint64_t count) {
     if (!(variance > 0.0))
         return -INFINITY;
 
-    return (float)(10.0 * log10(2.0 * variance / (FULL_SCALE * FULL_SCALE)));
+    dbfs = 10.0 * log10(2.0 * variance / (FULL_SCALE * FULL_SCALE));
+
+    return dbfs < SILENT_DBFS ? -INFINITY : (float)dbfs;
 }
 
 stats_report_t stats_report(stats_t *this, float period_s, float hop_period_s,

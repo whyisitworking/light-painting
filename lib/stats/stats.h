@@ -40,7 +40,8 @@ typedef struct {
     // How long it was
     float period_s;
     // dBFS, 0 for a full-scale sine as in the INMP441 datasheet, an offset
-    // taken out. -INFINITY: no sound at all, e.g. a silent microphone
+    // taken out. -INFINITY: no sound at all, below SILENT's -120 dBFS,
+    // e.g. a missing microphone
     float left_dbfs;
     float right_dbfs;
     // The auto-gain ceiling at its end

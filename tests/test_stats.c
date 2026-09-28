@@ -64,6 +64,33 @@ static void test_offset_is_no_sound(void) {
     CHECK(isinf(report.right_dbfs) && report.right_dbfs < 0.f);
 }
 
+// A missing mic's data pin is a bus keeper: it holds the other mic's last
+// bit, so it decodes to a pseudo-random sequence of 0 and -1. That must
+// still read as silence, not the -141 dBFS its variance would suggest
+static void test_missing_mic_reads_silent(void) {
+    stats_t stats;
+    stats_report_t report;
+    uint32_t state = 1;
+    sound_t sound = sound_of(0.f, false);
+
+    stats_reset(&stats);
+    for (size_t hop = 0; hop < 10; hop++) {
+        for (size_t i = 0; i < FRAMES; i++) {
+            double left = 8388608.0 * 0.05 *
+                          sin(2.0 * M_PI * (double)i / 64.0);
+            int32_t right = signal_noise(&state) < 0.0 ? -1 : 0;
+
+            frames[2 * i] = signal_i2s_word((int32_t)lround(left));
+            frames[2 * i + 1] = signal_i2s_word(right);
+        }
+        stats_add_hop(&stats, frames, FRAMES, &sound, 0);
+    }
+    report = stats_report(&stats, PERIOD_S, HOP_PERIOD_S, -30.f, 0, 0);
+
+    CHECK_NEAR(report.left_dbfs, 20.0 * log10(0.05), 0.01);
+    CHECK(isinf(report.right_dbfs) && report.right_dbfs < 0.f);
+}
+
 // Means, worsts and rates over the window, and what is passed through
 static void test_window(void) {
     stats_t stats;
@@ -134,6 +161,7 @@ static void test_stack_peak(void) {
 int main(void) {
     test_levels();
     test_offset_is_no_sound();
+    test_missing_mic_reads_silent();
     test_window();
     test_report_starts_anew();
     test_stack_peak();
