@@ -12,7 +12,8 @@
  * a slate, and the bar's track sits well above it.
  *
  * Shared LVGL styles: set_palette() recolours every object using them at
- * once, the row being changed included.
+ * once, the row being changed included. The focused row, the bars and
+ * warnings wear it.
  */
 
 #include "palette.h"
@@ -42,5 +43,12 @@ const lv_style_t *ui_theme_focus(void);
 // (LV_PART_INDICATOR)
 const lv_style_t *ui_theme_track(void);
 const lv_style_t *ui_theme_fill(void);
+
+// Values that need a look, e.g. audio lost: the accent as their colour
+const lv_style_t *ui_theme_warning(void);
+
+// A bar shaped like the palette swatch, height px high and rounded into a
+// pill: the accent filled part (LV_PART_INDICATOR) on a track
+lv_obj_t *ui_theme_bar_create(lv_obj_t *parent, int32_t height);
 
 #endif

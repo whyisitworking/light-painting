@@ -80,20 +80,6 @@ static lv_obj_t *swatch_create(lv_obj_t *parent) {
     return swatch;
 }
 
-// Shaped like the swatch: the accent filled part on a track
-static lv_obj_t *bar_create(lv_obj_t *parent) {
-    lv_obj_t *bar = lv_bar_create(parent);
-
-    lv_obj_remove_style_all(bar);
-    lv_obj_set_size(bar, LV_PCT(100), STRIP_HEIGHT);
-    lv_obj_set_style_radius(bar, STRIP_RADIUS, 0);
-    lv_obj_set_style_radius(bar, STRIP_RADIUS, LV_PART_INDICATOR);
-    lv_obj_add_style(bar, ui_theme_track(), 0);
-    lv_obj_add_style(bar, ui_theme_fill(), LV_PART_INDICATOR);
-
-    return bar;
-}
-
 lv_obj_t *ui_status_create(void) {
     lv_obj_t *screen = lv_obj_create(nullptr), *block, *row;
 
@@ -120,7 +106,7 @@ lv_obj_t *ui_status_create(void) {
     block = block_create(screen);
     row = row_create(block, "Brightness");
     view.brightness = lv_label_create(row);
-    view.brightness_bar = bar_create(block);
+    view.brightness_bar = ui_theme_bar_create(block, STRIP_HEIGHT);
 
     return screen;
 }
