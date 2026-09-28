@@ -159,6 +159,17 @@ These apply to every mode, and the menu changes all but gamma:
 | Beat flash | A white flash on each beat, fading with an 80 ms time constant | `EFFECTS_FLASH_LEVEL`, `EFFECTS_FLASH_MS` |
 | Gamma | 2.2, so fades look even to the eye | `COLOR_GAMMA` in `lib/color/color.h` |
 
+Four more layers sit on top of any mode, all off by default, in the menu's Layers page:
+
+| Layer | Effect | Menu setting |
+|---|---|---|
+| Trails | What was shown lingers and fades: the brighter of the new frame and the last one, faded | Off, 50–1000 ms (fade time constant) |
+| Diffuse | Every frame blurs a little into the neighbouring LEDs | Off, 5–100 % (100 % averages three LEDs) |
+| Symmetry | The whole image squeezed into 2, 3 or 4 segments, every other one reversed | Off, 2–4 |
+| Chase | The whole image slides along the strip and wraps around | Off, ±10–200 LEDs per second |
+
+They apply in that order, Chase, Symmetry, Diffuse, then Trails, before the brightness and gamma, so a sliding image leaves a glowing smear.
+
 ## The menu
 
 The LCD shows the status screen: the mode, the palette with a swatch of its colours, the brightness, and how the last save went. Press the switch's centre to open the menu.
@@ -186,6 +197,10 @@ After 30 s without a key, the status screen comes back, except from Diagnostics.
 | | Sparkles | 0–10 %, 0.5 | 3 % | `EFFECTS_SPARKLE_RATE` |
 | | River speed, ripple speed | 1–4; 0.5–6.0, 0.5 (LEDs per frame) | 1, 2.0 | `EFFECTS_RIVER_SPEED`, `EFFECTS_RIPPLE_SPEED` |
 | | VU peak hold | 0–2000 ms, 50 | 300 ms | `EFFECTS_PEAK_HOLD_MS` |
+| Layers | Trails | Off, 50–1000 ms, 50 | Off | `EFFECTS_TRAILS_MS` |
+| | Diffuse | Off, 5–100 %, 5 | Off | `EFFECTS_DIFFUSE` |
+| | Symmetry | Off, 2–4 segments | Off | `EFFECTS_SYMMETRY` |
+| | Chase | Off, ±10–200 LEDs/s, 10 | Off | `EFFECTS_CHASE_LEDS_PER_S` |
 | System | Screen (LCD backlight) | 10–100 %, 10 | 80 % | |
 | | Diagnostics | the microphones, the timing, the stacks: see [Diagnostics](#diagnostics) | | |
 | | Reset to defaults | press twice within 3 s | | |
@@ -216,7 +231,9 @@ The default mode and palette (`EFFECTS_MODE`, `EFFECTS_PALETTE`: River, Synthwav
 The sound analysis and the effects each have their constants at the top of their header, with the reasoning behind every default. Those the [menu](#the-menu) changes are its defaults:
 
 - [`lib/features/features.h`](lib/features/features.h): the band range, auto-gain (`FEATURES_RANGE_DB`, `FEATURES_MIN_CEILING_DB`), smoothing, and beat detection (`FEATURES_BEAT_THRESHOLD`, `FEATURES_BEAT_MIN_LEVEL`, …).
-- [`lib/effects/effects.h`](lib/effects/effects.h): the mode and palette, river and ripple speeds, the VU peak hold, drift, warmth, flash and sparkles.
+- [`lib/effects/effects.h`](lib/effects/effects.h): the mode and palette, river and ripple speeds, the VU peak hold, drift, warmth, flash, sparkles and the four layers.
+
+The latency bench, `cmake --build build-tests --target test_latency && ./build-tests/test_latency`, prints how quickly the analysis reacts to kicks and tones and how often it reacts to noise. Run it after changing the beat constants.
 
 ### Build options
 
@@ -250,7 +267,7 @@ flowchart TB
 1. **Capture.** A PIO state machine clocks both microphones at the fastest integer divider under the INMP441's 3.2 MHz maximum: 48 828.125 Hz at 150 MHz. A self-triggering DMA channel streams the words into a two-chunk ring, and each completed chunk (256 stereo frames) is handed to the main loop through a triple buffer.
 2. **Spectrum.** The two channels are summed to mono and appended to a 512-sample sliding window. The window is multiplied by a sine window and transformed with a real FFT, done as a 256-point complex FFT: 256 bins, 95.4 Hz apart.
 3. **Features.** The bins become 32 log-spaced bands. Their power in dB is normalized under an auto-gain ceiling that jumps up to the loudest band and falls back 6 dB/s, but never below a minimum that keeps a quiet room dark. Each band is then smoothed (10 ms attack, 120 ms decay). A beat is the smoothed bass energy jumping above 2.8× its one-second average, while the bass is audible, at most once per 150 ms.
-4. **Effects.** The current mode draws into a linear RGB frame. Gamma correction, the beat flash and the packing into WS2812 words follow, for every mode.
+4. **Effects.** The current mode draws into a linear RGB frame. The layers (Chase, Symmetry, Diffuse, Trails) reshape it. Gamma correction, the beat flash and the packing into WS2812 words follow, for every mode.
 5. **Output.** DMA feeds the frame to a second PIO state machine, which generates the WS2812 timing and the latch, and raises an interrupt. That interrupt starts the newest frame, so the strip always shows the latest render and never a torn one (about 150 frames/s at 300 LEDs).
 
 All of that runs on core 0. The menu runs on core 1, with its own stack:
@@ -285,7 +302,7 @@ All memory is allocated once at startup, and neither loop allocates. The firmwar
 │   ├── visualizer/      the pipeline: spectrum → features → effects
 │   ├── spectrum/        I2S words to a magnitude spectrum
 │   ├── features/        bands, auto-gain, smoothing, beats
-│   ├── effects/         one mode_*.c per mode, palettes, sparkles
+│   ├── effects/         one mode_*.c per mode, palettes, sparkles, layers
 │   ├── fft/             radix-2 complex and real FFTs
 │   ├── color/           linear RGB, gamma, the WS2812 word
 │   └── swapchain/       lock-free triple buffer between contexts or cores
