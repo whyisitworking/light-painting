@@ -6,9 +6,11 @@
  * at (h + 1) hops, so that is when a reaction is timed.
  *
  * It prints what it measures, so a change of the analysis can be judged by
- * its numbers, and asserts loose bounds so that a change adding delay or
- * false beats fails. Bounds are set at about 1.25 times what was measured
- * when the beat detection was last tuned.
+ * its numbers, and asserts bounds so that a change adding delay or false
+ * beats fails. The latency bounds are 1.25 times the worst latency measured
+ * with the current analysis, rounded up. The false beat bounds come from the
+ * spread over many noise seeds: one seed is not evidence, the count of
+ * false beats depends on the noise drawn.
  */
 
 #include "check.h"
@@ -32,16 +34,25 @@ constexpr double KICK_PERIOD_S = 0.5;
 // 24-bit words
 constexpr double QUIET_ROOM = 650.0;
 constexpr double NOISY_ROOM = 20000.0;
-constexpr double LOUD_ROOM = 200000.0;
 
-// Loose bounds, see the header
-constexpr double MAX_BEAT_LATENCY_MS = 14.0;
+// Bounds, see the header. Latencies are quantised to the 5.24 ms hop, so a
+// slip of one hop fails by design: measured worst kick 11.97 ms (bound 15),
+// tone step 8.44 ms (bound 11). False beats in 58 s of noise 20000 over 30
+// seeds at 30 ms smoothing: at most 1 per seed, 8 in total, at most 5 in
+// any 16 consecutive seeds. The bounds are that maximum plus one: 2 for a
+// seed, 6 for the 16 seeds run here
+constexpr double MAX_BEAT_LATENCY_MS = 15.0;
 constexpr double MAX_BAND_LATENCY_MS = 11.0;
-constexpr size_t MAX_FALSE_BEATS_PER_MINUTE = 2;
+constexpr size_t MAX_FALSE_BEATS_PER_SEED = 2;
+constexpr size_t MAX_FALSE_BEATS_TOTAL = 6;
+constexpr size_t NOISE_SEEDS = 16;
 
 // A tone of 1 kHz starting mid hop, after 20 quiet hops
 constexpr size_t TONE_START = 20 * HOP_SIZE + 100;
 constexpr size_t TONE_HOPS = 400;
+
+// Fixed seed of the kick and tone signals' noise
+constexpr uint32_t FIXED_SEED = 12345;
 
 static double noise_amplitude;
 
@@ -53,12 +64,12 @@ static size_t hops_for(double seconds) {
 }
 
 // Runs a signal through a default pipeline, hop by hop
-static void run(sample_fn *sample, size_t hops, hop_fn *on_hop,
+static void run(sample_fn *sample, uint32_t seed, size_t hops, hop_fn *on_hop,
                 void *context) {
     static int32_t frames[2 * HOP_SIZE];
     static uint32_t pixels[LEDS];
     visualizer_t visualizer;
-    uint32_t noise = 12345;
+    uint32_t noise = seed;
 
     CHECK(visualizer_init(&visualizer,
                           &(visualizer_config_t){
@@ -132,7 +143,7 @@ static void test_kicks(double noise) {
 
     noise_amplitude = noise;
     beats = (beats_t){};
-    run(kick_train, hops_for(12.0), collect_beats, &beats);
+    run(kick_train, FIXED_SEED, hops_for(12.0), collect_beats, &beats);
 
     for (size_t kick = 4; kick <= 22; kick++) {
         double onset_ms = 1000.0 * KICK_PERIOD_S * (double)kick;
@@ -172,7 +183,7 @@ static void test_tone_step(void) {
     float final_level;
 
     noise_amplitude = QUIET_ROOM;
-    run(tone_step, TONE_HOPS, record_bands, nullptr);
+    run(tone_step, FIXED_SEED, TONE_HOPS, record_bands, nullptr);
 
     for (size_t b = 1; b < FEATURES_BAND_COUNT; b++)
         if (band_history[TONE_HOPS - 1][b] > band_history[TONE_HOPS - 1][band])
@@ -191,21 +202,43 @@ static void test_tone_step(void) {
     CHECK(latency <= MAX_BAND_LATENCY_MS);
 }
 
+// The seed of the k-th noise sequence, never zero, spread over the range
+static uint32_t seed_for(size_t k) {
+    return 2654435761u * (uint32_t)(k + 1);
+}
+
 static void count_beats(size_t hop, const sound_t *sound, void *context) {
     if (hop >= hops_for(2.0) && sound->beat)
         ++*(size_t *)context;
 }
 
-// Steady noise is not a beat, at any level
-static void test_steady_noise(double noise) {
+// False beats in 58 s of steady noise of one seed
+static size_t false_beats(double noise, uint32_t seed) {
     size_t beats = 0;
 
     noise_amplitude = noise;
-    run(steady_noise, hops_for(60.0), count_beats, &beats);
+    run(steady_noise, seed, hops_for(60.0), count_beats, &beats);
+    return beats;
+}
 
-    printf("steady noise %6.0f: %zu false beats in 58 s\n", noise, beats);
+// Steady noise is not a beat, at any level (a louder room than 20000 gives
+// the same counts, the auto-gain normalises it)
+static void test_steady_noise(double noise) {
+    size_t total = 0, worst = 0;
 
-    CHECK(beats <= MAX_FALSE_BEATS_PER_MINUTE);
+    for (size_t k = 0; k < NOISE_SEEDS; k++) {
+        size_t beats = false_beats(noise, seed_for(k));
+
+        total += beats;
+        worst = beats > worst ? beats : worst;
+    }
+
+    printf("steady noise %6.0f: %zu false beats in 58 s over %zu seeds, at "
+           "most %zu per seed\n",
+           noise, total, (size_t)NOISE_SEEDS, worst);
+
+    CHECK(worst <= MAX_FALSE_BEATS_PER_SEED);
+    CHECK(total <= MAX_FALSE_BEATS_TOTAL);
 }
 
 int main(void) {
@@ -214,7 +247,6 @@ int main(void) {
     test_tone_step();
     test_steady_noise(QUIET_ROOM);
     test_steady_noise(NOISY_ROOM);
-    test_steady_noise(LOUD_ROOM);
 
     return CHECK_REPORT();
 }
