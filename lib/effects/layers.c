@@ -53,7 +53,48 @@ static void trails(effects_t *this) {
     this->layers.trails_active = true;
 }
 
-static void chase([[maybe_unused]] effects_t *this) {}
+// The image slides along the strip and wraps around. The shift accumulates
+// here, not in the frame: the mode draws a fresh image every hop. Between
+// two LEDs it is interpolated. Wrapped every hop, so it never grows: a
+// float growing forever loses precision (as with the drift clock)
+static void chase(effects_t *this) {
+    size_t count = this->led_count, whole;
+    float fraction;
+    rgb_t *out = this->layers.scratch;
+
+    if (this->tuning.chase_leds_per_s == 0.f) {
+        this->layers.offset = 0.f;
+        return;
+    }
+
+    this->layers.offset =
+        fmodf(this->layers.offset +
+                  this->tuning.chase_leds_per_s * this->hop_period_s,
+              (float)count);
+    if (this->layers.offset < 0.f) {
+        this->layers.offset += (float)count;
+        // A tiny negative plus the count rounds up to exactly the count
+        if (this->layers.offset >= (float)count)
+            this->layers.offset = 0.f;
+    }
+
+    whole = (size_t)this->layers.offset;
+    fraction = this->layers.offset - (float)whole;
+    whole %= count;
+
+    for (size_t i = 0; i < count; i++) {
+        rgb_t ahead = this->frame[(i + count - whole) % count];
+        rgb_t behind = this->frame[(i + 2 * count - whole - 1) % count];
+
+        out[i] = (rgb_t){
+            ahead.r + (behind.r - ahead.r) * fraction,
+            ahead.g + (behind.g - ahead.g) * fraction,
+            ahead.b + (behind.b - ahead.b) * fraction,
+        };
+    }
+
+    memcpy(this->frame, out, count * sizeof(rgb_t));
+}
 
 // The strip becomes n segments, each the whole drawn frame squeezed into
 // it, every odd one reversed. An output LED is the mean of the source LEDs

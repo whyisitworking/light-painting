@@ -389,6 +389,142 @@ static void test_symmetry_too_short(void) {
     effects_deinit(&effects);
 }
 
+static void set_chase(float leds_per_s) {
+    effects_tuning_t tuning = effects.tuning;
+
+    tuning.chase_leds_per_s = leds_per_s;
+    tune(tuning);
+}
+
+// Where the light is: the red channel's centre of mass
+static double centroid(void) {
+    double sum = 0.0, weighted = 0.0;
+
+    for (size_t i = 0; i < effects.led_count; i++) {
+        sum += (double)effects.frame[i].r;
+        weighted += (double)effects.frame[i].r * (double)i;
+    }
+
+    return weighted / sum;
+}
+
+// A fresh image every frame, as the modes draw it: the shift accumulates in
+// the offset, not in the frame
+static void chase_frames(size_t from, int frames) {
+    for (int frame = 0; frame < frames; frame++) {
+        clear_frame();
+        set_pixel(from, 1.f, 0.f, 0.f);
+        effects_layers_apply(&effects);
+    }
+}
+
+// 100 LEDs a second is 0.52 LEDs a frame, between two LEDs by interpolation
+static void test_chase_moves_the_image(void) {
+    double moved = 100.0 * (double)HOP_PERIOD_S * 20.0;
+
+    start(LEDS);
+    set_chase(100.f);
+    chase_frames(10, 20);
+
+    CHECK_NEAR(centroid(), 10.0 + moved, 0.01);
+    CHECK_NEAR(energy(), 1.0, 1e-5);
+    effects_deinit(&effects);
+}
+
+static void test_chase_backwards_and_around(void) {
+    double moved = 200.0 * (double)HOP_PERIOD_S * 40.0;
+
+    start(LEDS);
+    set_chase(-200.f);
+    chase_frames(5, 40);
+
+    // 5 - 41.9 wraps to just under the end of the strip
+    CHECK_NEAR(centroid(), 5.0 - moved + 300.0, 0.01);
+    CHECK_NEAR(energy(), 1.0, 1e-5);
+    effects_deinit(&effects);
+}
+
+// A whole number of LEDs is an exact shift, no blur
+static void test_chase_whole_leds_are_exact(void) {
+    start(LEDS);
+    // One LED per frame
+    set_chase(1.f / HOP_PERIOD_S);
+    chase_frames(10, 6);
+
+    CHECK_NEAR(effects.frame[16].r, 1.0, 1e-3);
+    CHECK_NEAR(effects.frame[15].r, 0.0, 1e-3);
+    CHECK_NEAR(effects.frame[17].r, 0.0, 1e-3);
+    effects_deinit(&effects);
+}
+
+// The offset stays on the strip however long it runs, either way
+static int frames_off_the_strip(float leds_per_s) {
+    int off = 0;
+
+    set_chase(leds_per_s);
+    for (int frame = 0; frame < 100000; frame++) {
+        clear_frame();
+        effects_layers_apply(&effects);
+        off += !(effects.layers.offset >= 0.f &&
+                 effects.layers.offset < (float)LEDS);
+    }
+
+    return off;
+}
+
+static void test_chase_offset_stays_bounded(void) {
+    start(LEDS);
+
+    CHECK(frames_off_the_strip(200.f) == 0);
+    CHECK(frames_off_the_strip(-200.f) == 0);
+    effects_deinit(&effects);
+}
+
+// Off is exactly the unshifted image
+static void test_chase_off_resets(void) {
+    start(LEDS);
+    set_chase(100.f);
+    chase_frames(10, 20);
+    CHECK(effects.layers.offset > 0.f);
+
+    set_chase(0.f);
+    chase_frames(10, 1);
+
+    CHECK(effects.layers.offset == 0.f);
+    CHECK(effects.frame[10].r == 1.f);
+    effects_deinit(&effects);
+}
+
+// All four on, in the busiest mode: it runs and stays finite and bounded
+static void test_all_layers_through_render(void) {
+    sound_t sound = {.bands = bands, .loudness = 0.8f, .centroid = 0.5f};
+    effects_tuning_t tuning;
+
+    for (size_t b = 0; b < BANDS; b++)
+        bands[b] = 0.7f;
+
+    start(LEDS);
+    tuning = effects.tuning;
+    tuning.mode = EFFECTS_MODE_RIPPLES;
+    tuning.trails_ms = 300.f;
+    tuning.diffuse = 0.6f;
+    tuning.symmetry = 3;
+    tuning.chase_leds_per_s = 60.f;
+    tune(tuning);
+
+    for (int frame = 0; frame < 500; frame++) {
+        sound.beat = frame % 40 == 0;
+        sound.beat_strength = 0.8f;
+        effects_render(&effects, &sound, pixels);
+    }
+
+    for (size_t i = 0; i < LEDS; i++)
+        CHECK(isfinite(effects.frame[i].r) && effects.frame[i].r >= 0.f);
+    CHECK(effects.layers.offset >= 0.f &&
+          effects.layers.offset < (float)LEDS);
+    effects_deinit(&effects);
+}
+
 int main(void) {
     test_off_changes_nothing();
     test_trails_fade();
@@ -404,6 +540,12 @@ int main(void) {
     test_symmetry_three_and_four();
     test_symmetry_odd_count();
     test_symmetry_too_short();
+    test_chase_moves_the_image();
+    test_chase_backwards_and_around();
+    test_chase_whole_leds_are_exact();
+    test_chase_offset_stays_bounded();
+    test_chase_off_resets();
+    test_all_layers_through_render();
     test_tuning_ignores_invalid();
     test_defaults_are_off();
 
