@@ -17,8 +17,8 @@
  */
 
 #include <stdatomic.h>
+#include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 // A producer, a shared and a consumer buffer
 constexpr size_t SWAPCHAIN_BUFFER_COUNT = 3;

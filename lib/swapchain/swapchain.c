@@ -1,5 +1,7 @@
 #include "swapchain.h"
 
+#include <stdlib.h>
+
 // Set in shared while the shared buffer holds data the consumer has not
 // taken yet, above the buffer indices
 constexpr uint8_t FRESH = 1u << 7;
