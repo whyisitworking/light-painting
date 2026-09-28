@@ -28,6 +28,10 @@ constexpr uint32_t BOOT_CHECK_MS = 50;
 // How often a pending save is looked at
 constexpr uint32_t SAVE_CHECK_MS = 250;
 
+// A period's worth of reports can be skipped or late if polled only once a
+// period; five times a period catches up without the cost of every hop
+constexpr uint32_t REPORT_CHECK_MS = DIAGNOSTICS_PERIOD_MS / 5;
+
 // Core 1's stack, 8-byte aligned as the Arm procedure call standard asks
 static alignas(8) uint32_t stack[UI_STACK_SIZE / sizeof(uint32_t)];
 
@@ -121,7 +125,7 @@ static void print_forever(void) {
     while (true) {
         const stats_report_t *report;
 
-        sleep_ms(DIAGNOSTICS_PERIOD_MS);
+        sleep_ms(REPORT_CHECK_MS);
         if ((report = diagnostics_take()) != nullptr)
             diagnostics_print(report);
     }
@@ -189,7 +193,7 @@ static void ui_main(void) {
 
     ui_menu_start(&settings, changed);
     lv_timer_create(save_check, SAVE_CHECK_MS, nullptr);
-    lv_timer_create(report_check, DIAGNOSTICS_PERIOD_MS, nullptr);
+    lv_timer_create(report_check, REPORT_CHECK_MS, nullptr);
 #ifdef BOOT_BUTTON_SHUFFLE
     lv_timer_create(boot_check, BOOT_CHECK_MS, nullptr);
 #endif
