@@ -115,6 +115,9 @@ const stats_report_t *diagnostics_take(void) {
 
     // Copied: the stacks' peaks are added, the consumer buffer is read only
     latest = *(const stats_report_t *)swapchain_consumer_buffer(&link);
+    // A race by the letter of C: core 0 may be writing this stack right
+    // now, but aligned 32-bit loads are single-copy atomic on the M33,
+    // and the peak only ever grows
     latest.core0_stack_peak = stats_stack_peak(core0_bottom, core0_word_count);
     latest.core0_stack_size = core0_word_count * sizeof(uint32_t);
     latest.core1_stack_peak = stats_stack_peak(core1_bottom, core1_word_count);

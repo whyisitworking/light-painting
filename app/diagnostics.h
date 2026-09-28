@@ -10,6 +10,7 @@
  *
  *   core 0: diagnostics_fill_core0_stack();       first thing in main()
  *           diagnostics_init();
+ *           diagnostics_fill_core1_stack(stack, word_count);  ui_start calls it
  *           each hop:
  *               frames = i2s_wait_buffer();
  *               diagnostics_start_work();

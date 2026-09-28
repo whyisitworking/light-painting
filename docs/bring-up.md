@@ -13,7 +13,7 @@ Nothing connected but USB.
 
 Wired to GP0-GP4 and ground.
 
-- **See:** centre opens the menu; up and down move the highlight; right opens a page; left or centre held goes back. Holding left or right on a setting repeats.
+- **See:** centre opens the menu; up and down move the highlight; right opens a page; left goes back only on the "‹ title" row and on Diagnostics, centre held goes back from anywhere. On a setting row, left and right change the value instead; hold to repeat.
 - **If not:** swap the `JOYSTICK_*_PIN` numbers in `app/config.h`.
 
 ## 3. Diagnostics, without microphones
@@ -23,13 +23,13 @@ System › Diagnostics.
 - **See:** both microphones read "none". Audio lost 0, and it stays 0. Load well under 80 %. Menu and Lights stacks well under their sizes.
 - **If not:**
   - Audio lost counting up means core 0 falls behind: note the Load and report it.
-  - A stack near its size needs a bigger one: `UI_STACK_SIZE` for the menu.
+  - A stack near its size needs a bigger one: `UI_STACK_SIZE` for the menu. The Lights stack (core 0) is a fixed 8 KB of scratch RAM with no guard: if it nears 8 KB, report it rather than carrying on.
 
 ## 4. The microphones
 
 Both on the bus, one with L/R to ground, the other to 3.3 V.
 
-- **See:** in a quiet room, both about -85 dBFS. Talking moves both meters, to about -60. A finger over one microphone's hole drops only its own meter.
+- **See:** in a quiet room, both about -85 dBFS or a little higher. Talking moves both meters, to about -60. A finger over one microphone's hole drops only its own meter.
 - **If not:**
   - "none" on one side: that microphone's L/R pin, or its SD wire.
   - The same meter moving for both: both L/R pins are wired alike.

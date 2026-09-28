@@ -5,7 +5,7 @@
  * The look of every screen: a dark slate, light text, muted labels, and one
  * accent colour that follows the palette the strip shows, taken from the
  * middle of it (hot pink for Synthwave, orange for Fire, teal for Ocean,
- * cyan for Rainbow). The focused row and the brightness bar wear it.
+ * cyan for Rainbow).
  *
  * Not black: an LCD's black is its backlight showing through, a dark grey
  * anyway, and near-black shades run together on it. So the background is
@@ -39,7 +39,7 @@ const lv_style_t *ui_theme_muted(void);
 // A focused row (selector LV_STATE_FOCUSED): the accent, with dark text
 const lv_style_t *ui_theme_focus(void);
 
-// The brightness bar: its track (LV_PART_MAIN), its filled part
+// The bars: their track (LV_PART_MAIN), their filled part
 // (LV_PART_INDICATOR)
 const lv_style_t *ui_theme_track(void);
 const lv_style_t *ui_theme_fill(void);

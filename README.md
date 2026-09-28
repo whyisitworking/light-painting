@@ -398,9 +398,9 @@ cmake --build build-sanitize && ctest --test-dir build-sanitize --output-on-fail
 
 System › Diagnostics shows, every 0.5 s, what core 0 measures of the lights' loop, and stays until you leave it:
 
-- Each microphone's level in dBFS. A quiet room reads about -85, talking nearby about -60, loud music -30 to -20. "none" is a microphone sending nothing at all.
+- Each microphone's level in dBFS. A quiet room reads about -85 or a little higher, talking nearby about -60, loud music -30 to -20. "none" is a microphone sending nothing at all.
 - The auto-gain ceiling, the mean loudness and the beats per second.
-- The work per hop, mean and worst, and the worst as a share of the 5.2 ms a hop allows.
+- The work per hop, mean and worst, and the worst as a share of the 5.2 ms a hop allows (the measuring itself adds about 35 us).
 - The audio buffers lost since start (should stay 0) and the frames the strip latched per second (about 150 at 300 LEDs).
 - The most each core's stack has ever used.
 

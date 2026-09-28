@@ -56,7 +56,7 @@ add_compile_options(-fno-math-errno)
 # the SDK to compile (2.3.1 compiles it anyway, the define says we rely on
 # it). PICO_USE_STACK_GUARDS would also limit core 0
 # to 2 KB (PICO_STACK_SIZE), where today it may use all 8 KB of SCRATCH_X
-# and SCRATCH_Y, unmeasured
+# and SCRATCH_Y: see the Lights stack on the Diagnostics page
 add_compile_definitions(
     PICO_FLASH_ASSUME_CORE0_SAFE=1
     PICO_CORE1_STACK_SIZE=0
