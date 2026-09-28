@@ -10,6 +10,8 @@ project(light-painting-tests C)
 
 set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)
+# For the editor (clangd, see .clangd)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/modules.cmake)
 

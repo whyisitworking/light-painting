@@ -1,0 +1,18 @@
+# clangd, the editor's C language server (set up in .vscode/settings.json).
+# It reads each file's flags from the build's compilation database
+
+CompileFlags:
+  # The firmware: build/, as configured by the Pico extension or by hand
+  CompilationDatabase: build
+  # newlib's <stdatomic.h>, in the Arm toolchain, uses int_least8_t without
+  # including <stdint.h>. GCC never reads it, its own comes first, but clang
+  # does: the types are there first
+  Add: [-include, stdint.h]
+
+---
+
+# The host tests have a database of their own (tests/CMakeLists.txt)
+If:
+  PathMatch: tests/.*
+CompileFlags:
+  CompilationDatabase: build-tests
