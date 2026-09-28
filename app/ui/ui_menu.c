@@ -38,6 +38,13 @@ typedef enum {
     FORMAT_MS,
     // 0 reads Off
     FORMAT_SECONDS,
+    // 0 reads Off
+    FORMAT_MS_OFF,
+    FORMAT_PERCENT_OFF,
+    // 1 reads Off, otherwise the number
+    FORMAT_SEGMENTS,
+    // LEDs per second: 0 reads Off, otherwise signed
+    FORMAT_SPEED,
 } format_t;
 
 typedef enum {
@@ -46,6 +53,7 @@ typedef enum {
     PAGE_LOOK,
     PAGE_SOUND,
     PAGE_EFFECTS,
+    PAGE_LAYERS,
     PAGE_SYSTEM,
     PAGE_DIAGNOSTICS,
     PAGE_COUNT
@@ -76,6 +84,7 @@ static const row_t menu_rows[] = {
     {.kind = ROW_PAGE, .name = "Look", .page = PAGE_LOOK},
     {.kind = ROW_PAGE, .name = "Sound", .page = PAGE_SOUND},
     {.kind = ROW_PAGE, .name = "Effects", .page = PAGE_EFFECTS},
+    {.kind = ROW_PAGE, .name = "Layers", .page = PAGE_LAYERS},
     {.kind = ROW_PAGE, .name = "System", .page = PAGE_SYSTEM},
 };
 
@@ -148,6 +157,25 @@ static const row_t effects_rows[] = {
      .format = FORMAT_MS},
 };
 
+static const row_t layers_rows[] = {
+    {.kind = ROW_SETTING,
+     .name = "Trails",
+     .id = SETTINGS_TRAILS,
+     .format = FORMAT_MS_OFF},
+    {.kind = ROW_SETTING,
+     .name = "Diffuse",
+     .id = SETTINGS_DIFFUSE,
+     .format = FORMAT_PERCENT_OFF},
+    {.kind = ROW_SETTING,
+     .name = "Symmetry",
+     .id = SETTINGS_SYMMETRY,
+     .format = FORMAT_SEGMENTS},
+    {.kind = ROW_SETTING,
+     .name = "Chase",
+     .id = SETTINGS_CHASE,
+     .format = FORMAT_SPEED},
+};
+
 static const row_t system_rows[] = {
     {.kind = ROW_SETTING,
      .name = "Screen",
@@ -181,6 +209,12 @@ static const page_def_t pages[PAGE_COUNT] = {
         .parent = PAGE_MENU,
         .rows = effects_rows,
         .row_count = sizeof(effects_rows) / sizeof(effects_rows[0]),
+    },
+    [PAGE_LAYERS] = {
+        .title = "Layers",
+        .parent = PAGE_MENU,
+        .rows = layers_rows,
+        .row_count = sizeof(layers_rows) / sizeof(layers_rows[0]),
     },
     [PAGE_SYSTEM] = {
         .title = "System",
@@ -243,6 +277,30 @@ static void format(char *text, size_t size, const row_t *row) {
             snprintf(text, size, "Off");
         else
             snprintf(text, size, "%d s", value);
+        break;
+    case FORMAT_MS_OFF:
+        if (value == 0)
+            snprintf(text, size, "Off");
+        else
+            snprintf(text, size, "%d ms", value);
+        break;
+    case FORMAT_PERCENT_OFF:
+        if (value == 0)
+            snprintf(text, size, "Off");
+        else
+            snprintf(text, size, "%d %%", value);
+        break;
+    case FORMAT_SEGMENTS:
+        if (value <= 1)
+            snprintf(text, size, "Off");
+        else
+            snprintf(text, size, "%d", value);
+        break;
+    case FORMAT_SPEED:
+        if (value == 0)
+            snprintf(text, size, "Off");
+        else
+            snprintf(text, size, "%+d /s", value);
         break;
     case FORMAT_NUMBER:
     default:

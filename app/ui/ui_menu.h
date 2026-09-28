@@ -4,8 +4,8 @@
 /**
  * The screens and how the switch moves through them:
  *
- *   status ──centre──► Menu ──► Look · Sound · Effects · System
- *                                                  └──► Diagnostics
+ *   status ──centre──► Menu ──► Look · Sound · Effects · Layers · System
+ *                                                             └──► Diagnostics
  *
  * On a page, up and down move between rows, left and right change the
  * focused setting at once (held, they repeat), and the centre opens the
