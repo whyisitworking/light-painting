@@ -8,9 +8,15 @@
  *
  *   Light Painting                  Saved
  *   River
- *   Palette                 Synthwave
- *   ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇
- *   Brightness  ━━━━━━━━━━━━━━━  100 %
+ *
+ *   Palette                     Synthwave
+ *   ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇
+ *
+ *   Brightness                      100 %
+ *   ━━━━━━━━━━━━━━━━━━━━━━━━━━━──────────
+ *
+ * Three blocks 16 px apart, what belongs together 6 px apart within them:
+ * with the 12 px margins they fill the 172 lines exactly
  */
 
 #include "effects.h"

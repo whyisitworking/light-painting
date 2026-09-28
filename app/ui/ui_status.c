@@ -8,9 +8,20 @@
 // Cells of the palette swatch
 constexpr size_t SWATCH_CELLS = 32;
 
-// Labels in front of values, and the filled part of bars
+// Labels in front of values, the filled part of the bar, and its track
 constexpr uint32_t MUTED_COLOR = 0x8888A0;
 constexpr uint32_t ACCENT_COLOR = 0xFF3D8B;
+constexpr uint32_t TRACK_COLOR = 0x2A2A38;
+
+// Around the screen, between its blocks, and within a block. The blocks
+// are 52, 32 and 32 lines high (Montserrat 14 lines are 16, 28 lines 30),
+// so 12 + 52 + 16 + 32 + 16 + 32 + 12 = 172, the screen's height
+constexpr int32_t MARGIN = 12;
+constexpr int32_t BLOCK_GAP = 16;
+constexpr int32_t INNER_GAP = 6;
+
+// The swatch and the bar, alike
+constexpr int32_t STRIP_HEIGHT = 10;
 
 static struct {
     lv_obj_t *note;
@@ -35,7 +46,19 @@ static lv_color_t lcd_color(rgb_t color) {
                          lcd_channel(color.b));
 }
 
-// A row across the screen: a muted name on the left, then its contents
+// A column of what belongs together, INNER_GAP apart
+static lv_obj_t *block_create(lv_obj_t *parent) {
+    lv_obj_t *block = lv_obj_create(parent);
+
+    lv_obj_remove_style_all(block);
+    lv_obj_set_size(block, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(block, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(block, INNER_GAP, 0);
+
+    return block;
+}
+
+// A line across the screen: a muted name on the left, then its contents
 static lv_obj_t *row_create(lv_obj_t *parent, const char *name) {
     lv_obj_t *row = lv_obj_create(parent), *label;
 
@@ -57,7 +80,7 @@ static lv_obj_t *swatch_create(lv_obj_t *parent) {
     lv_obj_t *swatch = lv_obj_create(parent);
 
     lv_obj_remove_style_all(swatch);
-    lv_obj_set_size(swatch, LV_PCT(100), 10);
+    lv_obj_set_size(swatch, LV_PCT(100), STRIP_HEIGHT);
     lv_obj_set_flex_flow(swatch, LV_FLEX_FLOW_ROW);
 
     for (size_t i = 0; i < SWATCH_CELLS; i++) {
@@ -73,32 +96,46 @@ static lv_obj_t *swatch_create(lv_obj_t *parent) {
     return swatch;
 }
 
+// Square like the swatch: the accent filled part on a dark track
+static lv_obj_t *bar_create(lv_obj_t *parent) {
+    lv_obj_t *bar = lv_bar_create(parent);
+
+    lv_obj_remove_style_all(bar);
+    lv_obj_set_size(bar, LV_PCT(100), STRIP_HEIGHT);
+    lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(bar, lv_color_hex(TRACK_COLOR), 0);
+    lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(bar, lv_color_hex(ACCENT_COLOR),
+                              LV_PART_INDICATOR);
+
+    return bar;
+}
+
 lv_obj_t *ui_status_create(void) {
-    lv_obj_t *screen = lv_obj_create(nullptr), *row;
+    lv_obj_t *screen = lv_obj_create(nullptr), *block, *row;
 
     lv_obj_set_flex_flow(screen, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_all(screen, 12, 0);
-    lv_obj_set_style_pad_row(screen, 6, 0);
+    lv_obj_set_style_pad_all(screen, MARGIN, 0);
+    lv_obj_set_style_pad_row(screen, BLOCK_GAP, 0);
     lv_obj_set_scrollable(screen, false);
 
-    row = row_create(screen, "Light Painting");
+    // What this is, and what it shows
+    block = block_create(screen);
+    row = row_create(block, "Light Painting");
     view.note = lv_label_create(row);
     lv_obj_set_style_text_color(view.note, lv_color_hex(MUTED_COLOR), 0);
-
-    view.mode = lv_label_create(screen);
+    view.mode = lv_label_create(block);
     lv_obj_set_style_text_font(view.mode, &lv_font_montserrat_28, 0);
 
-    row = row_create(screen, "Palette");
+    block = block_create(screen);
+    row = row_create(block, "Palette");
     view.palette = lv_label_create(row);
-    swatch_create(screen);
+    swatch_create(block);
 
-    row = row_create(screen, "Brightness");
-    view.brightness_bar = lv_bar_create(row);
-    lv_obj_set_height(view.brightness_bar, 6);
-    lv_obj_set_flex_grow(view.brightness_bar, 1);
-    lv_obj_set_style_bg_color(view.brightness_bar, lv_color_hex(ACCENT_COLOR),
-                              LV_PART_INDICATOR);
+    block = block_create(screen);
+    row = row_create(block, "Brightness");
     view.brightness = lv_label_create(row);
+    view.brightness_bar = bar_create(block);
 
     return screen;
 }
