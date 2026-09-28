@@ -20,8 +20,9 @@ constexpr int32_t MARGIN = 12;
 constexpr int32_t BLOCK_GAP = 16;
 constexpr int32_t INNER_GAP = 6;
 
-// The swatch and the bar, alike
+// The swatch and the bar, alike: rounded into pills
 constexpr int32_t STRIP_HEIGHT = 10;
+constexpr int32_t STRIP_RADIUS = LV_RADIUS_CIRCLE;
 
 static struct {
     lv_obj_t *note;
@@ -82,6 +83,10 @@ static lv_obj_t *swatch_create(lv_obj_t *parent) {
     lv_obj_remove_style_all(swatch);
     lv_obj_set_size(swatch, LV_PCT(100), STRIP_HEIGHT);
     lv_obj_set_flex_flow(swatch, LV_FLEX_FLOW_ROW);
+    // The square cells are cut to the rounded corners (LVGL draws the
+    // swatch into a layer and masks it)
+    lv_obj_set_style_radius(swatch, STRIP_RADIUS, 0);
+    lv_obj_set_style_clip_corner(swatch, true, 0);
 
     for (size_t i = 0; i < SWATCH_CELLS; i++) {
         lv_obj_t *cell = lv_obj_create(swatch);
@@ -96,12 +101,14 @@ static lv_obj_t *swatch_create(lv_obj_t *parent) {
     return swatch;
 }
 
-// Square like the swatch: the accent filled part on a dark track
+// Shaped like the swatch: the accent filled part on a dark track
 static lv_obj_t *bar_create(lv_obj_t *parent) {
     lv_obj_t *bar = lv_bar_create(parent);
 
     lv_obj_remove_style_all(bar);
     lv_obj_set_size(bar, LV_PCT(100), STRIP_HEIGHT);
+    lv_obj_set_style_radius(bar, STRIP_RADIUS, 0);
+    lv_obj_set_style_radius(bar, STRIP_RADIUS, LV_PART_INDICATOR);
     lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(bar, lv_color_hex(TRACK_COLOR), 0);
     lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, LV_PART_INDICATOR);
