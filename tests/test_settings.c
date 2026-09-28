@@ -47,6 +47,11 @@ static void test_defaults_are_the_constants(void) {
           EFFECTS_RIPPLE_SPEED);
     CHECK(settings_value(&settings, SETTINGS_PEAK_HOLD) ==
           EFFECTS_PEAK_HOLD_MS);
+    CHECK(settings_value(&settings, SETTINGS_TRAILS) == EFFECTS_TRAILS_MS);
+    CHECK(settings_value(&settings, SETTINGS_DIFFUSE) == EFFECTS_DIFFUSE);
+    CHECK(settings_get(&settings, SETTINGS_SYMMETRY) == (int)EFFECTS_SYMMETRY);
+    CHECK(settings_value(&settings, SETTINGS_CHASE) ==
+          EFFECTS_CHASE_LEDS_PER_S);
 }
 
 static void test_set_snaps_and_clamps(void) {
@@ -153,6 +158,11 @@ static void test_default_tuning(void) {
     CHECK(tuning.effects.warmth == defaults.effects.warmth);
     CHECK(tuning.effects.flash_level == defaults.effects.flash_level);
     CHECK(tuning.effects.sparkle_rate == defaults.effects.sparkle_rate);
+    CHECK(tuning.effects.trails_ms == defaults.effects.trails_ms);
+    CHECK(tuning.effects.diffuse == defaults.effects.diffuse);
+    CHECK(tuning.effects.symmetry == defaults.effects.symmetry);
+    CHECK(tuning.effects.chase_leds_per_s ==
+          defaults.effects.chase_leds_per_s);
 }
 
 // Each setting lands in its field, divided by its divisor
@@ -167,6 +177,10 @@ static void test_tuning_follows_the_settings(void) {
     settings_set(&settings, SETTINGS_DRIFT, 0);
     settings_set(&settings, SETTINGS_RIVER_SPEED, 3);
     settings_set(&settings, SETTINGS_SPARKLES, 55);
+    settings_set(&settings, SETTINGS_TRAILS, 300);
+    settings_set(&settings, SETTINGS_DIFFUSE, 45);
+    settings_set(&settings, SETTINGS_SYMMETRY, 3);
+    settings_set(&settings, SETTINGS_CHASE, -80);
     tuning = settings_tuning(&settings);
 
     CHECK(tuning.effects.mode == EFFECTS_MODE_GLOW);
@@ -175,6 +189,10 @@ static void test_tuning_follows_the_settings(void) {
     CHECK(tuning.effects.drift_period_s == 0.f);
     CHECK(tuning.effects.river_speed == 3);
     CHECK(tuning.effects.sparkle_rate == 0.055f);
+    CHECK(tuning.effects.trails_ms == 300.f);
+    CHECK(tuning.effects.diffuse == 0.45f);
+    CHECK(tuning.effects.symmetry == 3);
+    CHECK(tuning.effects.chase_leds_per_s == -80.f);
 }
 
 static void test_record_round_trip(void) {
@@ -230,20 +248,12 @@ static void test_record_rejects_erased_and_other_versions(void) {
     CHECK(!settings_decode(&settings, &sequence, record));
 }
 
-// A record from a firmware with fewer settings: the rest are defaults
-static void test_record_from_older_firmware(void) {
-    settings_t settings, loaded;
-    uint8_t record[SETTINGS_RECORD_SIZE];
-    uint32_t sequence;
-    size_t count = 3, size = 12 + 2 * count;
+// The record cut down to its first count values, with a matching CRC, as an
+// older firmware with that many settings wrote it
+static void cut_record(uint8_t record[SETTINGS_RECORD_SIZE], size_t count) {
+    size_t size = 12 + 2 * count;
     uint32_t crc = 0xFFFFFFFFu;
 
-    settings_reset(&settings);
-    settings_set(&settings, SETTINGS_BRIGHTNESS, 40);
-    settings_set(&settings, SETTINGS_GAIN, 30);
-    settings_encode(&settings, 7, record);
-
-    // Cut down to the first three values, with their CRC
     record[6] = (uint8_t)count;
     record[7] = 0;
     memset(record + size, 0xFF, SETTINGS_RECORD_SIZE - size);
@@ -255,10 +265,60 @@ static void test_record_from_older_firmware(void) {
     crc = ~crc;
     for (int b = 0; b < 4; b++)
         record[size + b] = (uint8_t)(crc >> (8 * b));
+}
+
+// A record from a firmware with fewer settings: the rest are defaults
+static void test_record_from_older_firmware(void) {
+    settings_t settings, loaded;
+    uint8_t record[SETTINGS_RECORD_SIZE];
+    uint32_t sequence;
+
+    settings_reset(&settings);
+    settings_set(&settings, SETTINGS_BRIGHTNESS, 40);
+    settings_set(&settings, SETTINGS_GAIN, 30);
+    settings_encode(&settings, 7, record);
+    cut_record(record, 3);
 
     CHECK(settings_decode(&loaded, &sequence, record));
     CHECK(settings_get(&loaded, SETTINGS_BRIGHTNESS) == 40);
     CHECK(settings_get(&loaded, SETTINGS_GAIN) == 15);
+}
+
+// The record of the firmware before the layers: the layers come up off
+static void test_record_before_the_layers(void) {
+    settings_t settings, loaded;
+    uint8_t record[SETTINGS_RECORD_SIZE];
+    uint32_t sequence;
+
+    settings_reset(&settings);
+    settings_set(&settings, SETTINGS_MODE, EFFECTS_MODE_VU);
+    settings_set(&settings, SETTINGS_BACKLIGHT, 60);
+    settings_set(&settings, SETTINGS_TRAILS, 500);
+    settings_set(&settings, SETTINGS_SYMMETRY, 4);
+    settings_encode(&settings, 9, record);
+    cut_record(record, SETTINGS_BACKLIGHT + 1);
+
+    CHECK(settings_decode(&loaded, &sequence, record));
+    CHECK(settings_get(&loaded, SETTINGS_MODE) == EFFECTS_MODE_VU);
+    CHECK(settings_get(&loaded, SETTINGS_BACKLIGHT) == 60);
+    CHECK(settings_get(&loaded, SETTINGS_TRAILS) == 0);
+    CHECK(settings_get(&loaded, SETTINGS_DIFFUSE) == 0);
+    CHECK(settings_get(&loaded, SETTINGS_SYMMETRY) == 1);
+    CHECK(settings_get(&loaded, SETTINGS_CHASE) == 0);
+}
+
+// Negative values survive a record
+static void test_record_keeps_negative_chase(void) {
+    settings_t saved, loaded;
+    uint8_t record[SETTINGS_RECORD_SIZE];
+    uint32_t sequence;
+
+    settings_reset(&saved);
+    settings_set(&saved, SETTINGS_CHASE, -120);
+    settings_encode(&saved, 3, record);
+
+    CHECK(settings_decode(&loaded, &sequence, record));
+    CHECK(settings_get(&loaded, SETTINGS_CHASE) == -120);
 }
 
 // NOR flash as the log sees it: erasing sets a block to 0xFF, programming
@@ -413,6 +473,7 @@ static void test_shuffle(void) {
     settings_t settings, before;
     uint32_t random = 12345;
     int changed_drift = 0, same_look = 0, off_grid = 0, kept = 0;
+    int shuffled_trails = 0, shuffled_diffuse = 0, kept_layers = 0;
 
     settings_reset(&settings);
     settings_set(&settings, SETTINGS_BRIGHTNESS, 40);
@@ -429,6 +490,12 @@ static void test_shuffle(void) {
                          settings_get(&before, SETTINGS_PALETTE);
         changed_drift += settings_get(&settings, SETTINGS_DRIFT) !=
                          settings_get(&before, SETTINGS_DRIFT);
+        shuffled_trails += settings_get(&settings, SETTINGS_TRAILS) !=
+                           settings_get(&before, SETTINGS_TRAILS);
+        shuffled_diffuse += settings_get(&settings, SETTINGS_DIFFUSE) !=
+                            settings_get(&before, SETTINGS_DIFFUSE);
+        kept_layers += settings_get(&settings, SETTINGS_SYMMETRY) == 1 &&
+                       settings_get(&settings, SETTINGS_CHASE) == 0;
 
         for (int id = 0; id < SETTINGS_ID_COUNT; id++) {
             const settings_range_t *range = settings_range(id);
@@ -452,6 +519,10 @@ static void test_shuffle(void) {
     CHECK(kept == 1000);
     // The layers vary too: drift has 31 values
     CHECK(changed_drift > 900);
+    // The trails and the blur are shuffled, the folding and the sliding not
+    CHECK(shuffled_trails > 900);
+    CHECK(shuffled_diffuse > 900);
+    CHECK(kept_layers == 1000);
 }
 
 int main(void) {
@@ -467,6 +538,8 @@ int main(void) {
     test_record_damage_detected();
     test_record_rejects_erased_and_other_versions();
     test_record_from_older_firmware();
+    test_record_before_the_layers();
+    test_record_keeps_negative_chase();
     test_log_empty();
     test_log_saves_and_loads();
     test_log_torn_record();

@@ -38,6 +38,14 @@ static const settings_range_t ranges[SETTINGS_ID_COUNT] = {
     // EFFECTS_PEAK_HOLD_MS
     [SETTINGS_PEAK_HOLD] = {0, 2000, 50, 300, 1, false},
     [SETTINGS_BACKLIGHT] = {10, 100, 10, 80, 100, false},
+    // EFFECTS_TRAILS_MS, 0 disables it
+    [SETTINGS_TRAILS] = {0, 1000, 50, 0, 1, false},
+    // EFFECTS_DIFFUSE, in percent
+    [SETTINGS_DIFFUSE] = {0, 100, 5, 0, 100, false},
+    // EFFECTS_SYMMETRY, 1 disables it
+    [SETTINGS_SYMMETRY] = {1, EFFECTS_SYMMETRY_MAX, 1, 1, 1, false},
+    // EFFECTS_CHASE_LEDS_PER_S, 0 disables it
+    [SETTINGS_CHASE] = {-200, 200, 10, 0, 1, false},
 };
 
 // The nearest value on the grid within the range, halves rounding up
@@ -104,11 +112,14 @@ bool settings_step(settings_t *this, settings_id_t id, int steps) {
     return settings_set(this, id, range->min + index * range->step);
 }
 
-// What a shuffle changes: the look, not how bright or how sensitive it is
+// What a shuffle changes: the look, not how bright or how sensitive it is.
+// The trails and the blur suit every mode; the folding and the sliding can
+// look broken at random, so they stay as set
 static const settings_id_t look_ids[] = {
     SETTINGS_MODE,         SETTINGS_PALETTE,      SETTINGS_DRIFT,
     SETTINGS_WARMTH,       SETTINGS_FLASH,        SETTINGS_SPARKLES,
     SETTINGS_RIVER_SPEED,  SETTINGS_RIPPLE_SPEED, SETTINGS_PEAK_HOLD,
+    SETTINGS_TRAILS,       SETTINGS_DIFFUSE,
 };
 
 static uint32_t next_random(uint32_t *state) {
@@ -165,6 +176,10 @@ visualizer_tuning_t settings_tuning(const settings_t *this) {
     tuning.effects.warmth = settings_value(this, SETTINGS_WARMTH);
     tuning.effects.flash_level = settings_value(this, SETTINGS_FLASH);
     tuning.effects.sparkle_rate = settings_value(this, SETTINGS_SPARKLES);
+    tuning.effects.trails_ms = settings_value(this, SETTINGS_TRAILS);
+    tuning.effects.diffuse = settings_value(this, SETTINGS_DIFFUSE);
+    tuning.effects.symmetry = (size_t)settings_get(this, SETTINGS_SYMMETRY);
+    tuning.effects.chase_leds_per_s = settings_value(this, SETTINGS_CHASE);
 
     return tuning;
 }

@@ -45,6 +45,14 @@ typedef enum {
     SETTINGS_PEAK_HOLD,
     // System. Percent
     SETTINGS_BACKLIGHT,
+    // Layers. ms, 0 disables
+    SETTINGS_TRAILS,
+    // Fraction
+    SETTINGS_DIFFUSE,
+    // Segments, 1 disables
+    SETTINGS_SYMMETRY,
+    // LEDs per second, negative slides the other way, 0 disables
+    SETTINGS_CHASE,
     SETTINGS_ID_COUNT
 } settings_id_t;
 
