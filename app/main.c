@@ -5,8 +5,8 @@
  */
 
 #include "config.h"
+#include "diagnostics.h"
 #include "i2s.h"
-#include "perf.h"
 #include "persist.h"
 #include "settings.h"
 #include "tuning_link.h"
@@ -32,6 +32,10 @@ int main(void) {
     visualizer_t visualizer;
     visualizer_tuning_t tuning;
     settings_t settings;
+
+    // First: its unused stack is filled, for the diagnostics to see how
+    // much of it gets used
+    diagnostics_fill_core0_stack();
 
     stdio_usb_init();
 
@@ -69,6 +73,9 @@ int main(void) {
     if (!init_step(tuning_link_init(), "Tuning link"))
         return EXIT_FAILURE;
 
+    // Without them the lights still run
+    init_step(diagnostics_init(), "Diagnostics");
+
     // The menu, on core 1. The lights do not wait for it
     ui_start(&settings);
 
@@ -77,31 +84,24 @@ int main(void) {
 
     printf("Started sampling\n");
 
-    perf_init();
-
     while (true) {
         const visualizer_tuning_t *newest;
         const int32_t *frames;
         const sound_t *sound;
 
-        perf_begin();
-
         // Wait for audio we have not processed yet
         frames = i2s_wait_buffer();
-        perf_lap(PERF_WAIT);
+        diagnostics_start_work();
 
         // What the menu changed since the last hop, if anything
         if ((newest = tuning_link_take()) != nullptr)
             visualizer_tune(&visualizer, newest);
 
         visualizer_analyze(&visualizer, frames);
-        perf_lap(PERF_ANALYZE);
-
         sound = visualizer_render(&visualizer, ws2812_frame());
         ws2812_submit();
-        perf_lap(PERF_RENDER);
 
-        perf_end(&visualizer, sound);
+        diagnostics_end_hop(&visualizer, frames, sound);
     }
 
     return EXIT_SUCCESS;

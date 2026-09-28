@@ -85,8 +85,8 @@ set_target_properties(lvgl PROPERTIES C_STANDARD 11)
 target_compile_options(lvgl PRIVATE -Os)
 
 set(APP_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/app/diagnostics.c
     ${CMAKE_CURRENT_SOURCE_DIR}/app/main.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/app/perf.c
     ${CMAKE_CURRENT_SOURCE_DIR}/app/persist.c
     ${CMAKE_CURRENT_SOURCE_DIR}/app/tuning_link.c
     ${CMAKE_CURRENT_SOURCE_DIR}/app/ui/ui.c
@@ -109,6 +109,7 @@ target_link_libraries(light-painting
         ws2812
         joystick
         settings
+        stats
         st7789
         storage
         visualizer
@@ -116,11 +117,11 @@ target_link_libraries(light-painting
         pico_multicore
         pico_stdlib)
 
-# Opt-in, e.g. -DPERF_STATS=ON: print main loop timings and audio/LED
-# counters over USB about once per second
-option(PERF_STATS "Print performance statistics once per second" OFF)
-if (PERF_STATS)
-    target_compile_definitions(light-painting PRIVATE PERF_STATS)
+# Opt-in, e.g. -DPRINT_DIAGNOSTICS=ON: core 1 also prints the diagnostics
+# over USB, every DIAGNOSTICS_PERIOD_MS (app/config.h), even without the LCD
+option(PRINT_DIAGNOSTICS "Print the diagnostics over USB" OFF)
+if (PRINT_DIAGNOSTICS)
+    target_compile_definitions(light-painting PRIVATE PRINT_DIAGNOSTICS)
 endif()
 
 # Opt-in, e.g. -DBOOT_BUTTON_SHUFFLE=ON: each press of the BOOT button shows

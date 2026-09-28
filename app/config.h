@@ -82,6 +82,9 @@ constexpr uint32_t UI_IDLE_TIMEOUT_MS = 30'000;
 constexpr uint32_t UI_SAVE_DELAY_MS = 3'000;
 constexpr uint32_t UI_SAVE_RETRY_MS = 30'000;
 
+// Each diagnostics report covers this long, on the page and over USB
+constexpr uint32_t DIAGNOSTICS_PERIOD_MS = 500;
+
 // Core 1's stack, for the menu. LVGL asks for more than 8 KB
 constexpr size_t UI_STACK_SIZE = 16 * 1024;
 

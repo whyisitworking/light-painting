@@ -118,6 +118,12 @@ jobs:
       - name: Build
         run: cmake --build build --parallel
 
+      # The diagnostics printed over USB, so that code builds too
+      - name: Build with PRINT_DIAGNOSTICS
+        run: |
+          cmake -S . -B build-print -DCMAKE_BUILD_TYPE=Release -DPRINT_DIAGNOSTICS=ON
+          cmake --build build-print --parallel
+
       - name: Size
         run: arm-none-eabi-size build/light-painting.elf
 

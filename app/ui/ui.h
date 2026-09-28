@@ -7,7 +7,8 @@
  * runs LVGL's timers forever. Core 0 carries on with the visualizer, which
  * never waits for the menu: each change in the menu is published through
  * the tuning link. If the LCD or LVGL cannot be set up, core 1 reports it
- * over USB and stops, and the lights carry on.
+ * over USB and only prints the diagnostics, if built with
+ * PRINT_DIAGNOSTICS: the lights carry on.
  */
 
 #include "settings.h"

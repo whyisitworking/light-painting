@@ -3,6 +3,7 @@ build/
 build-tests/
 build-sanitize/
 build-docker/
+build-print/
 
 # Editor and language server caches
 .cache/

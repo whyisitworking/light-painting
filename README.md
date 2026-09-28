@@ -123,6 +123,7 @@ WS2812 driver init!
 Visualizer init!
 Settings storage init!
 Tuning link init!
+Diagnostics init!
 Started sampling
 LCD init!
 ```
@@ -220,7 +221,7 @@ The sound analysis and the effects each have their constants at the top of their
 
 | Option | Default | Effect |
 |---|---|---|
-| `-DPERF_STATS=ON` | off | Prints stage timings and driver counters once per second over USB |
+| `-DPRINT_DIAGNOSTICS=ON` | off | Core 1 prints the [diagnostics](#diagnostics) over USB every 0.5 s, even without the LCD |
 | `-DWAIT_FOR_USB_HOST=ON` | off | Waits up to 2 s at startup for a USB serial host |
 | `-DBOOT_BUTTON_SHUFFLE=ON` | off | For demos: each press of the board's BOOT button shows a random look (mode, palette and effect layers; brightness and sound response untouched), applied and saved like a menu change |
 | `-DPICO_BOARD=…` | `waveshare_rp2350_lcd_1.47` | Target board |
@@ -268,7 +269,7 @@ All memory is allocated once at startup, and neither loop allocates. The firmwar
 │   ├── config.h         board wiring and build time settings
 │   ├── tuning_link.c/.h the menu's settings, from core 1 to core 0
 │   ├── persist.c/.h     the settings in flash
-│   ├── perf.c/.h        opt-in statistics, no-ops unless PERF_STATS
+│   ├── diagnostics.c/.h the lights' measurements, to the menu and USB
 │   └── ui/              the menu on core 1: LVGL, its screens, lv_conf.h
 ├── boards/              the Waveshare RP2350-LCD-1.47-A, for the Pico SDK
 ├── platform/            Pico drivers: PIO programs, DMA, interrupts, locking
@@ -279,6 +280,7 @@ All memory is allocated once at startup, and neither loop allocates. The firmwar
 │   └── storage/         a flash region, written from core 1
 ├── lib/                 portable C23, no Pico SDK, unit tested on the host
 │   ├── settings/        the menu's settings, their records and log in flash
+│   ├── stats/           what the diagnostics show: mic levels, timing, stacks
 │   ├── visualizer/      the pipeline: spectrum → features → effects
 │   ├── spectrum/        I2S words to a magnitude spectrum
 │   ├── features/        bands, auto-gain, smoothing, beats
@@ -298,6 +300,7 @@ flowchart TB
         ui["ui/ (core 1)"]
         link["tuning_link"]
         persist
+        diagnostics
     end
     subgraph platform ["platform/ (Pico)"]
         i2s
@@ -312,12 +315,15 @@ flowchart TB
         spectrum --> fft
         effects --> features & color
         swapchain
+        stats
     end
-    main --> i2s & ws2812 & visualizer & link & persist & ui
-    ui --> st7789 & joystick & settings & link & persist
+    main --> i2s & ws2812 & visualizer & link & persist & ui & diagnostics
+    ui --> st7789 & joystick & settings & link & persist & diagnostics
     persist --> storage & settings
     link --> swapchain
     i2s & ws2812 --> swapchain
+    diagnostics --> stats & swapchain
+    stats --> spectrum & features
 ```
 
 **The rule:** dependencies only point down (`app → platform → lib`), and anything that can run without hardware goes in `lib/` so the host tests can cover it. Each module has a header with an overview and its API documented. The main loop is five calls:
@@ -385,9 +391,17 @@ cmake --build build-sanitize && ctest --test-dir build-sanitize --output-on-fail
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push and pull request: the host tests on macOS, where the golden hashes were recorded, and on Linux with glibc and GCC, the same tests under the sanitizers, and the firmware build with the pinned Arm toolchain and Pico SDK. The firmware (`.uf2` and `.elf`) is attached to each run as an artifact.
 
-### Profiling
+### Diagnostics
 
-Build with `-DPERF_STATS=ON`. Once per second, the USB serial output shows each loop stage's average and worst time (`wait`, `analyze`, `render`), the audio buffers lost and the LED frames skipped (the strip latches about 150 frames/s of the 190 rendered), the auto-gain ceiling, loudness and beat count, and the interrupt counters. In a quiet room, loudness should read about 0 with no beats. If it doesn't, raise `FEATURES_MIN_CEILING_DB`.
+Every 0.5 s, core 0 measures the lights' loop and hands the numbers to core 1:
+
+- Each microphone's level in dBFS. A quiet room reads about -85, talking nearby about -60, loud music -30 to -20. "none" is a microphone sending nothing at all.
+- The auto-gain ceiling, the mean loudness and the beats per second.
+- The work per hop, mean and worst, and the worst as a share of the 5.2 ms a hop allows.
+- The audio buffers lost since start (should stay 0) and the frames the strip latched per second (about 150 at 300 LEDs).
+- The most each core's stack has ever used.
+
+Build with `-DPRINT_DIAGNOSTICS=ON` to have core 1 print them over USB serial, even without the LCD. The lights never print. In a quiet room, loudness should read about 0 with no beats. If it doesn't, raise `FEATURES_MIN_CEILING_DB`.
 
 ### Adding an effect mode
 
@@ -435,7 +449,7 @@ SCK and WS must be consecutive pins (WS = SCK + 1), and the data pin distinct fr
 <details>
 <summary><b>It flickers or shows colours in silence</b></summary>
 
-The microphones' self-noise is getting above the auto-gain floor. Raise `FEATURES_MIN_CEILING_DB` in `lib/features/features.h` a few dB, and check with `-DPERF_STATS=ON` that a quiet room reads loudness about 0.
+The microphones' self-noise is getting above the auto-gain floor. Raise `FEATURES_MIN_CEILING_DB` in `lib/features/features.h` a few dB, and check in the [diagnostics](#diagnostics) that a quiet room reads loudness about 0.
 
 </details>
 

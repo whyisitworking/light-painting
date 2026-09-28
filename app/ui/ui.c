@@ -1,6 +1,7 @@
 #include "ui.h"
 
 #include "config.h"
+#include "diagnostics.h"
 #include "joystick.h"
 #include "persist.h"
 #include "settings.h"
@@ -101,14 +102,34 @@ static void boot_check([[maybe_unused]] lv_timer_t *timer) {
 }
 #endif
 
-static void ui_main(void) {
-    lv_display_t *display;
-    uint32_t wait_ms;
+// The newest diagnostics, every DIAGNOSTICS_PERIOD_MS
+static void diagnostics_check([[maybe_unused]] lv_timer_t *timer) {
+    const stats_report_t *report = diagnostics_take();
 
-    // The stack ends at its bottom: past it, core 1 faults and stops rather
-    // than write over what lies below, core 0's drivers among it. The lights
-    // carry on (RP2350: the stack limit register, MSPLIM)
-    runtime_init_per_core_install_stack_guard(stack);
+    if (report == nullptr)
+        return;
+
+#ifdef PRINT_DIAGNOSTICS
+    diagnostics_print(report);
+#endif
+}
+
+#ifdef PRINT_DIAGNOSTICS
+// Without the LCD, the diagnostics still go out over USB
+static void print_forever(void) {
+    while (true) {
+        const stats_report_t *report;
+
+        sleep_ms(DIAGNOSTICS_PERIOD_MS);
+        if ((report = diagnostics_take()) != nullptr)
+            diagnostics_print(report);
+    }
+}
+#endif
+
+// The LCD, the switch and LVGL. nullptr if any fails, which it reports
+static lv_display_t *setup(void) {
+    lv_display_t *display;
 
     // Here, on core 1: its DMA interrupt is enabled on the calling core
     if (!st7789_init(&(st7789_config_t){
@@ -127,7 +148,7 @@ static void ui_main(void) {
             .baud_hz = LCD_SPI_HZ,
         })) {
         printf("Could not initialize the LCD\n");
-        return;
+        return nullptr;
     }
 
     if (!joystick_init(&(joystick_pins_t){
@@ -138,16 +159,36 @@ static void ui_main(void) {
             .centre_pin = JOYSTICK_CENTRE_PIN,
         })) {
         printf("Could not initialize the joystick\n");
-        return;
+        return nullptr;
     }
 
     if ((display = ui_port_init()) == nullptr) {
         printf("Could not initialize LVGL\n");
+        return nullptr;
+    }
+
+    return display;
+}
+
+static void ui_main(void) {
+    lv_display_t *display;
+    uint32_t wait_ms;
+
+    // The stack ends at its bottom: past it, core 1 faults and stops rather
+    // than write over what lies below, core 0's drivers among it. The lights
+    // carry on (RP2350: the stack limit register, MSPLIM)
+    runtime_init_per_core_install_stack_guard(stack);
+
+    if ((display = setup()) == nullptr) {
+#ifdef PRINT_DIAGNOSTICS
+        print_forever();
+#endif
         return;
     }
 
     ui_menu_start(&settings, changed);
     lv_timer_create(save_check, SAVE_CHECK_MS, nullptr);
+    lv_timer_create(diagnostics_check, DIAGNOSTICS_PERIOD_MS, nullptr);
 #ifdef BOOT_BUTTON_SHUFFLE
     lv_timer_create(boot_check, BOOT_CHECK_MS, nullptr);
 #endif
@@ -170,5 +211,6 @@ static void ui_main(void) {
 void ui_start(const settings_t *initial) {
     settings = *initial;
     saved = *initial;
+    diagnostics_fill_core1_stack(stack, sizeof(stack) / sizeof(stack[0]));
     multicore_launch_core1_with_stack(ui_main, stack, sizeof(stack));
 }
