@@ -306,6 +306,89 @@ static void test_diffuse_spreads_over_frames(void) {
     effects_deinit(&effects);
 }
 
+static void set_symmetry(size_t segments) {
+    effects_tuning_t tuning = effects.tuning;
+
+    tuning.symmetry = segments;
+    tune(tuning);
+}
+
+// A ramp from 0 to 1 along the strip, in the red channel
+static void draw_ramp(void) {
+    for (size_t i = 0; i < effects.led_count; i++)
+        set_pixel(i, (float)i / (float)(effects.led_count - 1), 0.f, 0.f);
+}
+
+// Two segments: a mirror of the whole image, squeezed to half
+static void test_symmetry_two(void) {
+    start(LEDS);
+    set_symmetry(2);
+
+    draw_ramp();
+    effects_layers_apply(&effects);
+
+    for (size_t i = 0; i < LEDS; i++)
+        CHECK(effects.frame[i].r == effects.frame[LEDS - 1 - i].r);
+
+    // The first segment holds the whole ramp: its ends are the ramp's ends,
+    // each the mean of the two LEDs it covers
+    CHECK_NEAR(effects.frame[0].r, 0.5 / 299.0, 1e-6);
+    CHECK_NEAR(effects.frame[149].r, 298.5 / 299.0, 1e-6);
+    effects_deinit(&effects);
+}
+
+// 3 and 4 segments: each is the first, or its reverse when it is odd
+static void check_segments(size_t segments) {
+    size_t length = LEDS / segments;
+
+    start(LEDS);
+    set_symmetry(segments);
+
+    draw_ramp();
+    effects_layers_apply(&effects);
+
+    for (size_t j = 1; j < segments; j++)
+        for (size_t p = 0; p < length; p++)
+            CHECK(effects.frame[j * length + p].r ==
+                  effects.frame[j % 2 == 0 ? p : length - 1 - p].r);
+
+    effects_deinit(&effects);
+}
+
+static void test_symmetry_three_and_four(void) {
+    check_segments(3);
+    check_segments(4);
+}
+
+// A count that does not divide: every LED is written, nothing goes missing
+static void test_symmetry_odd_count(void) {
+    start(301);
+    set_symmetry(2);
+
+    for (size_t i = 0; i < 301; i++)
+        set_pixel(i, 1.f, 1.f, 1.f);
+    effects_layers_apply(&effects);
+
+    for (size_t i = 0; i < 301; i++)
+        CHECK_NEAR(effects.frame[i].r, 1.0, 1e-6);
+    effects_deinit(&effects);
+}
+
+// A strip too short for the segments is left as it is
+static void test_symmetry_too_short(void) {
+    rgb_t before[5];
+
+    start(5);
+    set_symmetry(4);
+
+    draw_ramp();
+    memcpy(before, effects.frame, sizeof(before));
+    effects_layers_apply(&effects);
+
+    CHECK(memcmp(before, effects.frame, sizeof(before)) == 0);
+    effects_deinit(&effects);
+}
+
 int main(void) {
     test_off_changes_nothing();
     test_trails_fade();
@@ -317,6 +400,10 @@ int main(void) {
     test_diffuse_impulse();
     test_diffuse_keeps_the_energy();
     test_diffuse_spreads_over_frames();
+    test_symmetry_two();
+    test_symmetry_three_and_four();
+    test_symmetry_odd_count();
+    test_symmetry_too_short();
     test_tuning_ignores_invalid();
     test_defaults_are_off();
 

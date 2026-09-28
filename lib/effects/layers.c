@@ -55,7 +55,36 @@ static void trails(effects_t *this) {
 
 static void chase([[maybe_unused]] effects_t *this) {}
 
-static void symmetry([[maybe_unused]] effects_t *this) {}
+// The strip becomes n segments, each the whole drawn frame squeezed into
+// it, every odd one reversed. An output LED is the mean of the source LEDs
+// it covers, so a narrow feature dims instead of vanishing
+static void symmetry(effects_t *this) {
+    size_t count = this->led_count, segments = this->tuning.symmetry;
+    rgb_t *out = this->layers.scratch;
+
+    // Too short to fold, or nothing to do
+    if (segments < 2 || count < 2 * segments)
+        return;
+
+    for (size_t j = 0; j < segments; j++) {
+        size_t start = j * count / segments;
+        size_t length = (j + 1) * count / segments - start;
+
+        for (size_t p = 0; p < length; p++) {
+            size_t from = p * count / length, to = (p + 1) * count / length;
+            float weight = 1.f / (float)(to - from);
+            rgb_t sum = {0.f, 0.f, 0.f};
+
+            for (size_t s = from; s < to; s++)
+                color_rgb_add(&sum, this->frame[s]);
+
+            out[start + (j % 2 == 0 ? p : length - 1 - p)] =
+                color_rgb_scale(sum, weight);
+        }
+    }
+
+    memcpy(this->frame, out, count * sizeof(rgb_t));
+}
 
 // A blur over three LEDs, weights a, 1 - 2a, a with a = amount / 3, so the
 // full amount is a plain average. The ends count as their own missing
