@@ -116,6 +116,14 @@ if (PERF_STATS)
     target_compile_definitions(light-painting PRIVATE PERF_STATS)
 endif()
 
+# Opt-in, e.g. -DBOOT_BUTTON_SHUFFLE=ON: each press of the BOOT button shows
+# a random look, for demos
+option(BOOT_BUTTON_SHUFFLE "BOOT shuffles the look" OFF)
+if (BOOT_BUTTON_SHUFFLE)
+    target_compile_definitions(light-painting PRIVATE BOOT_BUTTON_SHUFFLE)
+    target_link_libraries(light-painting PRIVATE boot_button pico_rand)
+endif()
+
 # Copied from flash into RAM at boot, code and read-only data alike
 pico_set_binary_type(light-painting copy_to_ram)
 target_link_options(light-painting PRIVATE -Wl,--print-memory-usage)

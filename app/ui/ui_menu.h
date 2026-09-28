@@ -32,4 +32,8 @@ void ui_menu_start(settings_t *settings, ui_menu_changed_t *changed);
 // none. note must outlive its use: a string literal
 void ui_menu_note(const char *note);
 
+// The settings changed outside the menu: shows them again, as if a key had
+// just been pressed
+void ui_menu_refresh(void);
+
 #endif

@@ -500,6 +500,19 @@ void ui_menu_note(const char *note) {
         ui_status_note(note);
 }
 
+void ui_menu_refresh(void) {
+    ui_theme_set_palette(
+        (palette_t)settings_get(menu.settings, SETTINGS_PALETTE));
+
+    // The status screen is rebuilt, a page shows its values again
+    if (menu.page == PAGE_STATUS)
+        show(PAGE_STATUS);
+    else
+        show_values(lv_screen_active());
+
+    lv_display_trigger_activity(nullptr);
+}
+
 void ui_menu_start(settings_t *settings, ui_menu_changed_t *changed) {
     menu.settings = settings;
     menu.changed = changed;

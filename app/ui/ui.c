@@ -14,6 +14,15 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef BOOT_BUTTON_SHUFFLE
+#include "boot_button.h"
+
+#include <pico/rand.h>
+
+// How often BOOT is read. A bounce, a few ms, gives one press at most
+constexpr uint32_t BOOT_CHECK_MS = 50;
+#endif
+
 // How often a pending save is looked at
 constexpr uint32_t SAVE_CHECK_MS = 250;
 
@@ -70,6 +79,27 @@ static void save_check([[maybe_unused]] lv_timer_t *timer) {
     }
 }
 
+#ifdef BOOT_BUTTON_SHUFFLE
+// Each press of BOOT: a random look, shown, applied and saved like a change
+// made in the menu
+static void boot_check([[maybe_unused]] lv_timer_t *timer) {
+    static bool was_pressed = false;
+    static uint32_t random = 0;
+    bool pressed = boot_button_read();
+
+    if (pressed && !was_pressed) {
+        while (random == 0)
+            random = get_rand_32();
+
+        settings_shuffle(&settings, &random);
+        ui_menu_refresh();
+        changed(&settings, SETTINGS_ID_COUNT);
+    }
+
+    was_pressed = pressed;
+}
+#endif
+
 static void ui_main(void) {
     lv_display_t *display;
     uint32_t wait_ms;
@@ -112,6 +142,9 @@ static void ui_main(void) {
 
     ui_menu_start(&settings, changed);
     lv_timer_create(save_check, SAVE_CHECK_MS, nullptr);
+#ifdef BOOT_BUTTON_SHUFFLE
+    lv_timer_create(boot_check, BOOT_CHECK_MS, nullptr);
+#endif
 
     // The display memory holds noise after a reset: light it only once the
     // first frame is on it

@@ -222,6 +222,7 @@ The sound analysis and the effects each have their constants at the top of their
 |---|---|---|
 | `-DPERF_STATS=ON` | off | Prints stage timings and driver counters once per second over USB |
 | `-DWAIT_FOR_USB_HOST=ON` | off | Waits up to 2 s at startup for a USB serial host |
+| `-DBOOT_BUTTON_SHUFFLE=ON` | off | For demos: each press of the board's BOOT button shows a random look (mode, palette and effect layers; brightness and sound response untouched), applied and saved like a menu change |
 | `-DPICO_BOARD=…` | `waveshare_rp2350_lcd_1.47` | Target board |
 
 ## How it works
@@ -359,7 +360,7 @@ ctest --test-dir build-tests --output-on-failure
 | `effects` | Every mode: silence, positions, motion, the flash, determinism, each tuning and the brightness |
 | `visualizer` | End to end from I²S words: silence, a tone, kicks, and tuned to the defaults drawing the same pixels |
 | `golden` | The exact pixels of every mode for a fixed input |
-| `settings` | Ranges and steps, every default equal to the constant it replaces, records and their damage, and the flash log on a simulated NOR flash: torn writes, garbage, power lost after an erase |
+| `settings` | Ranges and steps, shuffles, every default equal to the constant it replaces, records and their damage, and the flash log on a simulated NOR flash: torn writes, garbage, power lost after an erase |
 
 `test_golden` is a tripwire: it fails on **any** change to the pixels. When a change is meant to alter the look, check that the other tests still pass, then record the new hashes into [`tests/test_golden.c`](tests/test_golden.c):
 
