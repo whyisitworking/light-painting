@@ -170,7 +170,7 @@ The LCD shows the status screen: the mode, the palette with a swatch of its colo
 | Centre | Open the page a row leads to |
 | Left on the "‹ title" row, or centre held | Back a level |
 
-After 30 s without a key, the status screen comes back. Changes apply to the lights on the next hop, and are saved to flash 3 s after the last one ("Saved" on the status screen): the menu pauses while the flash is busy, up to about 400 ms, the lights do not.
+After 30 s without a key, the status screen comes back, except from Diagnostics. Changes apply to the lights on the next hop, and are saved to flash 3 s after the last one ("Saved" on the status screen): the menu pauses while the flash is busy, up to about 400 ms, the lights do not.
 
 | Page | Setting | Range, step | Default | Replaces |
 |---|---|---|---|---|
@@ -187,6 +187,7 @@ After 30 s without a key, the status screen comes back. Changes apply to the lig
 | | River speed, ripple speed | 1–4; 0.5–6.0, 0.5 (LEDs per frame) | 1, 2.0 | `EFFECTS_RIVER_SPEED`, `EFFECTS_RIPPLE_SPEED` |
 | | VU peak hold | 0–2000 ms, 50 | 300 ms | `EFFECTS_PEAK_HOLD_MS` |
 | System | Screen (LCD backlight) | 10–100 %, 10 | 80 % | |
+| | Diagnostics | the microphones, the timing, the stacks: see [Diagnostics](#diagnostics) | | |
 | | Reset to defaults | press twice within 3 s | | |
 
 Brightness is perceptual: each step looks equally brighter. Below about 20 % the strip's 8 bits leave few levels, so colours lose their shading. The defaults are the constants they replace, exactly: with nothing saved, the lights are what they were before the menu.
@@ -326,15 +327,17 @@ flowchart TB
     stats --> spectrum & features
 ```
 
-**The rule:** dependencies only point down (`app → platform → lib`), and anything that can run without hardware goes in `lib/` so the host tests can cover it. Each module has a header with an overview and its API documented. The main loop is five calls:
+**The rule:** dependencies only point down (`app → platform → lib`), and anything that can run without hardware goes in `lib/` so the host tests can cover it. Each module has a header with an overview and its API documented. The main loop, between the diagnostics' two calls around the work:
 
 ```c
 frames = i2s_wait_buffer();                              // the newest audio
+diagnostics_start_work();
 if ((newest = tuning_link_take()) != nullptr)            // the menu's settings,
     visualizer_tune(&visualizer, newest);                // if they changed
 visualizer_analyze(&visualizer, frames);                 // spectrum
 sound = visualizer_render(&visualizer, ws2812_frame());  // features, pixels
 ws2812_submit();                                         // out on the next latch
+diagnostics_end_hop(&visualizer, frames, sound);         // measured
 ```
 
 ## Development
@@ -393,7 +396,7 @@ cmake --build build-sanitize && ctest --test-dir build-sanitize --output-on-fail
 
 ### Diagnostics
 
-Every 0.5 s, core 0 measures the lights' loop and hands the numbers to core 1:
+System › Diagnostics shows, every 0.5 s, what core 0 measures of the lights' loop, and stays until you leave it:
 
 - Each microphone's level in dBFS. A quiet room reads about -85, talking nearby about -60, loud music -30 to -20. "none" is a microphone sending nothing at all.
 - The auto-gain ceiling, the mean loudness and the beats per second.

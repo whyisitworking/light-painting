@@ -5,15 +5,19 @@
  * The screens and how the switch moves through them:
  *
  *   status ──centre──► Menu ──► Look · Sound · Effects · System
+ *                                                  └──► Diagnostics
  *
  * On a page, up and down move between rows, left and right change the
  * focused setting at once (held, they repeat), and the centre opens the
  * page a row leads to. Left on the "‹ title" row, or the centre held, goes
  * back a level. 30 s without input, the status screen returns. Reset to
- * defaults, on System, asks for a second press within 3 s.
+ * defaults, on System, asks for a second press within 3 s. The Diagnostics
+ * page shows the newest report until left: it does not go back to the
+ * status screen on its own.
  */
 
 #include "settings.h"
+#include "stats.h"
 
 #include <lvgl/lvgl.h>
 
@@ -35,5 +39,9 @@ void ui_menu_note(const char *note);
 // The settings changed outside the menu: shows them again, as if a key had
 // just been pressed
 void ui_menu_refresh(void);
+
+// The newest diagnostics, shown on their page. report must stay valid
+// until the next call
+void ui_menu_report(const stats_report_t *report);
 
 #endif

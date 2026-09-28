@@ -90,6 +90,7 @@ set(APP_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/app/persist.c
     ${CMAKE_CURRENT_SOURCE_DIR}/app/tuning_link.c
     ${CMAKE_CURRENT_SOURCE_DIR}/app/ui/ui.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/app/ui/ui_diagnostics.c
     ${CMAKE_CURRENT_SOURCE_DIR}/app/ui/ui_menu.c
     ${CMAKE_CURRENT_SOURCE_DIR}/app/ui/ui_names.c
     ${CMAKE_CURRENT_SOURCE_DIR}/app/ui/ui_port.c

@@ -103,7 +103,7 @@ static void boot_check([[maybe_unused]] lv_timer_t *timer) {
 #endif
 
 // The newest diagnostics, every DIAGNOSTICS_PERIOD_MS
-static void diagnostics_check([[maybe_unused]] lv_timer_t *timer) {
+static void report_check([[maybe_unused]] lv_timer_t *timer) {
     const stats_report_t *report = diagnostics_take();
 
     if (report == nullptr)
@@ -112,6 +112,7 @@ static void diagnostics_check([[maybe_unused]] lv_timer_t *timer) {
 #ifdef PRINT_DIAGNOSTICS
     diagnostics_print(report);
 #endif
+    ui_menu_report(report);
 }
 
 #ifdef PRINT_DIAGNOSTICS
@@ -188,7 +189,7 @@ static void ui_main(void) {
 
     ui_menu_start(&settings, changed);
     lv_timer_create(save_check, SAVE_CHECK_MS, nullptr);
-    lv_timer_create(diagnostics_check, DIAGNOSTICS_PERIOD_MS, nullptr);
+    lv_timer_create(report_check, DIAGNOSTICS_PERIOD_MS, nullptr);
 #ifdef BOOT_BUTTON_SHUFFLE
     lv_timer_create(boot_check, BOOT_CHECK_MS, nullptr);
 #endif

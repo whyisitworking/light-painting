@@ -1,6 +1,7 @@
 #include "ui_menu.h"
 
 #include "config.h"
+#include "ui_diagnostics.h"
 #include "ui_names.h"
 #include "ui_status.h"
 #include "ui_theme.h"
@@ -46,6 +47,7 @@ typedef enum {
     PAGE_SOUND,
     PAGE_EFFECTS,
     PAGE_SYSTEM,
+    PAGE_DIAGNOSTICS,
     PAGE_COUNT
 } page_t;
 
@@ -151,6 +153,7 @@ static const row_t system_rows[] = {
      .name = "Screen",
      .id = SETTINGS_BACKLIGHT,
      .format = FORMAT_PERCENT},
+    {.kind = ROW_PAGE, .name = "Diagnostics", .page = PAGE_DIAGNOSTICS},
     {.kind = ROW_RESET, .name = "Reset to defaults"},
 };
 
@@ -185,6 +188,11 @@ static const page_def_t pages[PAGE_COUNT] = {
         .rows = system_rows,
         .row_count = sizeof(system_rows) / sizeof(system_rows[0]),
     },
+    // Its screen is ui_diagnostics', see diagnostics_create()
+    [PAGE_DIAGNOSTICS] = {
+        .title = "Diagnostics",
+        .parent = PAGE_SYSTEM,
+    },
 };
 
 static const row_t back_row = {.kind = ROW_BACK};
@@ -196,6 +204,8 @@ static struct {
     const char *note;
     // While the reset waits for its second press: gives up on it
     lv_timer_t *reset_timer;
+    // The newest diagnostics, nullptr before the first
+    const stats_report_t *report;
 } menu;
 
 static void show(page_t page);
@@ -478,17 +488,49 @@ static lv_obj_t *status_create(void) {
     return screen;
 }
 
+// Left, or the centre held, goes back: the page has nothing else to do
+static void diagnostics_event(lv_event_t *event) {
+    lv_event_code_t code = lv_event_get_code(event);
+
+    if ((code == LV_EVENT_KEY && lv_event_get_key(event) == LV_KEY_LEFT) ||
+        code == LV_EVENT_LONG_PRESSED)
+        back();
+}
+
+static lv_obj_t *diagnostics_create(void) {
+    lv_obj_t *screen = ui_diagnostics_create(), *keys;
+
+    ui_diagnostics_show(menu.report);
+
+    // Nothing to see, it takes the keys, outside the screen's layout
+    keys = lv_obj_create(screen);
+    lv_obj_remove_style_all(keys);
+    lv_obj_set_ignore_layout(keys, true);
+    lv_obj_add_event_cb(keys, diagnostics_event, LV_EVENT_ALL, nullptr);
+    lv_group_add_obj(lv_group_get_default(), keys);
+    lv_group_focus_obj(keys);
+
+    return screen;
+}
+
 // Loads a page's screen, deleting the one it replaces
 static void show(page_t page) {
-    lv_obj_t *screen = page == PAGE_STATUS ? status_create()
-                                           : page_create(page, menu.page);
+    lv_obj_t *screen;
+
+    if (page == PAGE_STATUS)
+        screen = status_create();
+    else if (page == PAGE_DIAGNOSTICS)
+        screen = diagnostics_create();
+    else
+        screen = page_create(page, menu.page);
 
     menu.page = page;
     lv_screen_load_anim(screen, LV_SCREEN_LOAD_ANIM_NONE, 0, 0, true);
 }
 
 static void idle_check([[maybe_unused]] lv_timer_t *timer) {
-    if (menu.page != PAGE_STATUS &&
+    // The diagnostics are watched, not used: they stay until left
+    if (menu.page != PAGE_STATUS && menu.page != PAGE_DIAGNOSTICS &&
         lv_display_get_inactive_time(nullptr) >= UI_IDLE_TIMEOUT_MS)
         show(PAGE_STATUS);
 }
@@ -498,6 +540,13 @@ void ui_menu_note(const char *note) {
 
     if (menu.page == PAGE_STATUS)
         ui_status_note(note);
+}
+
+void ui_menu_report(const stats_report_t *report) {
+    menu.report = report;
+
+    if (menu.page == PAGE_DIAGNOSTICS)
+        ui_diagnostics_show(report);
 }
 
 void ui_menu_refresh(void) {
