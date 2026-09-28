@@ -8,9 +8,9 @@
 constexpr uint32_t STRESS_COUNT = 1'000'000;
 constexpr size_t STRESS_WORDS = 64;
 
-static void publish(swapchain_t *chain, uint32_t value) {
+static bool publish(swapchain_t *chain, uint32_t value) {
     *(uint32_t *)swapchain_producer_buffer(chain) = value;
-    swapchain_producer_swap(chain);
+    return swapchain_producer_swap(chain);
 }
 
 static uint32_t consumed(swapchain_t *chain) {
@@ -89,6 +89,22 @@ static void test_newest_wins(void) {
     swapchain_deinit(&chain);
 }
 
+// The swap tells when the buffer it replaced was never taken: lost
+static void test_swap_reports_replaced(void) {
+    swapchain_t chain;
+
+    CHECK(swapchain_init(&chain, sizeof(uint32_t)));
+
+    CHECK(!publish(&chain, 1));
+    CHECK(publish(&chain, 2));
+    CHECK(swapchain_consumer_swap(&chain));
+    CHECK(consumed(&chain) == 2);
+    CHECK(!publish(&chain, 3));
+    CHECK(publish(&chain, 4));
+
+    swapchain_deinit(&chain);
+}
+
 // Nothing points into the freed buffers, e.g. after a driver failed to init
 static void test_deinit_forgets_buffers(void) {
     swapchain_t chain;
@@ -104,6 +120,8 @@ static void test_deinit_forgets_buffers(void) {
 
 // Publishes STRESS_COUNT buffers as fast as it can, each filled with its
 // sequence number
+static size_t stress_replaced;
+
 static void *stress_producer(void *chain) {
     for (uint32_t sequence = 1; sequence <= STRESS_COUNT; sequence++) {
         uint32_t *words = (uint32_t *)swapchain_producer_buffer(chain);
@@ -111,7 +129,8 @@ static void *stress_producer(void *chain) {
         for (size_t i = 0; i < STRESS_WORDS; i++)
             words[i] = sequence;
 
-        swapchain_producer_swap(chain);
+        if (swapchain_producer_swap(chain))
+            stress_replaced++;
     }
 
     return nullptr;
@@ -126,6 +145,7 @@ static void test_two_threads(void) {
     size_t taken = 0, torn = 0, older = 0;
 
     CHECK(swapchain_init(&chain, STRESS_WORDS * sizeof(uint32_t)));
+    stress_replaced = 0;
     CHECK(pthread_create(&producer, nullptr, stress_producer, &chain) == 0);
 
     // The last buffer stays fresh until taken, so this ends
@@ -153,6 +173,9 @@ static void test_two_threads(void) {
     CHECK(older == 0);
     CHECK(taken > 1);
 
+    // Each buffer is taken or replaced, never both: none goes uncounted
+    CHECK(taken + stress_replaced == STRESS_COUNT);
+
     swapchain_deinit(&chain);
 }
 
@@ -162,6 +185,7 @@ int main(void) {
     test_in_order();
     test_never_goes_back_in_time();
     test_newest_wins();
+    test_swap_reports_replaced();
     test_deinit_forgets_buffers();
     test_two_threads();
 

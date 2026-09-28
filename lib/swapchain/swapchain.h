@@ -51,10 +51,11 @@ typedef struct {
  * Producer side
  *
  * Publishes the producer buffer as the newest data. If the consumer has not
- * taken the previous one yet, it never will.
+ * taken the previous one yet, it never will: the swap then returns true,
+ * that buffer is lost.
  */
 void *swapchain_producer_buffer(swapchain_t *this);
-void swapchain_producer_swap(swapchain_t *this);
+bool swapchain_producer_swap(swapchain_t *this);
 
 /**
  * Consumer side

@@ -30,7 +30,7 @@ void *swapchain_producer_buffer(swapchain_t *this) {
     return this->buffers[this->producer];
 }
 
-void swapchain_producer_swap(swapchain_t *this) {
+bool swapchain_producer_swap(swapchain_t *this) {
     // Release: the consumer sees everything written into the buffer.
     // Acquire: the buffer taken back was released by the consumer, which
     // no longer reads it
@@ -38,6 +38,9 @@ void swapchain_producer_swap(swapchain_t *this) {
         &this->shared, this->producer | FRESH, memory_order_acq_rel);
 
     this->producer = previous & INDEX;
+
+    // Still fresh: the consumer never took it
+    return (previous & FRESH) != 0;
 }
 
 const void *swapchain_consumer_buffer(const swapchain_t *this) {
