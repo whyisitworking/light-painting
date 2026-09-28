@@ -33,7 +33,7 @@ static void set_trails(float ms) {
     tune(tuning);
 }
 
-[[maybe_unused]] static double energy(void) {
+static double energy(void) {
     double sum = 0.0;
 
     for (size_t i = 0; i < effects.led_count; i++)
@@ -234,6 +234,78 @@ static void test_defaults_are_off(void) {
     CHECK(tuning.chase_leds_per_s == 0.f);
 }
 
+static void set_diffuse(float amount) {
+    effects_tuning_t tuning = effects.tuning;
+
+    tuning.diffuse = amount;
+    tune(tuning);
+}
+
+// Full amount averages three LEDs
+static void test_diffuse_impulse(void) {
+    start(LEDS);
+    set_diffuse(1.f);
+
+    clear_frame();
+    set_pixel(100, 1.f, 0.f, 0.f);
+    effects_layers_apply(&effects);
+
+    CHECK_NEAR(effects.frame[99].r, 1.0 / 3.0, 1e-6);
+    CHECK_NEAR(effects.frame[100].r, 1.0 / 3.0, 1e-6);
+    CHECK_NEAR(effects.frame[101].r, 1.0 / 3.0, 1e-6);
+    CHECK(effects.frame[98].r == 0.f);
+    CHECK(effects.frame[102].r == 0.f);
+
+    // Half the amount: a = 1/6 either side, 2/3 stays
+    clear_frame();
+    set_diffuse(0.5f);
+    set_pixel(100, 1.f, 0.f, 0.f);
+    effects_layers_apply(&effects);
+
+    CHECK_NEAR(effects.frame[99].r, 1.0 / 6.0, 1e-6);
+    CHECK_NEAR(effects.frame[100].r, 2.0 / 3.0, 1e-6);
+    effects_deinit(&effects);
+}
+
+// Nothing leaks out of the strip's ends, and nothing is made
+static void test_diffuse_keeps_the_energy(void) {
+    double before;
+
+    start(LEDS);
+    set_diffuse(0.8f);
+
+    for (size_t i = 0; i < LEDS; i++)
+        set_pixel(i, (float)((i * 37) % 11) / 10.f, 0.f, 0.f);
+    before = energy();
+    effects_layers_apply(&effects);
+    CHECK_NEAR(energy(), before, 1e-3);
+
+    // At the ends too, where a neighbour is missing
+    clear_frame();
+    set_pixel(0, 1.f, 0.f, 0.f);
+    set_pixel(LEDS - 1, 1.f, 0.f, 0.f);
+    effects_layers_apply(&effects);
+    CHECK_NEAR(energy(), 2.0, 1e-5);
+    CHECK_NEAR(effects.frame[0].r, 1.0 - 0.8 / 3.0, 1e-6);
+    effects_deinit(&effects);
+}
+
+// Blurring again spreads further
+static void test_diffuse_spreads_over_frames(void) {
+    start(LEDS);
+    set_diffuse(1.f);
+
+    clear_frame();
+    set_pixel(100, 1.f, 0.f, 0.f);
+    effects_layers_apply(&effects);
+    effects_layers_apply(&effects);
+
+    CHECK(effects.frame[98].r > 0.f);
+    CHECK(effects.frame[102].r > 0.f);
+    CHECK(effects.frame[97].r == 0.f);
+    effects_deinit(&effects);
+}
+
 int main(void) {
     test_off_changes_nothing();
     test_trails_fade();
@@ -242,6 +314,9 @@ int main(void) {
     test_trails_end_at_zero();
     test_trails_off_forgets();
     test_trails_through_render();
+    test_diffuse_impulse();
+    test_diffuse_keeps_the_energy();
+    test_diffuse_spreads_over_frames();
     test_tuning_ignores_invalid();
     test_defaults_are_off();
 

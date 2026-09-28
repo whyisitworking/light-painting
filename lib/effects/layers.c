@@ -57,7 +57,31 @@ static void chase([[maybe_unused]] effects_t *this) {}
 
 static void symmetry([[maybe_unused]] effects_t *this) {}
 
-static void diffuse([[maybe_unused]] effects_t *this) {}
+// A blur over three LEDs, weights a, 1 - 2a, a with a = amount / 3, so the
+// full amount is a plain average. The ends count as their own missing
+// neighbour: nothing leaks out of the strip
+static void diffuse(effects_t *this) {
+    size_t count = this->led_count;
+    float a = this->tuning.diffuse / 3.f, self = 1.f - 2.f * a;
+    const rgb_t *in = this->frame;
+    rgb_t *out = this->layers.scratch;
+
+    if (this->tuning.diffuse <= 0.f)
+        return;
+
+    for (size_t i = 0; i < count; i++) {
+        rgb_t left = in[i > 0 ? i - 1 : 0];
+        rgb_t right = in[i + 1 < count ? i + 1 : count - 1];
+
+        out[i] = (rgb_t){
+            self * in[i].r + a * (left.r + right.r),
+            self * in[i].g + a * (left.g + right.g),
+            self * in[i].b + a * (left.b + right.b),
+        };
+    }
+
+    memcpy(this->frame, out, count * sizeof(rgb_t));
+}
 
 void effects_layers_apply(effects_t *this) {
     chase(this);
