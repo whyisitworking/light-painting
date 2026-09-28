@@ -5,8 +5,6 @@
  * Build time configuration: the board wiring and the visualizer settings
  */
 
-#include "effects.h"
-
 #include <pico.h>
 #include <stddef.h>
 #include <stdint.h>
