@@ -33,7 +33,7 @@ sync_loop:
     irq 0 rel                side 0         ; Frame latched
 
 % c-sdk {
-#include "hardware/clocks.h"
+#include <hardware/clocks.h>
 
 /**
  * Configures the pin and the state machine, a cycle every 3 / baud (0.3 us),

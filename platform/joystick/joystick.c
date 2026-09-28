@@ -1,5 +1,6 @@
 #include "joystick.h"
-#include "hardware/gpio.h"
+
+#include <hardware/gpio.h>
 
 // The pin of each direction bit, in joystick_direction_t order
 static uint pins[5];

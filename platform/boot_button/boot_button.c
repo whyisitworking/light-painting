@@ -1,9 +1,10 @@
 #include "boot_button.h"
-#include "hardware/gpio.h"
-#include "hardware/structs/ioqspi.h"
-#include "hardware/structs/sio.h"
-#include "hardware/sync.h"
-#include "pico/platform.h"
+
+#include <hardware/gpio.h>
+#include <hardware/structs/ioqspi.h>
+#include <hardware/structs/sio.h>
+#include <hardware/sync.h>
+#include <pico/platform.h>
 
 // Chip select is the second of the QSPI pads
 constexpr unsigned CS_PAD = 1;

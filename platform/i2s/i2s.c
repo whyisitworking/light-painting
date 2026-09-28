@@ -9,13 +9,14 @@
  */
 
 #include "i2s.h"
-#include "hardware/dma.h"
-#include "hardware/gpio.h"
-#include "hardware/pio.h"
 #include "i2s.pio.h"
-#include "pico/stdlib.h"
-#include "pico/sync.h"
 #include "swapchain.h"
+
+#include <hardware/dma.h>
+#include <hardware/gpio.h>
+#include <hardware/pio.h>
+#include <pico/stdlib.h>
+#include <pico/sync.h>
 #include <stdlib.h>
 #include <string.h>
 

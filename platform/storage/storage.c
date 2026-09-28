@@ -1,8 +1,9 @@
 #include "storage.h"
-#include "hardware/flash.h"
-#include "hardware/sync.h"
-#include "pico/flash.h"
-#include "pico/platform.h"
+
+#include <hardware/flash.h>
+#include <hardware/sync.h>
+#include <pico/flash.h>
+#include <pico/platform.h>
 
 // Where the firmware ends in flash, from the linker script
 extern char __flash_binary_end;

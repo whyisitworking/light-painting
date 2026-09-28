@@ -40,8 +40,8 @@ data_r:
     in pins, 1          side 0b11   ; R - Sample bit 31
 
 % c-sdk {
-#include "hardware/clocks.h"
-#include "hardware/gpio.h"
+#include <hardware/clocks.h>
+#include <hardware/gpio.h>
 
 /**
  * Integer clock divider for the fastest SCK not above sck_max_hz. A

@@ -7,14 +7,15 @@
  */
 
 #include "st7789.h"
-#include "hardware/clocks.h"
-#include "hardware/dma.h"
-#include "hardware/gpio.h"
-#include "hardware/irq.h"
-#include "hardware/pwm.h"
-#include "hardware/spi.h"
-#include "pico/stdlib.h"
+
+#include <hardware/clocks.h>
+#include <hardware/dma.h>
+#include <hardware/gpio.h>
+#include <hardware/irq.h>
+#include <hardware/pwm.h>
+#include <hardware/spi.h>
 #include <math.h>
+#include <pico/stdlib.h>
 
 // Command codes, datasheet chapter 9
 constexpr uint8_t SLPOUT = 0x11;

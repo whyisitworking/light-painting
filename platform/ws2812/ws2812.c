@@ -8,12 +8,13 @@
  */
 
 #include "ws2812.h"
-#include "hardware/dma.h"
-#include "hardware/pio.h"
-#include "pico/stdlib.h"
-#include "pico/sync.h"
 #include "swapchain.h"
 #include "ws2812.pio.h"
+
+#include <hardware/dma.h>
+#include <hardware/pio.h>
+#include <pico/stdlib.h>
+#include <pico/sync.h>
 #include <stdlib.h>
 
 typedef struct {
