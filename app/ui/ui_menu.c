@@ -14,6 +14,11 @@ constexpr uint32_t MUTED_COLOR = 0x8888A0;
 
 constexpr int32_t ROW_HEIGHT = 28;
 
+// The screen's edge to a row, and a row's edge to its text: text starts
+// 12 px in, as on the status screen
+constexpr int32_t SCREEN_INSET = 4;
+constexpr int32_t ROW_INSET = 8;
+
 // How often the idle time is checked
 constexpr uint32_t IDLE_CHECK_MS = 1000;
 
@@ -384,7 +389,7 @@ static lv_obj_t *row_create(lv_obj_t *screen, const row_t *row,
     lv_obj_set_flex_flow(row_obj, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(row_obj, LV_FLEX_ALIGN_SPACE_BETWEEN,
                           LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_hor(row_obj, 10, 0);
+    lv_obj_set_style_pad_hor(row_obj, ROW_INSET, 0);
     lv_obj_set_style_radius(row_obj, 6, 0);
     lv_obj_set_style_bg_opa(row_obj, LV_OPA_COVER, LV_STATE_FOCUSED);
     lv_obj_set_style_bg_color(row_obj, lv_color_hex(FOCUS_COLOR),
@@ -411,7 +416,8 @@ static lv_obj_t *page_create(page_t page, page_t from) {
     char title[32];
 
     lv_obj_set_flex_flow(screen, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_all(screen, 6, 0);
+    lv_obj_set_style_pad_ver(screen, 6, 0);
+    lv_obj_set_style_pad_hor(screen, SCREEN_INSET, 0);
     lv_obj_set_style_pad_row(screen, 2, 0);
     lv_obj_set_scrollbar_mode(screen, LV_SCROLLBAR_MODE_OFF);
 
