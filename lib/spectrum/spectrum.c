@@ -79,14 +79,9 @@ void spectrum_feed_i2s(spectrum_t *this, const int32_t *frames) {
             kept * sizeof(float));
 
     for (size_t i = 0; i < this->hop_size; i++) {
-        // Extract the samples, left and right words alternate
-        int32_t left = frames[2 * i];
-        int32_t right = frames[2 * i + 1];
-
-        // Signed 24-bit align, shift left as unsigned: shifting a negative
-        // signed value left is undefined in C
-        left = (int32_t)((uint32_t)left << 1) >> 8;
-        right = (int32_t)((uint32_t)right << 1) >> 8;
+        // Left and right words alternate
+        int32_t left = spectrum_sample(frames[2 * i]);
+        int32_t right = spectrum_sample(frames[2 * i + 1]);
 
         // Both microphones hear the same sound (2 cm apart), sum to mono,
         // scale and put

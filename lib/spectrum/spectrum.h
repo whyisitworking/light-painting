@@ -60,6 +60,16 @@ const float *spectrum_analyze(spectrum_t *this, const int32_t *frames,
  * history, which is then ready to be analyzed.
  */
 void spectrum_feed_i2s(spectrum_t *this, const int32_t *frames);
+
+/**
+ * The 24-bit sample in an I2S word from the driver: a delay bit, 24 data
+ * bits, 7 unused. Shifted left as unsigned: shifting a negative signed
+ * value left is undefined in C
+ */
+static inline int32_t spectrum_sample(int32_t word) {
+    return (int32_t)((uint32_t)word << 1) >> 8;
+}
+
 // Multiplies the samples being analyzed by the window, against leakage
 void spectrum_apply_window(spectrum_t *this);
 // Multiplies the samples being analyzed by gain

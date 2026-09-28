@@ -90,6 +90,16 @@ static void test_opposite_channels_cancel(void) {
     spectrum_deinit(&spectrum);
 }
 
+// The sample back from its I2S word, over the whole 24-bit range
+static void test_sample_from_word(void) {
+    const int32_t samples[] = {
+        0, 1, -1, 123456, -123456, (1 << 23) - 1, -(1 << 23),
+    };
+
+    for (size_t i = 0; i < sizeof(samples) / sizeof(samples[0]); i++)
+        CHECK(spectrum_sample(signal_i2s_word(samples[i])) == samples[i]);
+}
+
 static void test_rejects_invalid_hop(void) {
     spectrum_t spectrum;
 
@@ -129,6 +139,7 @@ static void test_history_overlaps(void) {
 }
 
 int main(void) {
+    test_sample_from_word();
     test_rejects_invalid_hop();
     test_history_overlaps();
     test_feed_scaling_and_sum();

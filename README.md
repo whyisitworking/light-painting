@@ -354,7 +354,7 @@ ctest --test-dir build-tests --output-on-failure
 | `fft` | Every size against a naive DFT, the real FFT, tones |
 | `swapchain` | Ordering, newest wins, and two threads at full speed: never torn, never older |
 | `color` | The WS2812 word layout, saturation, gamma |
-| `spectrum` | Scaling, the stereo sum, the sliding window, tones in their bin |
+| `spectrum` | Scaling, the stereo sum, the sliding window, tones in their bin, the I2S word decode |
 | `features` | Bands, silence, self-noise, auto-gain, beats on kicks and none on noise, and each tuning |
 | `palette` | Stops, interpolation, wrapping and reflecting |
 | `effects` | Every mode: silence, positions, motion, the flash, determinism, each tuning and the brightness |
