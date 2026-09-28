@@ -360,6 +360,7 @@ ctest --test-dir build-tests --output-on-failure
 | `effects` | Every mode: silence, positions, motion, the flash, determinism, each tuning and the brightness |
 | `visualizer` | End to end from I²S words: silence, a tone, kicks, and the same tuning on every hop drawing what it draws tuned once, the defaults what they draw untuned |
 | `golden` | The exact pixels of every mode for a fixed input |
+| `stats` | The microphone levels in dBFS, an offset ignored, the window's means, worsts and rates |
 | `settings` | Ranges and steps, shuffles, every default equal to the constant it replaces, records and their damage, and the flash log on a simulated NOR flash: torn writes, garbage, power lost after an erase |
 
 `test_golden` is a tripwire: it fails on **any** change to the pixels. When a change is meant to alter the look, check that the other tests still pass, then record the new hashes into [`tests/test_golden.c`](tests/test_golden.c):
