@@ -128,7 +128,7 @@ Started sampling
 LCD init!
 ```
 
-The LCD comes on about 125 ms later with the status screen. The lights start right away, so a serial monitor attached late misses these lines. Build with `-DWAIT_FOR_USB_HOST=ON` to wait up to 2 s for one.
+The LCD comes on about 125 ms later with the status screen. The lights start right away, so a serial monitor attached late misses these lines. Build with `-DWAIT_FOR_USB_HOST=ON` to wait up to 2 s for one. Building a board for the first time? Follow [the bring-up checklist](docs/bring-up.md).
 
 ## Modes and palettes
 
