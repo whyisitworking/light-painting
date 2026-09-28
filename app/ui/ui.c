@@ -40,14 +40,14 @@ static uint32_t save_at_ms;
 static uint32_t now_ms(void) { return to_ms_since_boot(get_absolute_time()); }
 
 // After each change in the menu: the backlight here, the rest on core 0.
-// SETTINGS_ID_COUNT: all of them
+// SETTINGS_ALL: all of them
 static void changed(const settings_t *changed_settings, settings_id_t id) {
     visualizer_tuning_t tuning;
 
     save_pending = true;
     save_at_ms = now_ms() + UI_SAVE_DELAY_MS;
 
-    if (id == SETTINGS_BACKLIGHT || id == SETTINGS_ID_COUNT)
+    if (id == SETTINGS_BACKLIGHT || id == SETTINGS_ALL)
         st7789_set_backlight(
             settings_value(changed_settings, SETTINGS_BACKLIGHT));
 
@@ -93,7 +93,7 @@ static void boot_check([[maybe_unused]] lv_timer_t *timer) {
 
         settings_shuffle(&settings, &random);
         ui_menu_refresh();
-        changed(&settings, SETTINGS_ID_COUNT);
+        changed(&settings, SETTINGS_ALL);
     }
 
     was_pressed = pressed;

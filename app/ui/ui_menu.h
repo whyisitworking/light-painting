@@ -18,7 +18,7 @@
 #include <lvgl/lvgl.h>
 
 // Called after a setting changed, with all the settings. id is
-// SETTINGS_ID_COUNT when all of them changed at once (reset to defaults)
+// SETTINGS_ALL when all of them changed at once (reset to defaults)
 typedef void ui_menu_changed_t(const settings_t *settings, settings_id_t id);
 
 /**

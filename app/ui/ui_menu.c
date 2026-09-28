@@ -319,7 +319,7 @@ static void reset(lv_obj_t *row_obj) {
     settings_reset(menu.settings);
     ui_theme_set_palette(
         (palette_t)settings_get(menu.settings, SETTINGS_PALETTE));
-    menu.changed(menu.settings, SETTINGS_ID_COUNT);
+    menu.changed(menu.settings, SETTINGS_ALL);
     show_values(lv_obj_get_parent(row_obj));
     lv_label_set_text(label, "Done");
 }

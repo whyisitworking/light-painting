@@ -48,6 +48,10 @@ typedef enum {
     SETTINGS_ID_COUNT
 } settings_id_t;
 
+// Stands for every setting at once, e.g. when a reset changed them all.
+// Not a setting: the functions below treat it as out of range
+constexpr settings_id_t SETTINGS_ALL = SETTINGS_ID_COUNT;
+
 typedef struct {
     int16_t min;
     int16_t max;
