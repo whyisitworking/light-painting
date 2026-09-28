@@ -84,4 +84,16 @@ stats_report_t stats_report(stats_t *this, float period_s, float hop_period_s,
                             float ceiling_db, uint32_t audio_lost,
                             uint32_t frames_latched);
 
+// A stack's words hold this until first used, see stats_stack_fill()
+constexpr uint32_t STATS_STACK_FILL = 0x5AC4F111u;
+
+/*
+ * Stacks: filled before they are used, the bytes used at most show where
+ * the fill ends. They grow down: from the bottom up to the first word no
+ * longer the fill, nothing was ever used
+ */
+
+void stats_stack_fill(uint32_t *bottom, size_t word_count);
+size_t stats_stack_peak(const uint32_t *bottom, size_t word_count);
+
 #endif

@@ -81,3 +81,17 @@ stats_report_t stats_report(stats_t *this, float period_s, float hop_period_s,
 
     return report;
 }
+
+void stats_stack_fill(uint32_t *bottom, size_t word_count) {
+    for (size_t i = 0; i < word_count; i++)
+        bottom[i] = STATS_STACK_FILL;
+}
+
+size_t stats_stack_peak(const uint32_t *bottom, size_t word_count) {
+    size_t untouched = 0;
+
+    while (untouched < word_count && bottom[untouched] == STATS_STACK_FILL)
+        untouched++;
+
+    return (word_count - untouched) * sizeof(uint32_t);
+}

@@ -110,11 +110,33 @@ static void test_report_starts_anew(void) {
     CHECK(report.work_avg_us == 0.f && report.work_max_us == 0.f);
 }
 
+// Filled, then used from the top down as a stack is: the bytes used
+static void test_stack_peak(void) {
+    uint32_t stack[64];
+
+    stats_stack_fill(stack, 64);
+    CHECK(stats_stack_peak(stack, 64) == 0);
+
+    for (size_t i = 40; i < 64; i++)
+        stack[i] = 0;
+    CHECK(stats_stack_peak(stack, 64) == 24 * sizeof(uint32_t));
+
+    // Used, then left: still counted, the peak never shrinks
+    stack[40] = STATS_STACK_FILL;
+    stack[20] = 0;
+    CHECK(stats_stack_peak(stack, 64) == 44 * sizeof(uint32_t));
+
+    for (size_t i = 0; i < 64; i++)
+        stack[i] = 0;
+    CHECK(stats_stack_peak(stack, 64) == 64 * sizeof(uint32_t));
+}
+
 int main(void) {
     test_levels();
     test_offset_is_no_sound();
     test_window();
     test_report_starts_anew();
+    test_stack_peak();
 
     return CHECK_REPORT();
 }
