@@ -192,7 +192,7 @@ Brightness is perceptual: each step looks equally brighter. Below about 20 % the
 
 ## Configuration
 
-### Board and look: [`app/config.h`](app/config.h)
+### Board and build: [`app/config.h`](app/config.h)
 
 | Setting | Default | Meaning |
 |---|---|---|
@@ -358,7 +358,7 @@ ctest --test-dir build-tests --output-on-failure
 | `features` | Bands, silence, self-noise, auto-gain, beats on kicks and none on noise, and each tuning |
 | `palette` | Stops, interpolation, wrapping and reflecting |
 | `effects` | Every mode: silence, positions, motion, the flash, determinism, each tuning and the brightness |
-| `visualizer` | End to end from I²S words: silence, a tone, kicks, and tuned to the defaults drawing the same pixels |
+| `visualizer` | End to end from I²S words: silence, a tone, kicks, and the same tuning on every hop drawing what it draws tuned once, the defaults what they draw untuned |
 | `golden` | The exact pixels of every mode for a fixed input |
 | `settings` | Ranges and steps, shuffles, every default equal to the constant it replaces, records and their damage, and the flash log on a simulated NOR flash: torn writes, garbage, power lost after an erase |
 
@@ -406,7 +406,7 @@ Build with `-DPERF_STATS=ON`. Once per second, the USB serial output shows each 
 - A module is a folder, a `.c`/`.h` pair and a CMake target of the same name, e.g. `lib/spectrum/spectrum.{c,h}` and `spectrum`. Its test is `tests/test_<module>.c`.
 - Everything public carries the module prefix: the state is `<module>_t`, other types `<module>_<what>_t`, functions `<module>_<verb>()` taking the state as `this`, constants and enum values `<MODULE>_*`. Enum values repeat their type's name: `EFFECTS_MODE_RIVER` of `effects_mode_t`. Only `static` helpers inside one `.c` go unprefixed, and the two types every module passes around: `rgb_t` (color) and `sound_t` (features).
 - Names say what they count and in which unit: `fft_size`, `hop_size`, `led_count`, `word_count`, and `_s`, `_ms`, `_us`, `_hz`, `_db` suffixes (`hop_period_s`, `FEATURES_ATTACK_MS`).
-- Our own headers are included with quotes, first the module's own, then a blank line and the Pico SDK and C library ones in angle brackets: quotes always mean ours.
+- Includes come in groups a blank line apart: the module's own header, then our other headers, in quotes, then the Pico SDK and C library ones in angle brackets. Quotes always mean ours.
 - Header guards are `<MODULE>_H`, prefixed with the folder outside modules (`APP_CONFIG_H`, `TESTS_CHECK_H`).
 - Everything is allocated in `*_init()` and freed in `*_deinit()`. The inits return `false` on failure and are `[[nodiscard]]`.
 - Current C, not C++: constants are typed `constexpr` objects, not `#define`s, the null pointer is `nullptr`, `bool` and `static_assert` need no header, and unused parameters are `[[maybe_unused]]`. Functions that only read the state take it as `const`.

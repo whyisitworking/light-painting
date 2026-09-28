@@ -173,6 +173,8 @@ static void test_default_tuning_changes_nothing(void) {
         tuning.effects.mode = (effects_mode_t)mode;
 
         CHECK(visualizer_init(&plain, &settings));
+        // The auto-gain would hide a wrong gain in these loud signals
+        CHECK(plain.gain == tuning.gain);
         CHECK(visualizer_init(&tuned, &settings));
         if (mode != EFFECTS_MODE)
             visualizer_tune(&plain, &tuning);

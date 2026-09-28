@@ -51,8 +51,10 @@ add_compile_options(-fno-math-errno)
 # flash and can keep running while core 1 erases or programs it. pico_flash
 # compiles into every target that links it, hence global. Core 1 gets its
 # own stack in main RAM: the SDK's default one sits in the 4 KB SCRATCH_X.
-# The SDK's stack guard is compiled but not installed: core 1 installs it on
-# its own stack (app/ui/ui.c). PICO_USE_STACK_GUARDS would also limit core 0
+# The SDK's stack guard is not installed on either core: core 1 installs it
+# on its own stack (app/ui/ui.c), with the function the define below asks
+# the SDK to compile (2.3.1 compiles it anyway, the define says we rely on
+# it). PICO_USE_STACK_GUARDS would also limit core 0
 # to 2 KB (PICO_STACK_SIZE), where today it may use all 8 KB of SCRATCH_X
 # and SCRATCH_Y, unmeasured
 add_compile_definitions(
