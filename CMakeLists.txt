@@ -50,10 +50,15 @@ add_compile_options(-fno-math-errno)
 # The firmware runs from RAM (copy_to_ram below), so core 0 never reads the
 # flash and can keep running while core 1 erases or programs it. pico_flash
 # compiles into every target that links it, hence global. Core 1 gets its
-# own stack in main RAM: the SDK's default one sits in the 4 KB SCRATCH_X
+# own stack in main RAM: the SDK's default one sits in the 4 KB SCRATCH_X.
+# The SDK's stack guard is compiled but not installed: core 1 installs it on
+# its own stack (app/ui/ui.c). PICO_USE_STACK_GUARDS would also limit core 0
+# to 2 KB (PICO_STACK_SIZE), where today it may use all 8 KB of SCRATCH_X
+# and SCRATCH_Y, unmeasured
 add_compile_definitions(
     PICO_FLASH_ASSUME_CORE0_SAFE=1
-    PICO_CORE1_STACK_SIZE=0)
+    PICO_CORE1_STACK_SIZE=0
+    PICO_RUNTIME_NO_INIT_PER_CORE_INSTALL_STACK_GUARD=0)
 
 add_executable(light-painting)
 

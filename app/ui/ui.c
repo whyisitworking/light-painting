@@ -10,6 +10,7 @@
 #include "ui_port.h"
 
 #include <pico/multicore.h>
+#include <pico/runtime_init.h>
 #include <pico/time.h>
 #include <stdio.h>
 #include <string.h>
@@ -103,6 +104,11 @@ static void boot_check([[maybe_unused]] lv_timer_t *timer) {
 static void ui_main(void) {
     lv_display_t *display;
     uint32_t wait_ms;
+
+    // The stack ends at its bottom: past it, core 1 faults and stops rather
+    // than write over what lies below, core 0's drivers among it. The lights
+    // carry on (RP2350: the stack limit register, MSPLIM)
+    runtime_init_per_core_install_stack_guard(stack);
 
     // Here, on core 1: its DMA interrupt is enabled on the calling core
     if (!st7789_init(&(st7789_config_t){
