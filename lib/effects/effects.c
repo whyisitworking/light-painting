@@ -43,8 +43,6 @@ bool effects_init(effects_t *this, size_t led_count, size_t band_count,
         .band_count = band_count,
         .half_led_count = half_led_count,
         .hop_period_s = hop_period_s,
-        .mode = EFFECTS_MODE_RIVER,
-        .palette = PALETTE_SYNTHWAVE,
         .flash_k = expf(-hop_period_s / (EFFECTS_FLASH_MS / 1000.f)),
         .frame = frame,
         .river.history = river,
@@ -56,18 +54,10 @@ bool effects_init(effects_t *this, size_t led_count, size_t band_count,
     return true;
 }
 
-void effects_set_mode(effects_t *this, effects_mode_t mode) {
-    if (mode < EFFECTS_MODE_COUNT)
-        this->mode = mode;
-}
-
-void effects_set_palette(effects_t *this, palette_t palette) {
-    if (palette < PALETTE_COUNT)
-        this->palette = palette;
-}
-
 effects_tuning_t effects_default_tuning(void) {
     return (effects_tuning_t){
+        .mode = EFFECTS_MODE,
+        .palette = EFFECTS_PALETTE,
         .brightness = 1.f,
         .river_speed = EFFECTS_RIVER_SPEED,
         .ripple_speed = EFFECTS_RIPPLE_SPEED,
@@ -86,6 +76,10 @@ static bool is_at_least(float value, float least) {
 static bool is_fraction(float value) { return value >= 0.f && value <= 1.f; }
 
 void effects_tune(effects_t *this, const effects_tuning_t *tuning) {
+    if (tuning->mode < EFFECTS_MODE_COUNT)
+        this->tuning.mode = tuning->mode;
+    if (tuning->palette < PALETTE_COUNT)
+        this->tuning.palette = tuning->palette;
     if (is_fraction(tuning->brightness))
         this->tuning.brightness = tuning->brightness;
     if (tuning->river_speed >= 1)
@@ -120,8 +114,8 @@ void effects_render(effects_t *this, const sound_t *sound, uint32_t *pixels) {
     memset(this->frame, 0, this->led_count * sizeof(rgb_t));
 
     // A mode without a renderer stays dark
-    if (renderers[this->mode] != nullptr)
-        renderers[this->mode](this, sound);
+    if (renderers[this->tuning.mode] != nullptr)
+        renderers[this->tuning.mode](this, sound);
 
     if (sound->beat)
         this->flash =

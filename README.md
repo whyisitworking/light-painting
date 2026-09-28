@@ -131,7 +131,7 @@ The LCD comes on about 125 ms later with the status screen. The lights start rig
 
 ## Modes and palettes
 
-Pick them in the [menu](#the-menu), under Look. The defaults are `VISUALIZER_MODE` and `VISUALIZER_PALETTE` in [`lib/visualizer/visualizer.h`](lib/visualizer/visualizer.h).
+Pick them in the [menu](#the-menu), under Look. The defaults are `EFFECTS_MODE` and `EFFECTS_PALETTE` in [`lib/effects/effects.h`](lib/effects/effects.h).
 
 | Mode | What you see |
 |---|---|
@@ -173,8 +173,8 @@ After 30 s without a key, the status screen comes back. Changes apply to the lig
 
 | Page | Setting | Range, step | Default | Replaces |
 |---|---|---|---|---|
-| Look | Mode | the six modes | River | `VISUALIZER_MODE` |
-| | Palette | the four palettes | Synthwave | `VISUALIZER_PALETTE` |
+| Look | Mode | the six modes | River | `EFFECTS_MODE` |
+| | Palette | the four palettes | Synthwave | `EFFECTS_PALETTE` |
 | | Brightness | 10–100 %, 5 | 100 % | |
 | Sound | Gain | 0.5–4.0×, 0.1 | 1.5× | `VISUALIZER_GAIN` |
 | | Beat threshold (lower: more beats) | 1.5–6.0×, 0.1 | 2.8× | `FEATURES_BEAT_THRESHOLD` |
@@ -207,14 +207,14 @@ Brightness is perceptual: each step looks equally brighter. Below about 20 % the
 | `UI_IDLE_TIMEOUT_MS` | `30'000` | Back to the status screen after this long without a key |
 | `UI_SAVE_DELAY_MS`, `UI_SAVE_RETRY_MS` | `3'000`, `30'000` | Save this long after the last change; retry after a failed save |
 
-The default mode, palette and input gain (`VISUALIZER_MODE`, `VISUALIZER_PALETTE`, `VISUALIZER_GAIN`: River, Synthwave, 1.5 on top of the microphone's ×8) are in [`lib/visualizer/visualizer.h`](lib/visualizer/visualizer.h).
+The default mode and palette (`EFFECTS_MODE`, `EFFECTS_PALETTE`: River, Synthwave) are in [`lib/effects/effects.h`](lib/effects/effects.h), the input gain (`VISUALIZER_GAIN`: 1.5 on top of the microphone's ×8) in [`lib/visualizer/visualizer.h`](lib/visualizer/visualizer.h).
 
 ### Tuning
 
 The sound analysis and the effects each have their constants at the top of their header, with the reasoning behind every default. Those the [menu](#the-menu) changes are its defaults:
 
 - [`lib/features/features.h`](lib/features/features.h): the band range, auto-gain (`FEATURES_RANGE_DB`, `FEATURES_MIN_CEILING_DB`), smoothing, and beat detection (`FEATURES_BEAT_THRESHOLD`, `FEATURES_BEAT_MIN_LEVEL`, …).
-- [`lib/effects/effects.h`](lib/effects/effects.h): river and ripple speeds, the VU peak hold, drift, warmth, flash and sparkles.
+- [`lib/effects/effects.h`](lib/effects/effects.h): the mode and palette, river and ripple speeds, the VU peak hold, drift, warmth, flash and sparkles.
 
 ### Build options
 

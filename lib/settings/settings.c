@@ -7,8 +7,8 @@
  * and 2.8f are the same float). test_settings checks every one
  */
 static const settings_range_t ranges[SETTINGS_ID_COUNT] = {
-    [SETTINGS_MODE] = {0, EFFECTS_MODE_COUNT - 1, 1, VISUALIZER_MODE, 1, true},
-    [SETTINGS_PALETTE] = {0, PALETTE_COUNT - 1, 1, VISUALIZER_PALETTE, 1,
+    [SETTINGS_MODE] = {0, EFFECTS_MODE_COUNT - 1, 1, EFFECTS_MODE, 1, true},
+    [SETTINGS_PALETTE] = {0, PALETTE_COUNT - 1, 1, EFFECTS_PALETTE, 1,
                           true},
     // Perceptual, before the strip's 8-bit gamma: at 10 % full white is
     // 2 / 255, below about 20 % colours lose their shading, and below 6 %
@@ -146,8 +146,6 @@ void settings_shuffle(settings_t *this, uint32_t *random) {
 visualizer_tuning_t settings_tuning(const settings_t *this) {
     visualizer_tuning_t tuning = visualizer_default_tuning();
 
-    tuning.mode = (effects_mode_t)settings_get(this, SETTINGS_MODE);
-    tuning.palette = (palette_t)settings_get(this, SETTINGS_PALETTE);
     tuning.gain = settings_value(this, SETTINGS_GAIN);
 
     tuning.features.attack_ms = settings_value(this, SETTINGS_ATTACK);
@@ -156,6 +154,8 @@ visualizer_tuning_t settings_tuning(const settings_t *this) {
     tuning.features.beat_threshold =
         settings_value(this, SETTINGS_BEAT_THRESHOLD);
 
+    tuning.effects.mode = (effects_mode_t)settings_get(this, SETTINGS_MODE);
+    tuning.effects.palette = (palette_t)settings_get(this, SETTINGS_PALETTE);
     tuning.effects.brightness = settings_value(this, SETTINGS_BRIGHTNESS);
     tuning.effects.river_speed =
         (size_t)settings_get(this, SETTINGS_RIVER_SPEED);

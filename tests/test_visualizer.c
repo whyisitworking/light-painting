@@ -13,17 +13,36 @@ constexpr size_t LEDS = 300;
 static int32_t frames[2 * HOP_SIZE];
 static uint32_t pixels[LEDS];
 
-static visualizer_config_t config(effects_mode_t mode) {
+static visualizer_config_t config(void) {
     return (visualizer_config_t){
         .sample_rate = (float)FS,
         .fft_size = FFT_SIZE,
         .hop_size = HOP_SIZE,
         .led_count = LEDS,
-        .gain = 1.5f,
-        .mode = mode,
-        .palette = PALETTE_RAINBOW,
         .seed = 1,
     };
+}
+
+// The defaults in a mode, on the rainbow
+static visualizer_tuning_t tuning_for(effects_mode_t mode) {
+    visualizer_tuning_t tuning = visualizer_default_tuning();
+
+    tuning.effects.mode = mode;
+    tuning.effects.palette = PALETTE_RAINBOW;
+
+    return tuning;
+}
+
+static bool start(visualizer_t *visualizer, effects_mode_t mode) {
+    visualizer_config_t settings = config();
+    visualizer_tuning_t tuning = tuning_for(mode);
+
+    if (!visualizer_init(visualizer, &settings))
+        return false;
+
+    visualizer_tune(visualizer, &tuning);
+
+    return true;
 }
 
 static unsigned brightness(uint32_t pixel) {
@@ -53,30 +72,29 @@ static void test_rejects_invalid(void) {
     visualizer_t visualizer;
     visualizer_config_t bad;
 
-    bad = config(EFFECTS_MODE_SPECTRUM);
+    bad = config();
     bad.sample_rate = 0.f;
     CHECK(!visualizer_init(&visualizer, &bad));
 
-    bad = config(EFFECTS_MODE_SPECTRUM);
+    bad = config();
     bad.fft_size = 100;
     CHECK(!visualizer_init(&visualizer, &bad));
 
-    bad = config(EFFECTS_MODE_SPECTRUM);
+    bad = config();
     bad.hop_size = FFT_SIZE + 1;
     CHECK(!visualizer_init(&visualizer, &bad));
 
     // Fails late, in the effects, after the spectrum and features are set up
-    bad = config(EFFECTS_MODE_SPECTRUM);
+    bad = config();
     bad.led_count = 1;
     CHECK(!visualizer_init(&visualizer, &bad));
 }
 
 static void test_silence_is_dark(void) {
     visualizer_t visualizer;
-    visualizer_config_t silent = config(EFFECTS_MODE_SPECTRUM);
     bool dark = true;
 
-    CHECK(visualizer_init(&visualizer, &silent));
+    CHECK(start(&visualizer, EFFECTS_MODE_SPECTRUM));
 
     for (size_t hop = 0; hop < 200; hop++) {
         tone_hop(hop, 1000.0, 0.0);
@@ -94,10 +112,9 @@ static void test_silence_is_dark(void) {
 // A 1 kHz tone lights the spectrum where its band is, not the ends
 static void test_tone_lights_its_position(void) {
     visualizer_t visualizer;
-    visualizer_config_t spectrum = config(EFFECTS_MODE_SPECTRUM);
     size_t band = 0, led;
 
-    CHECK(visualizer_init(&visualizer, &spectrum));
+    CHECK(start(&visualizer, EFFECTS_MODE_SPECTRUM));
 
     for (size_t hop = 0; hop < 200; hop++) {
         tone_hop(hop, 1000.0, 200000.0);
@@ -120,11 +137,10 @@ static void test_tone_lights_its_position(void) {
 // 120 BPM kicks, from I2S words on: one beat per kick
 static void test_kicks_give_beats(void) {
     visualizer_t visualizer;
-    visualizer_config_t ripples = config(EFFECTS_MODE_RIPPLES);
     const size_t hops = (size_t)(4.0 * FS / HOP_SIZE);
     unsigned beats = 0;
 
-    CHECK(visualizer_init(&visualizer, &ripples));
+    CHECK(start(&visualizer, EFFECTS_MODE_RIPPLES));
 
     for (size_t hop = 0; hop < hops; hop++) {
         kick_hop(hop, 0.5);
@@ -138,24 +154,28 @@ static void test_kicks_give_beats(void) {
     visualizer_deinit(&visualizer);
 }
 
-// Tuned to its defaults, a visualizer draws exactly what an untuned one
-// does, for every mode: kicks and a tone over noise, as test_golden
+/**
+ * The same tuning again changes nothing, as the menu may publish it on any
+ * hop: tuned on every hop, a visualizer draws exactly what it draws tuned
+ * once, in every mode. For the default look, tuned once is not tuned at
+ * all: with nothing saved, the lights are what they were before the menu.
+ * Kicks and a tone over noise, as test_golden
+ */
 static void test_default_tuning_changes_nothing(void) {
     for (int mode = 0; mode < EFFECTS_MODE_COUNT; mode++) {
         visualizer_t plain, tuned;
-        visualizer_config_t settings = config((effects_mode_t)mode);
+        visualizer_config_t settings = config();
         visualizer_tuning_t tuning = visualizer_default_tuning();
         static uint32_t tuned_pixels[LEDS];
         uint32_t noise = 12345;
         size_t different = 0;
 
-        settings.gain = VISUALIZER_GAIN;
-        tuning.mode = (effects_mode_t)mode;
-        tuning.palette = settings.palette;
+        tuning.effects.mode = (effects_mode_t)mode;
 
         CHECK(visualizer_init(&plain, &settings));
         CHECK(visualizer_init(&tuned, &settings));
-        visualizer_tune(&tuned, &tuning);
+        if (mode != EFFECTS_MODE)
+            visualizer_tune(&plain, &tuning);
 
         for (size_t hop = 0; hop < 400; hop++) {
             for (size_t i = 0; i < HOP_SIZE; i++) {
@@ -169,6 +189,7 @@ static void test_default_tuning_changes_nothing(void) {
                                         sin(2.0 * M_PI * 55.0 * beat_t));
             }
 
+            visualizer_tune(&tuned, &tuning);
             visualizer_analyze(&plain, frames);
             visualizer_analyze(&tuned, frames);
             visualizer_render(&plain, pixels);

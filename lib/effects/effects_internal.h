@@ -36,7 +36,7 @@ static inline rgb_t effects_color_at(const effects_t *this,
 
     // One expression, as before the tuning: a compiler may fuse its
     // multiply and add, and must do it the same way to keep the pixels
-    return palette_color(this->palette,
+    return palette_color(tuning->palette,
                          position + drift + sound->loudness * tuning->warmth);
 }
 

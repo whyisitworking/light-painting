@@ -62,6 +62,7 @@ static uint32_t run_mode(effects_mode_t mode) {
     static int32_t frames[2 * HOP_SIZE];
     static uint32_t pixels[LEDS];
     visualizer_t visualizer;
+    visualizer_tuning_t tuning = visualizer_default_tuning();
     uint32_t noise = 12345, hash = 2166136261u;
 
     CHECK(visualizer_init(&visualizer,
@@ -70,11 +71,12 @@ static uint32_t run_mode(effects_mode_t mode) {
                               .fft_size = FFT_SIZE,
                               .hop_size = HOP_SIZE,
                               .led_count = LEDS,
-                              .gain = GAIN,
-                              .mode = mode,
-                              .palette = (palette_t)(mode % PALETTE_COUNT),
                               .seed = 1,
                           }));
+    tuning.gain = GAIN;
+    tuning.effects.mode = mode;
+    tuning.effects.palette = (palette_t)(mode % PALETTE_COUNT);
+    visualizer_tune(&visualizer, &tuning);
 
     for (size_t hop = 0; hop < HOPS; hop++) {
         const sound_t *sound;

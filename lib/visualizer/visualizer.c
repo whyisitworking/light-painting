@@ -25,17 +25,13 @@ bool visualizer_init(visualizer_t *this, const visualizer_config_t *config) {
         return false;
     }
 
-    effects_set_mode(&this->effects, config->mode);
-    effects_set_palette(&this->effects, config->palette);
-    this->gain = config->gain;
+    this->gain = VISUALIZER_GAIN;
 
     return true;
 }
 
 visualizer_tuning_t visualizer_default_tuning(void) {
     return (visualizer_tuning_t){
-        .mode = VISUALIZER_MODE,
-        .palette = VISUALIZER_PALETTE,
         .gain = VISUALIZER_GAIN,
         .features = features_default_tuning(),
         .effects = effects_default_tuning(),
@@ -43,9 +39,6 @@ visualizer_tuning_t visualizer_default_tuning(void) {
 }
 
 void visualizer_tune(visualizer_t *this, const visualizer_tuning_t *tuning) {
-    effects_set_mode(&this->effects, tuning->mode);
-    effects_set_palette(&this->effects, tuning->palette);
-
     if (tuning->gain > 0.f && isfinite(tuning->gain))
         this->gain = tuning->gain;
 

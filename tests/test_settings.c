@@ -27,8 +27,8 @@ static void test_defaults_are_the_constants(void) {
 
     settings_reset(&settings);
 
-    CHECK(settings_get(&settings, SETTINGS_MODE) == (int)VISUALIZER_MODE);
-    CHECK(settings_get(&settings, SETTINGS_PALETTE) == (int)VISUALIZER_PALETTE);
+    CHECK(settings_get(&settings, SETTINGS_MODE) == (int)EFFECTS_MODE);
+    CHECK(settings_get(&settings, SETTINGS_PALETTE) == (int)EFFECTS_PALETTE);
     CHECK(settings_value(&settings, SETTINGS_BRIGHTNESS) == 1.f);
     CHECK(settings_value(&settings, SETTINGS_GAIN) == VISUALIZER_GAIN);
     CHECK(settings_value(&settings, SETTINGS_BEAT_THRESHOLD) ==
@@ -138,13 +138,13 @@ static void test_default_tuning(void) {
     settings_reset(&settings);
     tuning = settings_tuning(&settings);
 
-    CHECK(tuning.mode == defaults.mode);
-    CHECK(tuning.palette == defaults.palette);
     CHECK(tuning.gain == defaults.gain);
     CHECK(tuning.features.attack_ms == defaults.features.attack_ms);
     CHECK(tuning.features.decay_ms == defaults.features.decay_ms);
     CHECK(tuning.features.min_ceiling_db == defaults.features.min_ceiling_db);
     CHECK(tuning.features.beat_threshold == defaults.features.beat_threshold);
+    CHECK(tuning.effects.mode == defaults.effects.mode);
+    CHECK(tuning.effects.palette == defaults.effects.palette);
     CHECK(tuning.effects.brightness == defaults.effects.brightness);
     CHECK(tuning.effects.river_speed == defaults.effects.river_speed);
     CHECK(tuning.effects.ripple_speed == defaults.effects.ripple_speed);
@@ -169,7 +169,7 @@ static void test_tuning_follows_the_settings(void) {
     settings_set(&settings, SETTINGS_SPARKLES, 55);
     tuning = settings_tuning(&settings);
 
-    CHECK(tuning.mode == EFFECTS_MODE_GLOW);
+    CHECK(tuning.effects.mode == EFFECTS_MODE_GLOW);
     CHECK(tuning.effects.brightness == 0.5f);
     CHECK(tuning.gain == 2.5f);
     CHECK(tuning.effects.drift_period_s == 0.f);

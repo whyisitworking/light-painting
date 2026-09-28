@@ -17,15 +17,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// The default look, see effects.h and palette.h
-constexpr effects_mode_t VISUALIZER_MODE = EFFECTS_MODE_RIVER;
-constexpr palette_t VISUALIZER_PALETTE = PALETTE_SYNTHWAVE;
-
 // On top of the microphone's SPECTRUM_INPUT_GAIN, x12 in total: the features'
 // FEATURES_MIN_CEILING_DB is tuned for it
 constexpr float VISUALIZER_GAIN = 1.5f;
 
-// Everything the pipeline needs, read by visualizer_init() only
+// How the pipeline is built, read by visualizer_init() only. What can
+// change while running is in visualizer_tuning_t
 typedef struct {
     // Actual I2S sample rate in Hz
     float sample_rate;
@@ -33,19 +30,15 @@ typedef struct {
     size_t fft_size;
     size_t hop_size;
     size_t led_count;
-    // Applied after the window, on top of the microphone's SPECTRUM_INPUT_GAIN
-    float gain;
-    effects_mode_t mode;
-    palette_t palette;
     // Renders are deterministic for a seed
     uint32_t seed;
 } visualizer_config_t;
 
-// What can be changed while running
+// What can be changed while running: the gain and each stage's tuning,
+// the mode and palette among the effects'
 typedef struct {
-    effects_mode_t mode;
-    palette_t palette;
-    // Positive, see visualizer_config_t
+    // VISUALIZER_GAIN: positive. Applied after the window, on top of the
+    // microphone's SPECTRUM_INPUT_GAIN
     float gain;
     features_tuning_t features;
     effects_tuning_t effects;
@@ -60,14 +53,13 @@ typedef struct {
 } visualizer_t;
 
 /**
- * Sets up all stages from the config. False if any rejects it or memory
- * runs out, with nothing left allocated
+ * Sets up all stages from the config, on visualizer_default_tuning(). False
+ * if any rejects it or memory runs out, with nothing left allocated
  */
 [[nodiscard]] bool visualizer_init(visualizer_t *this,
                                    const visualizer_config_t *config);
 
-// VISUALIZER_MODE, VISUALIZER_PALETTE, VISUALIZER_GAIN and the stages'
-// default tunings
+// VISUALIZER_GAIN and the stages' default tunings
 visualizer_tuning_t visualizer_default_tuning(void);
 
 /**

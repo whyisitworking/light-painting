@@ -13,6 +13,21 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// What the strip shows, see the README for each mode
+typedef enum {
+    EFFECTS_MODE_SPECTRUM,
+    EFFECTS_MODE_SPECTRUM_MIRRORED,
+    EFFECTS_MODE_RIVER,
+    EFFECTS_MODE_RIPPLES,
+    EFFECTS_MODE_VU,
+    EFFECTS_MODE_GLOW,
+    EFFECTS_MODE_COUNT
+} effects_mode_t;
+
+// The look, see the README for each mode and palette
+constexpr effects_mode_t EFFECTS_MODE = EFFECTS_MODE_RIVER;
+constexpr palette_t EFFECTS_PALETTE = PALETTE_SYNTHWAVE;
+
 // River: LEDs the history moves outward per frame
 constexpr size_t EFFECTS_RIVER_SPEED = 1;
 
@@ -44,6 +59,9 @@ constexpr float EFFECTS_TREBLE_FRACTION = 0.25f;
 
 // What can be changed while running, the constants above are the defaults
 typedef struct {
+    // EFFECTS_MODE, EFFECTS_PALETTE: one of the modes and palettes
+    effects_mode_t mode;
+    palette_t palette;
     // 0 to 1, 1 by default. Perceptual: each step looks equally brighter.
     // Low levels leave the strip's 8 bits few steps for the colours
     float brightness;
@@ -61,17 +79,6 @@ typedef struct {
     float flash_level;
     float sparkle_rate;
 } effects_tuning_t;
-
-// What the strip shows, see the README for each mode
-typedef enum {
-    EFFECTS_MODE_SPECTRUM,
-    EFFECTS_MODE_SPECTRUM_MIRRORED,
-    EFFECTS_MODE_RIVER,
-    EFFECTS_MODE_RIPPLES,
-    EFFECTS_MODE_VU,
-    EFFECTS_MODE_GLOW,
-    EFFECTS_MODE_COUNT
-} effects_mode_t;
 
 // One pulse of the ripples mode, launched from the centre by a beat
 typedef struct {
@@ -93,9 +100,6 @@ typedef struct {
     size_t half_led_count;
     // Time between two renders
     float hop_period_s;
-
-    effects_mode_t mode;
-    palette_t palette;
 
     effects_tuning_t tuning;
     // tuning.peak_hold_ms in seconds
@@ -144,18 +148,12 @@ typedef struct {
  * band_count: length of sound_t.bands (>= 2)
  * seed: for the sparkles, renders are deterministic for a seed
  *
- * Starts in EFFECTS_MODE_RIVER with PALETTE_SYNTHWAVE. False if a count is too
- * small, hop_period_s is not positive or memory runs out
+ * Starts on effects_default_tuning(). False if a count is too small,
+ * hop_period_s is not positive or memory runs out
  */
 [[nodiscard]] bool effects_init(effects_t *this, size_t led_count,
                                 size_t band_count, float hop_period_s,
                                 uint32_t seed);
-
-// Takes effect on the next render. Out of range values are ignored
-void effects_set_mode(effects_t *this, effects_mode_t mode);
-
-// Takes effect on the next render. Out of range values are ignored
-void effects_set_palette(effects_t *this, palette_t palette);
 
 // The EFFECTS_* constants, what effects_init() starts with
 effects_tuning_t effects_default_tuning(void);

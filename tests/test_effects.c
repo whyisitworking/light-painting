@@ -33,6 +33,14 @@ static size_t brightest(size_t from, size_t to) {
     return best;
 }
 
+// Switches mode, the rest of the tuning as it is
+static void set_mode(effects_t *effects, effects_mode_t mode) {
+    effects_tuning_t tuning = effects->tuning;
+
+    tuning.mode = mode;
+    effects_tune(effects, &tuning);
+}
+
 static bool all_dark(void) {
     for (size_t i = 0; i < LEDS; i++)
         if (pixels[i] != 0)
@@ -53,7 +61,7 @@ static void check_silence_is_dark(effects_mode_t mode) {
     sound_t sound = quiet();
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
-    effects_set_mode(&effects, mode);
+    set_mode(&effects, mode);
 
     for (int frame = 0; frame < 50; frame++)
         effects_render(&effects, &sound, pixels);
@@ -67,7 +75,7 @@ static void test_spectrum_band_position(void) {
     sound_t sound = quiet();
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
-    effects_set_mode(&effects, EFFECTS_MODE_SPECTRUM);
+    set_mode(&effects, EFFECTS_MODE_SPECTRUM);
 
     // Band 20 of 32 lands at 20 / 31 of the strip
     bands[20] = 1.f;
@@ -83,7 +91,7 @@ static void test_mirrored_spectrum_band_position(void) {
     size_t half = LEDS / 2;
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
-    effects_set_mode(&effects, EFFECTS_MODE_SPECTRUM_MIRRORED);
+    set_mode(&effects, EFFECTS_MODE_SPECTRUM_MIRRORED);
 
     bands[20] = 1.f;
     effects_render(&effects, &sound, pixels);
@@ -104,7 +112,7 @@ static void test_beat_flash(void) {
     unsigned first;
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
-    effects_set_mode(&effects, EFFECTS_MODE_SPECTRUM);
+    set_mode(&effects, EFFECTS_MODE_SPECTRUM);
 
     sound.beat = true;
     sound.beat_strength = 1.f;
@@ -144,12 +152,12 @@ static void test_beat_flash_saturates(void) {
         bands[b] = 1.f;
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
-    effects_set_mode(&effects, EFFECTS_MODE_SPECTRUM);
+    set_mode(&effects, EFFECTS_MODE_SPECTRUM);
     effects_render(&effects, &sound, plain);
     effects_deinit(&effects);
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
-    effects_set_mode(&effects, EFFECTS_MODE_SPECTRUM);
+    set_mode(&effects, EFFECTS_MODE_SPECTRUM);
     sound.beat = true;
     sound.beat_strength = 1.f;
     effects_render(&effects, &sound, pixels);
@@ -177,7 +185,7 @@ static void test_river_flows_outward(void) {
     sound_t sound = quiet();
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
-    effects_set_mode(&effects, EFFECTS_MODE_RIVER);
+    set_mode(&effects, EFFECTS_MODE_RIVER);
 
     sound.loudness = 1.f;
     sound.centroid = 0.5f;
@@ -202,7 +210,7 @@ static void test_ripple_travels(void) {
     sound_t sound = quiet();
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
-    effects_set_mode(&effects, EFFECTS_MODE_RIPPLES);
+    set_mode(&effects, EFFECTS_MODE_RIPPLES);
 
     sound.beat = true;
     sound.beat_strength = 1.f;
@@ -230,8 +238,8 @@ static void test_sparkles_deterministic(void) {
 
     CHECK(effects_init(&a, LEDS, BANDS, HOP_PERIOD_S, 7));
     CHECK(effects_init(&b, LEDS, BANDS, HOP_PERIOD_S, 7));
-    effects_set_mode(&a, EFFECTS_MODE_RIPPLES);
-    effects_set_mode(&b, EFFECTS_MODE_RIPPLES);
+    set_mode(&a, EFFECTS_MODE_RIPPLES);
+    set_mode(&b, EFFECTS_MODE_RIPPLES);
 
     for (int frame = 0; frame < 20; frame++) {
         effects_render(&a, &sound, first);
@@ -254,7 +262,7 @@ static void test_vu(void) {
     size_t half = LEDS / 2, length = half / 2;
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
-    effects_set_mode(&effects, EFFECTS_MODE_VU);
+    set_mode(&effects, EFFECTS_MODE_VU);
 
     sound.loudness = 0.5f;
     effects_render(&effects, &sound, pixels);
@@ -291,7 +299,7 @@ static void test_glow_follows_bass(void) {
     sound_t sound = quiet();
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
-    effects_set_mode(&effects, EFFECTS_MODE_GLOW);
+    set_mode(&effects, EFFECTS_MODE_GLOW);
 
     for (size_t band = 0; band < EFFECTS_BASS_BANDS; band++)
         bands[band] = 1.f;
@@ -315,7 +323,7 @@ static void test_drift_clock_wraps(void) {
         bands[b] = 1.f;
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
-    effects_set_mode(&effects, EFFECTS_MODE_SPECTRUM);
+    set_mode(&effects, EFFECTS_MODE_SPECTRUM);
     effects.time_s = 10.f;
     effects_render(&effects, &sound, early);
 
@@ -351,6 +359,8 @@ static void test_default_tuning_changes_nothing(void) {
 
     // Field by field: memcmp would compare padding too, which is left
     // unset (4 bytes before river_speed on a 64-bit host)
+    CHECK(effects.tuning.mode == defaults.mode);
+    CHECK(effects.tuning.palette == defaults.palette);
     CHECK(effects.tuning.brightness == defaults.brightness);
     CHECK(effects.tuning.river_speed == defaults.river_speed);
     CHECK(effects.tuning.ripple_speed == defaults.ripple_speed);
@@ -370,6 +380,8 @@ static void test_tuning_ignores_invalid(void) {
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
 
+    tuning.mode = EFFECTS_MODE_COUNT;
+    tuning.palette = PALETTE_COUNT;
     tuning.river_speed = 0;
     tuning.ripple_speed = -1.f;
     tuning.peak_hold_ms = NAN;
@@ -379,6 +391,8 @@ static void test_tuning_ignores_invalid(void) {
     tuning.sparkle_rate = 0.5f;
     effects_tune(&effects, &tuning);
 
+    CHECK(effects.tuning.mode == EFFECTS_MODE);
+    CHECK(effects.tuning.palette == EFFECTS_PALETTE);
     CHECK(effects.tuning.river_speed == EFFECTS_RIVER_SPEED);
     CHECK(effects.tuning.ripple_speed == EFFECTS_RIPPLE_SPEED);
     CHECK(effects.tuning.peak_hold_ms == EFFECTS_PEAK_HOLD_MS);
@@ -396,7 +410,7 @@ static void test_tuned_river_speed(void) {
     sound_t sound = quiet();
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
-    effects_set_mode(&effects, EFFECTS_MODE_RIVER);
+    tuning.mode = EFFECTS_MODE_RIVER;
     tuning.river_speed = 3;
     effects_tune(&effects, &tuning);
 
@@ -421,7 +435,7 @@ static void test_tuned_ripple_speed(void) {
     sound_t sound = quiet();
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
-    effects_set_mode(&effects, EFFECTS_MODE_RIPPLES);
+    tuning.mode = EFFECTS_MODE_RIPPLES;
     tuning.ripple_speed = 4.f;
     effects_tune(&effects, &tuning);
 
@@ -448,7 +462,7 @@ static void test_tuned_peak_hold(void) {
         sound_t sound = quiet();
 
         CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
-        effects_set_mode(&effects, EFFECTS_MODE_VU);
+        tuning.mode = EFFECTS_MODE_VU;
         tuning.peak_hold_ms = held ? EFFECTS_PEAK_HOLD_MS : 0.f;
         effects_tune(&effects, &tuning);
 
@@ -475,7 +489,7 @@ static void test_tuned_warmth_and_drift(void) {
         bands[b] = 1.f;
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
-    effects_set_mode(&effects, EFFECTS_MODE_SPECTRUM);
+    tuning.mode = EFFECTS_MODE_SPECTRUM;
     tuning.warmth = 0.f;
     tuning.drift_period_s = 0.f;
     effects_tune(&effects, &tuning);
@@ -505,7 +519,7 @@ static void test_tuned_flash_and_sparkles(void) {
     sound_t sound = quiet();
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 7));
-    effects_set_mode(&effects, EFFECTS_MODE_GLOW);
+    tuning.mode = EFFECTS_MODE_GLOW;
     tuning.flash_level = 0.f;
     tuning.sparkle_rate = 0.f;
     effects_tune(&effects, &tuning);
@@ -532,7 +546,7 @@ static void test_brightness_zero_is_dark(void) {
         bands[b] = 1.f;
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
-    effects_set_mode(&effects, EFFECTS_MODE_SPECTRUM);
+    tuning.mode = EFFECTS_MODE_SPECTRUM;
     tuning.brightness = 0.f;
     effects_tune(&effects, &tuning);
 
@@ -554,7 +568,7 @@ static void test_half_brightness(void) {
     long white = lroundf(EFFECTS_FLASH_LEVEL * 255.f * powf(0.5f, COLOR_GAMMA));
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
-    effects_set_mode(&effects, EFFECTS_MODE_SPECTRUM);
+    tuning.mode = EFFECTS_MODE_SPECTRUM;
     tuning.brightness = 0.5f;
     effects_tune(&effects, &tuning);
 
@@ -572,7 +586,6 @@ static void test_half_brightness(void) {
 
     // Full levels, no flash: no channel above gamma of half
     CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
-    effects_set_mode(&effects, EFFECTS_MODE_SPECTRUM);
     effects_tune(&effects, &tuning);
     sound = quiet();
     for (size_t b = 0; b < BANDS; b++)
@@ -591,7 +604,7 @@ static void test_half_brightness(void) {
     // The VU peak dot added on the end of the bar goes past 1: capped
     // before the brightness, it is no brighter than full white either
     CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
-    effects_set_mode(&effects, EFFECTS_MODE_VU);
+    tuning.mode = EFFECTS_MODE_VU;
     effects_tune(&effects, &tuning);
     sound = quiet();
     sound.loudness = 0.505f;

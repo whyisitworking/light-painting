@@ -52,9 +52,6 @@ int main(void) {
                                        .fft_size = AUDIO_FFT_SIZE,
                                        .hop_size = AUDIO_HOP_SIZE,
                                        .led_count = LED_COUNT,
-                                       .gain = VISUALIZER_GAIN,
-                                       .mode = VISUALIZER_MODE,
-                                       .palette = VISUALIZER_PALETTE,
                                        .seed = VISUALIZER_SEED,
                                    }),
                    "Visualizer"))
