@@ -104,6 +104,45 @@ bool settings_step(settings_t *this, settings_id_t id, int steps) {
     return settings_set(this, id, range->min + index * range->step);
 }
 
+// What a shuffle changes: the look, not how bright or how sensitive it is
+static const settings_id_t look_ids[] = {
+    SETTINGS_MODE,         SETTINGS_PALETTE,      SETTINGS_DRIFT,
+    SETTINGS_WARMTH,       SETTINGS_FLASH,        SETTINGS_SPARKLES,
+    SETTINGS_RIVER_SPEED,  SETTINGS_RIPPLE_SPEED, SETTINGS_PEAK_HOLD,
+};
+
+static uint32_t next_random(uint32_t *state) {
+    *state ^= *state << 13;
+    *state ^= *state >> 17;
+    *state ^= *state << 5;
+    return *state;
+}
+
+// A random point of a setting's grid
+static int random_value(settings_id_t id, uint32_t *random) {
+    const settings_range_t *range = &ranges[id];
+    uint32_t count = (uint32_t)((range->max - range->min) / range->step) + 1;
+
+    return range->min + (int)(next_random(random) % count) * range->step;
+}
+
+void settings_shuffle(settings_t *this, uint32_t *random) {
+    int mode = this->values[SETTINGS_MODE];
+    int palette = this->values[SETTINGS_PALETTE];
+
+    for (size_t i = 0; i < sizeof(look_ids) / sizeof(look_ids[0]); i++)
+        settings_set(this, look_ids[i], random_value(look_ids[i], random));
+
+    // Something visibly new: another mode or palette than before
+    while (this->values[SETTINGS_MODE] == mode &&
+           this->values[SETTINGS_PALETTE] == palette) {
+        settings_set(this, SETTINGS_MODE,
+                     random_value(SETTINGS_MODE, random));
+        settings_set(this, SETTINGS_PALETTE,
+                     random_value(SETTINGS_PALETTE, random));
+    }
+}
+
 visualizer_tuning_t settings_tuning(const settings_t *this) {
     visualizer_tuning_t tuning = visualizer_default_tuning();
 

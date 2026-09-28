@@ -92,6 +92,14 @@ void settings_clamp(settings_t *this);
 // What the settings make of the visualizer. The backlight is not in it
 visualizer_tuning_t settings_tuning(const settings_t *this);
 
+/**
+ * A random look: the mode, the palette and every effect layer at random on
+ * their grids, the mode and palette together always different from before.
+ * The brightness, the sound response and the backlight are left alone.
+ * random is xorshift32 state, not 0
+ */
+void settings_shuffle(settings_t *this, uint32_t *random);
+
 /*
  * Records: the settings as saved, in one flash page, little endian
  *

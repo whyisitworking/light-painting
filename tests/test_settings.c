@@ -407,6 +407,53 @@ static void test_log_power_lost_after_erase(void) {
     CHECK(memcmp(&settings, &loaded, sizeof(settings)) == 0);
 }
 
+// Shuffles change the look on its grids, never the brightness, the sound
+// response or the backlight, and always show a new mode or palette
+static void test_shuffle(void) {
+    settings_t settings, before;
+    uint32_t random = 12345;
+    int changed_drift = 0, same_look = 0, off_grid = 0, kept = 0;
+
+    settings_reset(&settings);
+    settings_set(&settings, SETTINGS_BRIGHTNESS, 40);
+    settings_set(&settings, SETTINGS_GAIN, 25);
+    settings_set(&settings, SETTINGS_BACKLIGHT, 60);
+
+    for (int i = 0; i < 1000; i++) {
+        before = settings;
+        settings_shuffle(&settings, &random);
+
+        same_look += settings_get(&settings, SETTINGS_MODE) ==
+                         settings_get(&before, SETTINGS_MODE) &&
+                     settings_get(&settings, SETTINGS_PALETTE) ==
+                         settings_get(&before, SETTINGS_PALETTE);
+        changed_drift += settings_get(&settings, SETTINGS_DRIFT) !=
+                         settings_get(&before, SETTINGS_DRIFT);
+
+        for (int id = 0; id < SETTINGS_ID_COUNT; id++) {
+            const settings_range_t *range = settings_range(id);
+            int value = settings_get(&settings, id);
+
+            off_grid += value < range->min || value > range->max ||
+                        (value - range->min) % range->step != 0;
+        }
+
+        kept += settings_get(&settings, SETTINGS_BRIGHTNESS) == 40 &&
+                settings_get(&settings, SETTINGS_GAIN) == 25 &&
+                settings_get(&settings, SETTINGS_BACKLIGHT) == 60 &&
+                settings_get(&settings, SETTINGS_QUIET_FLOOR) == -32 &&
+                settings_get(&settings, SETTINGS_BEAT_THRESHOLD) == 28 &&
+                settings_get(&settings, SETTINGS_ATTACK) == 10 &&
+                settings_get(&settings, SETTINGS_DECAY) == 120;
+    }
+
+    CHECK(same_look == 0);
+    CHECK(off_grid == 0);
+    CHECK(kept == 1000);
+    // The layers vary too: drift has 31 values
+    CHECK(changed_drift > 900);
+}
+
 int main(void) {
     test_ranges();
     test_defaults_are_the_constants();
@@ -425,6 +472,7 @@ int main(void) {
     test_log_torn_record();
     test_log_garbage();
     test_log_power_lost_after_erase();
+    test_shuffle();
 
     return CHECK_REPORT();
 }
