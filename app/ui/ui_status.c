@@ -1,17 +1,10 @@
 #include "ui_status.h"
 
-#include "palette.h"
 #include "ui_names.h"
-
-#include <math.h>
+#include "ui_theme.h"
 
 // Cells of the palette swatch
 constexpr size_t SWATCH_CELLS = 32;
-
-// Labels in front of values, the filled part of the bar, and its track
-constexpr uint32_t MUTED_COLOR = 0x8888A0;
-constexpr uint32_t ACCENT_COLOR = 0xFF3D8B;
-constexpr uint32_t TRACK_COLOR = 0x2A2A38;
 
 // Around the screen, between its blocks, and within a block. The blocks
 // are 52, 32 and 32 lines high (Montserrat 14 lines are 16, 28 lines 30),
@@ -32,20 +25,6 @@ static struct {
     lv_obj_t *brightness_bar;
     lv_obj_t *brightness;
 } view;
-
-static uint8_t lcd_channel(float value) {
-    return (uint8_t)lroundf(fminf(fmaxf(value, 0.f), 1.f) * 255.f);
-}
-
-/**
- * Palette colours are what the effects compute, before the strip's gamma.
- * The LCD applies a gamma of its own, about 2.2 too: sent as they are, they
- * look as they do on the strip. Not color_gamma(), which core 0 uses
- */
-static lv_color_t lcd_color(rgb_t color) {
-    return lv_color_make(lcd_channel(color.r), lcd_channel(color.g),
-                         lcd_channel(color.b));
-}
 
 // A column of what belongs together, INNER_GAP apart
 static lv_obj_t *block_create(lv_obj_t *parent) {
@@ -72,7 +51,7 @@ static lv_obj_t *row_create(lv_obj_t *parent, const char *name) {
 
     label = lv_label_create(row);
     lv_label_set_text(label, name);
-    lv_obj_set_style_text_color(label, lv_color_hex(MUTED_COLOR), 0);
+    lv_obj_add_style(label, ui_theme_muted(), 0);
 
     return row;
 }
@@ -101,7 +80,7 @@ static lv_obj_t *swatch_create(lv_obj_t *parent) {
     return swatch;
 }
 
-// Shaped like the swatch: the accent filled part on a dark track
+// Shaped like the swatch: the accent filled part on a track
 static lv_obj_t *bar_create(lv_obj_t *parent) {
     lv_obj_t *bar = lv_bar_create(parent);
 
@@ -109,17 +88,16 @@ static lv_obj_t *bar_create(lv_obj_t *parent) {
     lv_obj_set_size(bar, LV_PCT(100), STRIP_HEIGHT);
     lv_obj_set_style_radius(bar, STRIP_RADIUS, 0);
     lv_obj_set_style_radius(bar, STRIP_RADIUS, LV_PART_INDICATOR);
-    lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(bar, lv_color_hex(TRACK_COLOR), 0);
-    lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, LV_PART_INDICATOR);
-    lv_obj_set_style_bg_color(bar, lv_color_hex(ACCENT_COLOR),
-                              LV_PART_INDICATOR);
+    lv_obj_add_style(bar, ui_theme_track(), 0);
+    lv_obj_add_style(bar, ui_theme_fill(), LV_PART_INDICATOR);
 
     return bar;
 }
 
 lv_obj_t *ui_status_create(void) {
     lv_obj_t *screen = lv_obj_create(nullptr), *block, *row;
+
+    lv_obj_add_style(screen, ui_theme_screen(), 0);
 
     lv_obj_set_flex_flow(screen, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_all(screen, MARGIN, 0);
@@ -130,7 +108,7 @@ lv_obj_t *ui_status_create(void) {
     block = block_create(screen);
     row = row_create(block, "Light Painting");
     view.note = lv_label_create(row);
-    lv_obj_set_style_text_color(view.note, lv_color_hex(MUTED_COLOR), 0);
+    lv_obj_add_style(view.note, ui_theme_muted(), 0);
     view.mode = lv_label_create(block);
     lv_obj_set_style_text_font(view.mode, &lv_font_montserrat_28, 0);
 
@@ -160,8 +138,8 @@ void ui_status_show(const ui_status_t *status) {
     for (size_t i = 0; i < SWATCH_CELLS; i++)
         lv_obj_set_style_bg_color(
             view.swatch[i],
-            lcd_color(palette_color(status->palette,
-                                    (float)i / (float)(SWATCH_CELLS - 1))),
+            ui_theme_palette_color(status->palette,
+                                   (float)i / (float)(SWATCH_CELLS - 1)),
             0);
 
     lv_bar_set_value(view.brightness_bar, status->brightness_percent,

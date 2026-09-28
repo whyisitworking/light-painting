@@ -3,14 +3,10 @@
 #include "config.h"
 #include "ui_names.h"
 #include "ui_status.h"
+#include "ui_theme.h"
 
 #include <stdint.h>
 #include <stdio.h>
-
-// The focused row, and what is written on it
-constexpr uint32_t FOCUS_COLOR = 0xFF3D8B;
-constexpr uint32_t FOCUS_TEXT_COLOR = 0x1A0010;
-constexpr uint32_t MUTED_COLOR = 0x8888A0;
 
 constexpr int32_t ROW_HEIGHT = 28;
 
@@ -321,6 +317,8 @@ static void reset(lv_obj_t *row_obj) {
 
     reset_cancel(nullptr);
     settings_reset(menu.settings);
+    ui_theme_set_palette(
+        (palette_t)settings_get(menu.settings, SETTINGS_PALETTE));
     menu.changed(menu.settings, SETTINGS_ID_COUNT);
     show_values(lv_obj_get_parent(row_obj));
     lv_label_set_text(label, "Done");
@@ -329,6 +327,11 @@ static void reset(lv_obj_t *row_obj) {
 static void change(lv_obj_t *row_obj, const row_t *row, int steps) {
     if (!settings_step(menu.settings, row->id, steps))
         return;
+
+    // The accent follows the palette at once, on this row too
+    if (row->id == SETTINGS_PALETTE)
+        ui_theme_set_palette(
+            (palette_t)settings_get(menu.settings, SETTINGS_PALETTE));
 
     show_value(row_obj);
     menu.changed(menu.settings, row->id);
@@ -391,11 +394,7 @@ static lv_obj_t *row_create(lv_obj_t *screen, const row_t *row,
                           LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_hor(row_obj, ROW_INSET, 0);
     lv_obj_set_style_radius(row_obj, 6, 0);
-    lv_obj_set_style_bg_opa(row_obj, LV_OPA_COVER, LV_STATE_FOCUSED);
-    lv_obj_set_style_bg_color(row_obj, lv_color_hex(FOCUS_COLOR),
-                              LV_STATE_FOCUSED);
-    lv_obj_set_style_text_color(row_obj, lv_color_hex(FOCUS_TEXT_COLOR),
-                                LV_STATE_FOCUSED);
+    lv_obj_add_style(row_obj, ui_theme_focus(), LV_STATE_FOCUSED);
     lv_obj_set_scrollable(row_obj, false);
     lv_obj_set_scroll_on_focus(row_obj, true);
     lv_obj_set_user_data(row_obj, (void *)row);
@@ -415,6 +414,8 @@ static lv_obj_t *page_create(page_t page, page_t from) {
     lv_obj_t *screen = lv_obj_create(nullptr), *row_obj, *focus;
     char title[32];
 
+    lv_obj_add_style(screen, ui_theme_screen(), 0);
+
     lv_obj_set_flex_flow(screen, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_ver(screen, 6, 0);
     lv_obj_set_style_pad_hor(screen, SCREEN_INSET, 0);
@@ -423,7 +424,7 @@ static lv_obj_t *page_create(page_t page, page_t from) {
 
     snprintf(title, sizeof(title), LV_SYMBOL_LEFT "  %s", def->title);
     focus = row_create(screen, &back_row, title);
-    lv_obj_set_style_text_color(focus, lv_color_hex(MUTED_COLOR), 0);
+    lv_obj_add_style(focus, ui_theme_muted(), 0);
 
     for (size_t i = 0; i < def->row_count; i++) {
         const row_t *row = &def->rows[i];
@@ -502,6 +503,8 @@ void ui_menu_note(const char *note) {
 void ui_menu_start(settings_t *settings, ui_menu_changed_t *changed) {
     menu.settings = settings;
     menu.changed = changed;
+
+    ui_theme_init((palette_t)settings_get(settings, SETTINGS_PALETTE));
 
     show(PAGE_STATUS);
     lv_timer_create(idle_check, IDLE_CHECK_MS, nullptr);
