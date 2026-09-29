@@ -27,6 +27,7 @@ typedef enum {
     EFFECTS_MODE_STORM,
     EFFECTS_MODE_PINGPONG,
     EFFECTS_MODE_SWARM,
+    EFFECTS_MODE_PLASMA,
     EFFECTS_MODE_COUNT
 } effects_mode_t;
 
@@ -133,6 +134,14 @@ constexpr size_t EFFECTS_SWARM_REACH = 3;
 constexpr float EFFECTS_SWARM_SPRING = 120.f;
 constexpr float EFFECTS_SWARM_FRICTION = 17.f;
 constexpr float EFFECTS_SWARM_QUIET = 0.02f;
+
+// Plasma: turns per second the pattern scrolls at rest and per unit of bass,
+// the jerk a full beat gives (turns), and the loudness that lights it fully
+// is 1 / GAIN
+constexpr float EFFECTS_PLASMA_SPEED = 0.05f;
+constexpr float EFFECTS_PLASMA_BASS_SPEED = 0.6f;
+constexpr float EFFECTS_PLASMA_JERK = 0.06f;
+constexpr float EFFECTS_PLASMA_GAIN = 3.f;
 
 // Bands counted as bass (glow), and the top fraction counted as treble
 constexpr size_t EFFECTS_BASS_BANDS = 5;
@@ -308,6 +317,11 @@ typedef struct {
         float position[EFFECTS_SWARM_DOTS];
         float velocity[EFFECTS_SWARM_DOTS];
     } swarm;
+
+    struct {
+        // Scroll position in turns, 0 up to 1
+        float phase;
+    } plasma;
 } effects_t;
 
 /**

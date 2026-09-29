@@ -40,6 +40,7 @@ effects_renderer_t effects_mode_pingpong;
 effects_reset_t effects_reset_pingpong;
 effects_renderer_t effects_mode_swarm;
 effects_reset_t effects_reset_swarm;
+effects_renderer_t effects_mode_plasma;
 
 /**
  * The layers, on top of every mode: slides, folds, blurs and trails

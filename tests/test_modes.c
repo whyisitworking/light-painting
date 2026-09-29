@@ -533,6 +533,37 @@ static void test_swarm_reset_on_entry(void) {
     stop();
 }
 
+static uint32_t frame_hash(void) {
+    uint32_t hash = 2166136261u;
+
+    for (size_t i = 0; i < LEDS; i++)
+        hash = (hash ^ pixels[i]) * 16777619u;
+
+    return hash;
+}
+
+// The pattern moves while there is sound, and stays dark without
+static void test_plasma_moves_and_is_gated(void) {
+    sound_t sound = music(1);
+    uint32_t first, later;
+
+    start(EFFECTS_MODE_PLASMA);
+    render(&sound);
+    first = frame_hash();
+    CHECK(!all_dark());
+
+    for (int frame = 0; frame < 40; frame++)
+        render(&sound);
+    later = frame_hash();
+    CHECK(first != later);
+
+    // The phase keeps moving in silence, but nothing shows
+    sound = quiet();
+    render(&sound);
+    CHECK(all_dark());
+    stop();
+}
+
 int main(void) {
     test_sin();
     test_random_stream();
@@ -555,6 +586,8 @@ int main(void) {
     check_all(EFFECTS_MODE_SWARM);
     test_swarm_chases_the_lit_band();
     test_swarm_reset_on_entry();
+    check_all(EFFECTS_MODE_PLASMA);
+    test_plasma_moves_and_is_gated();
 
     return CHECK_REPORT();
 }
