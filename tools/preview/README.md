@@ -30,7 +30,7 @@ then open `http://localhost:8765/preview.html`.
   3. Make it the system output. macOS cannot change the volume of a Multi-Output Device, so use the volume of the app that plays.
   4. In the page choose Microphone, then the input device "BlackHole 2ch".
   5. If the loudness strip is pinned, lower "Input level".
-- Neither capture route was tried with a real share picker or a real device, only with mocked streams, and nothing is measured on the LED board.
+- Neither capture route has been run: the code builds and passes a syntax check, but it has not been tried with a real share picker, a real device or even a mocked stream. Nothing is measured on the LED board.
 - **Settings:** the same ranges and steps as the board's menu, taken from the firmware's `settings` module, so a new setting shows up on its own.
 - **All modes:** tick "show all at once" to render every mode and compare them; click a tile to select it.
 - The browser's audio rate (usually 48 000 Hz) differs a little from the firmware's 48 828 Hz, so timing is about 2 % off.
