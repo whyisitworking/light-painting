@@ -27,7 +27,11 @@ constexpr float GAIN = 1.5f;
 constexpr size_t HOPS = 400;
 
 // Recorded hashes, in effects_mode_t order
-static const uint32_t expected[EFFECTS_MODE_COUNT] = {
+// Hashes are recorded after the tuning pass with the user: the modes from
+// EFFECTS_MODE_POND on are run (they must not crash) but not compared yet
+constexpr int RECORDED = 6;
+
+static const uint32_t expected[RECORDED] = {
     0x5048769cu, 0x26df914cu, 0x137d2edcu,
     0x03413ae8u, 0x6a6784f4u, 0x648a73d4u,
 };
@@ -102,7 +106,7 @@ int main(int argc, char **argv) {
 
         if (print)
             printf("    0x%08xu,\n", (unsigned)hash);
-        else if (hash != expected[mode]) {
+        else if (mode < RECORDED && hash != expected[mode]) {
             check_failures++;
             printf("mode %d: hash 0x%08x, expected 0x%08x\n", mode,
                    (unsigned)hash, (unsigned)expected[mode]);

@@ -5,7 +5,8 @@
  * Shared by effects.c and the mode renderers, not part of the API.
  *
  * Adding a mode: a value in effects_mode_t, a mode_*.c file with its
- * renderer, declared below, and its entry in the table in effects.c. A
+ * renderer, declared below, its entry in the table in effects.c and, for a
+ * mode with state, a reset in the table below it. A
  * renderer draws into this->frame, which is black when it is called; the
  * layers (layers.c), the beat flash, gamma and the drift clock are applied
  * after it, for all modes.
@@ -17,12 +18,19 @@
 
 typedef void effects_renderer_t(effects_t *this, const sound_t *sound);
 
+// Clears a mode's state. Called when the mode is switched to, and once by
+// effects_init(): a simulation must not start with the waves or flames of
+// the last time it was shown
+typedef void effects_reset_t(effects_t *this);
+
 effects_renderer_t effects_mode_spectrum;
 effects_renderer_t effects_mode_spectrum_mirrored;
 effects_renderer_t effects_mode_river;
 effects_renderer_t effects_mode_ripples;
 effects_renderer_t effects_mode_vu;
 effects_renderer_t effects_mode_glow;
+effects_renderer_t effects_mode_pond;
+effects_reset_t effects_reset_pond;
 
 /**
  * The layers, on top of every mode: slides, folds, blurs and trails

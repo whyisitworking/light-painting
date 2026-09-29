@@ -7,6 +7,7 @@ static const char *const modes[] = {
     [EFFECTS_MODE_RIPPLES] = "Ripples",
     [EFFECTS_MODE_VU] = "VU meters",
     [EFFECTS_MODE_GLOW] = "Glow",
+    [EFFECTS_MODE_POND] = "Pond",
 };
 
 static const char *const palettes[] = {

@@ -15,13 +15,40 @@ static effects_renderer_t *const renderers[EFFECTS_MODE_COUNT] = {
     [EFFECTS_MODE_RIPPLES] = effects_mode_ripples,
     [EFFECTS_MODE_VU] = effects_mode_vu,
     [EFFECTS_MODE_GLOW] = effects_mode_glow,
+    [EFFECTS_MODE_POND] = effects_mode_pond,
 };
+
+// Modes without a reset have no state to clear
+static effects_reset_t *const resets[EFFECTS_MODE_COUNT] = {
+    [EFFECTS_MODE_POND] = effects_reset_pond,
+};
+
+// Floats the simulations' rows take, see slice_pool()
+static size_t pool_floats(size_t led_count) {
+    return 2 * led_count; // Pond: height, previous
+}
+
+static float *take(float **cursor, size_t count) {
+    float *slice = *cursor;
+
+    *cursor += count;
+
+    return slice;
+}
+
+static void slice_pool(effects_t *this, float *pool) {
+    float *cursor = pool;
+
+    this->pool = pool;
+    this->pond.height = take(&cursor, this->led_count);
+    this->pond.previous = take(&cursor, this->led_count);
+}
 
 bool effects_init(effects_t *this, size_t led_count, size_t band_count,
                   float hop_period_s, uint32_t seed) {
     size_t half_led_count = (led_count + 1) / 2;
     rgb_t *frame, *river, *previous, *scratch;
-    float *sparkles;
+    float *sparkles, *pool;
 
     if (led_count < 2 || band_count < 2 || !(hop_period_s > 0.f))
         return false;
@@ -31,14 +58,16 @@ bool effects_init(effects_t *this, size_t led_count, size_t band_count,
     sparkles = (float *)calloc(led_count, sizeof(float));
     previous = (rgb_t *)calloc(led_count, sizeof(rgb_t));
     scratch = (rgb_t *)calloc(led_count, sizeof(rgb_t));
+    pool = (float *)calloc(pool_floats(led_count), sizeof(float));
 
     if (frame == nullptr || river == nullptr || sparkles == nullptr ||
-        previous == nullptr || scratch == nullptr) {
+        previous == nullptr || scratch == nullptr || pool == nullptr) {
         free(frame);
         free(river);
         free(sparkles);
         free(previous);
         free(scratch);
+        free(pool);
         return false;
     }
 
@@ -58,6 +87,16 @@ bool effects_init(effects_t *this, size_t led_count, size_t band_count,
         .layers.previous = previous,
         .layers.scratch = scratch,
     };
+    slice_pool(this, pool);
+    // One sub-step of a wave, in seconds, sets how much each one keeps
+    this->pond.velocity_k =
+        expf(-hop_period_s / (float)EFFECTS_POND_SUBSTEPS / EFFECTS_POND_DAMPING_S);
+    this->pond.leak_k =
+        expf(-hop_period_s / (float)EFFECTS_POND_SUBSTEPS / EFFECTS_POND_LEAK_S);
+
+    for (size_t mode = 0; mode < EFFECTS_MODE_COUNT; mode++)
+        if (resets[mode] != nullptr)
+            resets[mode](this);
     effects_tune(this, &this->tuning);
 
     return true;
@@ -89,8 +128,11 @@ static bool is_at_least(float value, float least) {
 static bool is_fraction(float value) { return value >= 0.f && value <= 1.f; }
 
 void effects_tune(effects_t *this, const effects_tuning_t *tuning) {
-    if (tuning->mode < EFFECTS_MODE_COUNT)
+    if (tuning->mode < EFFECTS_MODE_COUNT) {
+        if (tuning->mode != this->tuning.mode && resets[tuning->mode] != nullptr)
+            resets[tuning->mode](this);
         this->tuning.mode = tuning->mode;
+    }
     if (tuning->palette < PALETTE_COUNT)
         this->tuning.palette = tuning->palette;
     if (is_fraction(tuning->brightness))
@@ -185,4 +227,5 @@ void effects_deinit(effects_t *this) {
     free(this->sparkles.levels);
     free(this->layers.previous);
     free(this->layers.scratch);
+    free(this->pool);
 }

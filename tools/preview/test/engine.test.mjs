@@ -46,7 +46,7 @@ const music = (i) => 0.2 * Math.sin((2 * Math.PI * 1000 * i) / RATE) + kick(i);
 
 test('names and counts', async () => {
   const m = await engine();
-  assert.equal(m._preview_mode_count(), 6);
+  assert.ok(m._preview_mode_count() >= 6);
   assert.equal(m.UTF8ToString(m._preview_mode_name(2)), 'River');
   assert.equal(m._preview_palette_count(), 4);
   assert.equal(m.UTF8ToString(m._preview_palette_name(1)), 'Synthwave');

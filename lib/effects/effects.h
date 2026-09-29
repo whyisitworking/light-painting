@@ -21,6 +21,7 @@ typedef enum {
     EFFECTS_MODE_RIPPLES,
     EFFECTS_MODE_VU,
     EFFECTS_MODE_GLOW,
+    EFFECTS_MODE_POND,
     EFFECTS_MODE_COUNT
 } effects_mode_t;
 
@@ -68,6 +69,23 @@ constexpr size_t EFFECTS_SYMMETRY_MAX = 4;
 // Chase: LEDs per second the image slides along the strip, negative the
 // other way, 0 disables
 constexpr float EFFECTS_CHASE_LEDS_PER_S = 0.f;
+
+// Pond: how far a wave travels per sub-step (at most 1, or the simulation
+// blows up) and the sub-steps per frame, so LEDs per frame is the product
+constexpr float EFFECTS_POND_WAVE_SPEED = 0.5f;
+constexpr size_t EFFECTS_POND_SUBSTEPS = 3;
+
+// Pond: time constants of the waves' motion dying and of the water level
+// settling back (damping alone would leave a permanent offset)
+constexpr float EFFECTS_POND_DAMPING_S = 1.f;
+constexpr float EFFECTS_POND_LEAK_S = 2.f;
+
+// Pond: a stone's width in LEDs, the height of a drizzle drop and the chance
+// of one per frame at full treble, and how bright a wave of height 1/GAIN is
+constexpr float EFFECTS_POND_STONE_WIDTH = 2.f;
+constexpr float EFFECTS_POND_DRIZZLE_HEIGHT = 0.15f;
+constexpr float EFFECTS_POND_DRIZZLE_RATE = 0.02f;
+constexpr float EFFECTS_POND_GAIN = 2.f;
 
 // Bands counted as bass (glow), and the top fraction counted as treble
 constexpr size_t EFFECTS_BASS_BANDS = 5;
@@ -181,6 +199,20 @@ typedef struct {
         // Chase: how far the image is shifted, 0 up to led_count LEDs
         float offset;
     } layers;
+
+    // One allocation for the rows of the simulations below, sliced by
+    // effects_init(). Freed by effects_deinit()
+    float *pool;
+
+    struct {
+        // Height and the height one sub-step before, led_count each. The
+        // two swap places every sub-step
+        float *height;
+        float *previous;
+        // What a sub-step keeps of the motion, and of the height
+        float velocity_k;
+        float leak_k;
+    } pond;
 } effects_t;
 
 /**

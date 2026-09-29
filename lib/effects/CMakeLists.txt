@@ -10,5 +10,6 @@ lp_add_module(effects
         mode_ripples.c
         mode_vu.c
         mode_glow.c
+        mode_pond.c
     DEPS features color
     MATH)
