@@ -22,6 +22,7 @@ static effects_renderer_t *const renderers[EFFECTS_MODE_COUNT] = {
     [EFFECTS_MODE_PINGPONG] = effects_mode_pingpong,
     [EFFECTS_MODE_SWARM] = effects_mode_swarm,
     [EFFECTS_MODE_PLASMA] = effects_mode_plasma,
+    [EFFECTS_MODE_AURORA] = effects_mode_aurora,
 };
 
 // Modes without a reset have no state to clear

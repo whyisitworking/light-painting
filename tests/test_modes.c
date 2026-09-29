@@ -3,6 +3,7 @@
 #include "effects_internal.h"
 
 #include <math.h>
+#include <stdlib.h>
 #include <string.h>
 
 constexpr size_t LEDS = 300;
@@ -564,6 +565,50 @@ static void test_plasma_moves_and_is_gated(void) {
     stop();
 }
 
+static long total(void) {
+    long sum = 0;
+
+    for (size_t i = 0; i < LEDS; i++)
+        sum += lum(pixels[i]);
+
+    return sum;
+}
+
+static long difference(const uint32_t *a) {
+    long sum = 0;
+
+    for (size_t i = 0; i < LEDS; i++)
+        sum += labs((long)lum(a[i]) - (long)lum(pixels[i]));
+
+    return sum;
+}
+
+// Calm and smooth: one hop changes little, seconds change the picture
+static void test_aurora_drifts_smoothly(void) {
+    static uint32_t before[LEDS];
+    sound_t sound = music(1);
+    long change_now, change_later;
+
+    sound.beat = false;
+    start(EFFECTS_MODE_AURORA);
+    for (int frame = 0; frame < 20; frame++)
+        render(&sound);
+    CHECK(total() > 0);
+
+    memcpy(before, pixels, sizeof(pixels));
+    render(&sound);
+    change_now = difference(before);
+
+    memcpy(before, pixels, sizeof(pixels));
+    for (int frame = 0; frame < 800; frame++)
+        render(&sound);
+    change_later = difference(before);
+
+    CHECK(change_now * 4 < total());
+    CHECK(change_later > change_now * 10);
+    stop();
+}
+
 int main(void) {
     test_sin();
     test_random_stream();
@@ -588,6 +633,8 @@ int main(void) {
     test_swarm_reset_on_entry();
     check_all(EFFECTS_MODE_PLASMA);
     test_plasma_moves_and_is_gated();
+    check_all(EFFECTS_MODE_AURORA);
+    test_aurora_drifts_smoothly();
 
     return CHECK_REPORT();
 }

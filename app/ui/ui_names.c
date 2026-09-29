@@ -14,6 +14,7 @@ static const char *const modes[] = {
     [EFFECTS_MODE_PINGPONG] = "Ping-pong",
     [EFFECTS_MODE_SWARM] = "Swarm",
     [EFFECTS_MODE_PLASMA] = "Plasma",
+    [EFFECTS_MODE_AURORA] = "Aurora",
 };
 
 static const char *const palettes[] = {

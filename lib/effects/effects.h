@@ -28,6 +28,7 @@ typedef enum {
     EFFECTS_MODE_PINGPONG,
     EFFECTS_MODE_SWARM,
     EFFECTS_MODE_PLASMA,
+    EFFECTS_MODE_AURORA,
     EFFECTS_MODE_COUNT
 } effects_mode_t;
 
@@ -142,6 +143,15 @@ constexpr float EFFECTS_PLASMA_SPEED = 0.05f;
 constexpr float EFFECTS_PLASMA_BASS_SPEED = 0.6f;
 constexpr float EFFECTS_PLASMA_JERK = 0.06f;
 constexpr float EFFECTS_PLASMA_GAIN = 3.f;
+
+// Aurora: curtains drift and the fine rays flicker, in noise cells per
+// second; cells across the strip for each; the loudness that lights it fully
+// is 1 / GAIN
+constexpr float EFFECTS_AURORA_CURTAIN_SPEED = 0.12f;
+constexpr float EFFECTS_AURORA_RAY_SPEED = 2.f;
+constexpr float EFFECTS_AURORA_CURTAIN_CELLS = 3.f;
+constexpr float EFFECTS_AURORA_RAY_CELLS = 40.f;
+constexpr float EFFECTS_AURORA_GAIN = 3.f;
 
 // Bands counted as bass (glow), and the top fraction counted as treble
 constexpr size_t EFFECTS_BASS_BANDS = 5;
@@ -322,6 +332,13 @@ typedef struct {
         // Scroll position in turns, 0 up to 1
         float phase;
     } plasma;
+
+    struct {
+        // Time of the curtains [0] and the rays [1], in noise cells: a whole
+        // number and a fraction, so that hours of running lose no precision
+        uint32_t cell[2];
+        float fraction[2];
+    } aurora;
 } effects_t;
 
 /**
