@@ -20,3 +20,5 @@ emcc "${EMCC_FLAGS[@]}" "${MODULE_INC[@]}" \
     -o "$OUT/engine.js"
 
 echo "engine: $OUT/engine.js"
+
+node "$HERE/build-page.mjs" "$OUT"
