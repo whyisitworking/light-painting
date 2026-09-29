@@ -26,7 +26,7 @@
 - **Fast.** A fresh analysis every 5.2 ms (about 190 per second): a 512-point FFT with 50 % overlap, on the RP2350's single precision FPU.
 - **Hands-off I/O.** PIO state machines generate the I²S and WS2812 signals, and DMA moves every sample and pixel. Interrupts fire only once per audio buffer and once per LED frame, leaving the CPU to the analysis.
 - **Musical, not just loud.** 32 log-spaced bands from 60 Hz to 12 kHz, an auto-gain that follows the room, attack/decay smoothing, and beat detection on the bass.
-- **Six effects, four palettes.** Spectrum, mirrored spectrum, river, ripples, VU meters and glow, with a slow palette drift, loudness warmth, a beat flash and gamma correction.
+- **Fifteen effects, four palettes.** Spectrum, mirrored spectrum, river, ripples, VU meters and glow, and nine newer ones: pond, cymatics, fire, storm, ping-pong, swarm, plasma, aurora and bloom. With a slow palette drift, loudness warmth, a beat flash and gamma correction.
 - **Dark when it's quiet.** Silence and microphone self-noise stay black, by design.
 - **Tuned on the device.** A menu on the board's 1.47" LCD, driven by a 5-way switch: mode, palette, brightness, the sound response and every effect layer, saved to flash. It runs on the second core, and the lights never wait for it.
 - **Tested off the board.** Everything that isn't hardware is plain C23 with unit tests on your computer, including a golden snapshot of the whole pipeline.
@@ -142,6 +142,17 @@ Pick them in the [menu](#the-menu), under Look. The defaults are `EFFECTS_MODE` 
 | `EFFECTS_MODE_RIPPLES` | Every beat launches a pulse from the centre (up to 8 at once), sized by its strength, with treble sparkles |
 | `EFFECTS_MODE_VU` | Twin meters filling from both ends with loudness, and peak dots that hold, then fall |
 | `EFFECTS_MODE_GLOW` | The whole strip breathes with the bass, with treble sparkles |
+| `EFFECTS_MODE_POND` | Each beat drops a stone, placed by the sound's brightness (centroid); waves travel, bounce off the ends and cross. Treble adds small drops |
+| `EFFECTS_MODE_CYMATICS` | A standing wave: the number of nodes follows the loudest band, and the pattern breathes with loudness |
+| `EFFECTS_MODE_FIRE` | Flames burn outward from the centre and cool as they go. Bass and beats feed the centre, treble makes the tips flicker |
+| `EFFECTS_MODE_STORM` | A strong beat strikes a crackling bolt, longer for a stronger beat, with a few branches and a dim flash of sky. Rain sparkles in between |
+| `EFFECTS_MODE_PING_PONG` | Beats launch comets alternately from the two ends; they flash where they cross (up to 8 at once) |
+| `EFFECTS_MODE_SWARM` | About 24 dots, each chasing the loudest band near it, so the group slides and clusters where the music is |
+| `EFFECTS_MODE_PLASMA` | Layered sines scrolling along the strip: bass speeds them up, beats jerk them forward, the tone balance shifts the colour |
+| `EFFECTS_MODE_AURORA` | Slow drifting curtains, with fine rays that grow with treble. A calm mode |
+| `EFFECTS_MODE_BLOOM` *(experimental)* | A reaction-diffusion pattern: spots split, grow and die. Bass changes the feed, beats seed new spots |
+
+The last nine were added without the strip: nobody has tuned their looks yet, every number in them (damping, speeds, counts, cooling) is a first guess, and nothing about them is measured on the board (frame time, RAM or looks). Bloom is the least certain. Tune them in the [preview](tools/preview) first.
 
 | Palette | Stops |
 |---|---|
@@ -185,9 +196,10 @@ After 30 s without a key, the status screen comes back, except from Diagnostics.
 
 | Page | Setting | Range, step | Default | Replaces |
 |---|---|---|---|---|
-| Look | Mode | the six modes | River | `EFFECTS_MODE` |
+| Look | Mode | the fifteen modes | River | `EFFECTS_MODE` |
 | | Palette | the four palettes | Synthwave | `EFFECTS_PALETTE` |
 | | Brightness | 10–100 %, 5 | 100 % | |
+| | The selected mode's own rows (River: speed; Ripples: speed; VU meters: peak hold) | see the next lines | | follow Brightness, change with Mode |
 | Sound | Gain | 0.5–4.0×, 0.1 | 1.5× | `VISUALIZER_GAIN` |
 | | Beat threshold (lower: more beats) | 1.5–6.0×, 0.1 | 2.8× | `FEATURES_BEAT_THRESHOLD` |
 | | Quiet floor | −45…−10 dB, 1 | −32 dB | `FEATURES_MIN_CEILING_DB` |
@@ -195,8 +207,9 @@ After 30 s without a key, the status screen comes back, except from Diagnostics.
 | Effects | Palette drift | Off, 10–300 s, 10 | 60 s | `EFFECTS_DRIFT_PERIOD_S` |
 | | Warmth, beat flash | 0–100 %, 5 | 25 %, 35 % | `EFFECTS_WARMTH`, `EFFECTS_FLASH_LEVEL` |
 | | Sparkles | 0–10 %, 0.5 | 3 % | `EFFECTS_SPARKLE_RATE` |
-| | River speed, ripple speed | 1–4; 0.5–6.0, 0.5 (LEDs per frame) | 1, 2.0 | `EFFECTS_RIVER_SPEED`, `EFFECTS_RIPPLE_SPEED` |
-| | VU peak hold | 0–2000 ms, 50 | 300 ms | `EFFECTS_PEAK_HOLD_MS` |
+| Look, River | Speed | 1–4 (LEDs per frame) | 1 | `EFFECTS_RIVER_SPEED` |
+| Look, Ripples | Speed | 0.5–6.0, 0.5 (LEDs per frame) | 2.0 | `EFFECTS_RIPPLE_SPEED` |
+| Look, VU meters | Peak hold | 0–2000 ms, 50 | 300 ms | `EFFECTS_PEAK_HOLD_MS` |
 | Layers | Trails | Off, 50–1000 ms, 50 | Off | `EFFECTS_TRAILS_MS` |
 | | Diffuse | Off, 5–100 %, 5 | Off | `EFFECTS_DIFFUSE` |
 | | Symmetry | Off, 2–4 segments | Off | `EFFECTS_SYMMETRY` |

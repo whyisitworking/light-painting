@@ -46,8 +46,10 @@ const music = (i) => 0.2 * Math.sin((2 * Math.PI * 1000 * i) / RATE) + kick(i);
 
 test('names and counts', async () => {
   const m = await engine();
-  assert.ok(m._preview_mode_count() >= 6);
+  assert.equal(m._preview_mode_count(), 15);
   assert.equal(m.UTF8ToString(m._preview_mode_name(2)), 'River');
+  assert.equal(m.UTF8ToString(m._preview_mode_name(6)), 'Pond');
+  assert.equal(m.UTF8ToString(m._preview_mode_name(14)), 'Bloom');
   assert.equal(m._preview_palette_count(), 4);
   assert.equal(m.UTF8ToString(m._preview_palette_name(1)), 'Synthwave');
   assert.equal(m._preview_setting_count(), 20);
@@ -68,9 +70,9 @@ test('silence is dark, music lights every mode in the gallery', async () => {
   const m = await engine();
   m._preview_set_gallery(1);
   feed(m, 20000, () => 0);
-  for (let mode = 0; mode < 6; mode++) assert.equal(lit(m, mode), 0, `mode ${mode}`);
+  for (let mode = 0; mode < 15; mode++) assert.equal(lit(m, mode), 0, `mode ${mode}`);
   feed(m, 80000, music);
-  for (let mode = 0; mode < 6; mode++) assert.ok(lit(m, mode) > 0, `mode ${mode}`);
+  for (let mode = 0; mode < 15; mode++) assert.ok(lit(m, mode) > 0, `mode ${mode}`);
   assert.ok(m._preview_loudness() > 0.01);
 });
 
