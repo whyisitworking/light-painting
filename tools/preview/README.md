@@ -10,7 +10,7 @@ Needs [Emscripten](https://emscripten.org) (`brew install emscripten`) and Node.
 tools/preview/build.sh
 ```
 
-This writes `build-preview/preview.html`, one file with everything in it. Open it in a browser (Chrome is the target; it has been tried in the app's built-in browser, not yet in Chrome itself). The audio tap is loaded from a `data:` URL because a page opened from disk has an opaque origin, where Chrome refuses a worklet from a `blob:` URL; this was checked in the built-in browser with an opaque-origin page, but not in Chrome opened from disk. For the microphone, or if a browser refuses `file://`, serve it:
+This writes `build-preview/preview.html`, one file with everything in it. Open it in a browser (Chrome is the target; it has been tried in the app's built-in browser, not yet in Chrome itself). The audio tap is loaded from a `data:` URL: opened from disk in Chrome, the page failed with "Failed to load worklet module script: blob:null/..." when the tap came from a `blob:` URL. That failure was reported from Chrome and not reproduced in the built-in browser, so the `data:` URL is not yet confirmed in Chrome opened from disk. For the microphone, or if a browser refuses `file://`, serve it:
 
 ```bash
 python3 -m http.server 8765 --directory build-preview
