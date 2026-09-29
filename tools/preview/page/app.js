@@ -338,14 +338,13 @@ async function main() {
     try {
       const g = await ensureGraph();
       if (!isCurrent()) return;
-      // Not awaited before start(): a share picker needs a fresh click, and
-      // every start only connects nodes, which a suspended context accepts
-      const resumed = g.ctx.resume();
-      resumed.catch(() => {});
+      // Never awaited: a share picker needs a fresh click, every start only
+      // connects nodes (a suspended context accepts them), and an await
+      // between start() and `current` would hide a live stream from a newer
+      // choose()
+      g.ctx.resume().catch(() => {});
       if (!keepTrim) setTrim(SOURCES[name].trim);
-      await SOURCES[name].start(g, $('#source-extra'), isCurrent);
-      if (!isCurrent()) return;
-      await resumed;
+      await SOURCES[name].start(g, $('#source-extra'), isCurrent, Boolean(keepTrim));
       if (!isCurrent()) return;
       current = name;
     } catch (error) {
@@ -520,7 +519,7 @@ async function main() {
         if (/user gesture|transient activation/i.test(text))
           throw new Error('Click Computer audio again: the browser wanted a fresher click.');
         if (error.name === 'NotAllowedError' || /permission denied/i.test(text))
-          throw new Error('Sharing was cancelled.');
+          throw new Error('Sharing was cancelled or blocked.');
         throw error;
       }
       const release = () => stream.getTracks().forEach((track) => track.stop());
@@ -561,11 +560,10 @@ async function main() {
   let micStream = null;
   let micNode = null;
   let micDeviceId;
-  let micRefocus = false; // set by the device select, consumed by the restart
   addSource('mic', {
     label: 'Microphone',
     trim: 0,
-    async start(g, extra, isCurrent) {
+    async start(g, extra, isCurrent, restart) {
       if (!navigator.mediaDevices?.getUserMedia)
         throw new Error('The microphone needs a secure page (https or localhost)');
       const audio = { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 };
@@ -574,7 +572,6 @@ async function main() {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio });
       } catch (error) {
-        micRefocus = false;
         if (micDeviceId && isCurrent()) {
           micDeviceId = undefined;
           if (error.name === 'OverconstrainedError' || error.name === 'NotFoundError')
@@ -609,7 +606,6 @@ async function main() {
           if (select.selectedIndex < 0) select.selectedIndex = 0;
           select.addEventListener('change', () => {
             micDeviceId = select.value;
-            micRefocus = true;
             choose('mic', true);
           });
           const label = document.createElement('label');
@@ -618,12 +614,10 @@ async function main() {
           const hint = document.createElement('p');
           hint.textContent = 'To hear what your Mac plays, install a virtual input such as BlackHole and pick it here.';
           extra.append(label, select, hint);
-          if (micRefocus) select.focus();
+          if (restart) select.focus();
         }
-        micRefocus = false;
         if (track) stopOnEnd(track, isCurrent, 'The microphone stopped.');
       } catch (error) {
-        micRefocus = false;
         release();
         throw error;
       }
