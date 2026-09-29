@@ -485,12 +485,17 @@ async function main() {
   // A track that ends by itself (Chrome's "Stop sharing", an unplugged device)
   // stops its source. Tracks stopped by stop() fire no ended event, so this
   // cannot loop; a start that has been superseded is left alone
-  function stopOnEnd(track, isCurrent, message) {
-    track.addEventListener('ended', () => {
-      if (!isCurrent()) return;
-      choose(null);
-      note(message);
-    }, { once: true });
+  // A track that is already ended will never fire the event: that fails the
+  // start (before it writes state), and choose() shows the message
+  function stopOnEnd(tracks, isCurrent, message) {
+    if (tracks.some((track) => track.readyState === 'ended')) throw new Error('The capture ended right away.');
+    for (const track of tracks) {
+      track.addEventListener('ended', () => {
+        if (!isCurrent()) return;
+        choose(null);
+        note(message);
+      }, { once: true });
+    }
   }
 
   // Computer audio: a browser tab (or, on newer Chrome and macOS, the system)
@@ -535,11 +540,11 @@ async function main() {
       // but switched off
       stream.getVideoTracks().forEach((track) => { track.enabled = false; });
       try {
+        stopOnEnd(stream.getTracks(), isCurrent, 'Sharing stopped.');
         const node = g.ctx.createMediaStreamSource(new MediaStream(audioTracks));
         node.connect(g.tap);
         displayStream = stream;
         displayNode = node;
-        stopOnEnd(audioTracks[0], isCurrent, 'Sharing stopped.');
       } catch (error) {
         release();
         throw error;
@@ -592,6 +597,7 @@ async function main() {
           inputs = (await navigator.mediaDevices.enumerateDevices()).filter((device) => device.kind === 'audioinput');
         } catch {}
         if (!isCurrent()) return release();
+        stopOnEnd(stream.getTracks(), isCurrent, 'The microphone stopped.');
         const node = g.ctx.createMediaStreamSource(stream);
         node.connect(g.tap);
         micStream = stream;
@@ -616,7 +622,6 @@ async function main() {
           extra.append(label, select, hint);
           if (restart) select.focus();
         }
-        if (track) stopOnEnd(track, isCurrent, 'The microphone stopped.');
       } catch (error) {
         release();
         throw error;
