@@ -42,6 +42,8 @@ bool effects_init(effects_t *this, size_t led_count, size_t band_count,
         return false;
     }
 
+    effects_sin_init();
+
     *this = (effects_t){
         .tuning = effects_default_tuning(),
         .led_count = led_count,
@@ -52,7 +54,7 @@ bool effects_init(effects_t *this, size_t led_count, size_t band_count,
         .frame = frame,
         .river.history = river,
         .sparkles.levels = sparkles,
-        .sparkles.random = seed != 0 ? seed : 1,
+        .random = seed != 0 ? seed : 1,
         .layers.previous = previous,
         .layers.scratch = scratch,
     };

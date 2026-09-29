@@ -134,6 +134,9 @@ typedef struct {
     // Time since init modulo two drift periods, drives the drift. 0 while
     // the drift is disabled
     float time_s;
+    // xorshift32 state, never 0: the one stream of every mode that needs
+    // chance, see effects_random()
+    uint32_t random;
 
     // Current beat flash level and its fade per frame
     float flash;
@@ -163,8 +166,6 @@ typedef struct {
     struct {
         // Levels, led_count
         float *levels;
-        // xorshift32 state, never 0
-        uint32_t random;
     } sparkles;
 
     // The layers, see layers.c

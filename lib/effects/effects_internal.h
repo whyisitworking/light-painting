@@ -34,6 +34,29 @@ void effects_layers_apply(effects_t *this);
 // White sparkles appearing with the treble, fading each frame
 void effects_draw_sparkles(effects_t *this, const sound_t *sound);
 
+// Below this a remembered level is dark on the strip (1e-3 ^ 2.2 of full
+// scale after gamma) and goes to exactly 0, so that a fade ends at black
+// instead of wandering through ever smaller floats
+constexpr float EFFECTS_DARK = 1e-3f;
+
+// Sine of 2 pi x turns from a 256 step table, interpolated: the cost of
+// Plasma and Cymatics (hundreds of sines a frame) has a ceiling. Off by at
+// most 8e-5. The table is filled by effects_init(). NaN and infinity give 0
+void effects_sin_init(void);
+float effects_sin(float turns);
+
+// The shared random stream (xorshift32, seeded by effects_init()): renders
+// are deterministic for a seed. The unit form is 0 inclusive to 1 exclusive
+uint32_t effects_random(effects_t *this);
+float effects_random_unit(effects_t *this);
+
+/**
+ * The loudest band as a position 0 (bass) to 1 (treble), interpolated
+ * between the bands around it; 0 in silence. Cycle 3's peak tracker replaces
+ * it behind the same name
+ */
+float effects_peak_band(const effects_t *this, const sound_t *sound);
+
 // Palette colour with the drift and the loudness warmth applied
 static inline rgb_t effects_color_at(const effects_t *this,
                                      const sound_t *sound, float position) {
@@ -85,6 +108,23 @@ static inline float effects_band_mean(const sound_t *sound, size_t from,
         sum += sound->bands[b];
 
     return to > from ? sum / (float)(to - from) : 0.f;
+}
+
+// Mean of the bands counted as bass, and of the top fraction (treble)
+static inline float effects_bass(const effects_t *this, const sound_t *sound) {
+    size_t bands = EFFECTS_BASS_BANDS < this->band_count ? EFFECTS_BASS_BANDS
+                                                         : this->band_count;
+
+    return effects_band_mean(sound, 0, bands);
+}
+
+static inline float effects_treble(const effects_t *this,
+                                   const sound_t *sound) {
+    size_t from =
+        this->band_count -
+        (size_t)((float)this->band_count * EFFECTS_TREBLE_FRACTION);
+
+    return effects_band_mean(sound, from, this->band_count);
 }
 
 #endif
