@@ -31,6 +31,7 @@ effects_renderer_t effects_mode_vu;
 effects_renderer_t effects_mode_glow;
 effects_renderer_t effects_mode_pond;
 effects_reset_t effects_reset_pond;
+effects_renderer_t effects_mode_cymatics;
 
 /**
  * The layers, on top of every mode: slides, folds, blurs and trails

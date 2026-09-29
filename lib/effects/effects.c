@@ -16,6 +16,7 @@ static effects_renderer_t *const renderers[EFFECTS_MODE_COUNT] = {
     [EFFECTS_MODE_VU] = effects_mode_vu,
     [EFFECTS_MODE_GLOW] = effects_mode_glow,
     [EFFECTS_MODE_POND] = effects_mode_pond,
+    [EFFECTS_MODE_CYMATICS] = effects_mode_cymatics,
 };
 
 // Modes without a reset have no state to clear
@@ -86,6 +87,7 @@ bool effects_init(effects_t *this, size_t led_count, size_t band_count,
         .random = seed != 0 ? seed : 1,
         .layers.previous = previous,
         .layers.scratch = scratch,
+        .cymatics.nodes = 1.f,
     };
     slice_pool(this, pool);
     // One sub-step of a wave, in seconds, sets how much each one keeps

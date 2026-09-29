@@ -22,6 +22,7 @@ typedef enum {
     EFFECTS_MODE_VU,
     EFFECTS_MODE_GLOW,
     EFFECTS_MODE_POND,
+    EFFECTS_MODE_CYMATICS,
     EFFECTS_MODE_COUNT
 } effects_mode_t;
 
@@ -86,6 +87,14 @@ constexpr float EFFECTS_POND_STONE_WIDTH = 2.f;
 constexpr float EFFECTS_POND_DRIZZLE_HEIGHT = 0.15f;
 constexpr float EFFECTS_POND_DRIZZLE_RATE = 0.02f;
 constexpr float EFFECTS_POND_GAIN = 2.f;
+
+// Cymatics: most nodes of the standing wave, how long the nodes take to
+// slide to a new count, how fast it breathes (turns per second), and the
+// loudness that lights it fully is 1 / GAIN
+constexpr float EFFECTS_CYMATICS_MAX_NODES = 24.f;
+constexpr float EFFECTS_CYMATICS_SLEW_S = 0.15f;
+constexpr float EFFECTS_CYMATICS_BREATH_HZ = 0.2f;
+constexpr float EFFECTS_CYMATICS_GAIN = 2.5f;
 
 // Bands counted as bass (glow), and the top fraction counted as treble
 constexpr size_t EFFECTS_BASS_BANDS = 5;
@@ -213,6 +222,12 @@ typedef struct {
         float velocity_k;
         float leak_k;
     } pond;
+
+    struct {
+        // Nodes now, slewed towards the loudest band's, and the breathing
+        float nodes;
+        float phase;
+    } cymatics;
 } effects_t;
 
 /**

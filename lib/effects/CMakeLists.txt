@@ -11,5 +11,6 @@ lp_add_module(effects
         mode_vu.c
         mode_glow.c
         mode_pond.c
+        mode_cymatics.c
     DEPS features color
     MATH)

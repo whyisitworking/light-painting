@@ -258,6 +258,53 @@ static void test_pond_reset_on_entry(void) {
     stop();
 }
 
+// Regions of the strip brighter than half of the brightest pixel
+static int lobes(void) {
+    unsigned top = 0;
+    int count = 0;
+    bool inside = false;
+
+    for (size_t i = 0; i < LEDS; i++)
+        if (lum(pixels[i]) > top)
+            top = lum(pixels[i]);
+
+    for (size_t i = 0; i < LEDS; i++) {
+        bool above = top > 0 && lum(pixels[i]) * 2 > top;
+
+        count += above && !inside;
+        inside = above;
+    }
+
+    return count;
+}
+
+// A higher loudest band gives more nodes, and they slide there
+static void test_cymatics_nodes_follow_the_peak_band(void) {
+    sound_t sound = quiet();
+    int low, high;
+
+    start(EFFECTS_MODE_CYMATICS);
+    sound.loudness = 0.5f;
+
+    bands[5] = 1.f;
+    for (int frame = 0; frame < 150; frame++)
+        render(&sound);
+    low = lobes();
+
+    quiet();
+    bands[25] = 1.f;
+    // Not there yet a moment later: the nodes slide, they do not jump
+    render(&sound);
+    CHECK(lobes() <= low + 2);
+    for (int frame = 0; frame < 150; frame++)
+        render(&sound);
+    high = lobes();
+
+    CHECK(low >= 3 && low <= 7);
+    CHECK(high >= 15);
+    stop();
+}
+
 int main(void) {
     test_sin();
     test_random_stream();
@@ -265,6 +312,8 @@ int main(void) {
     check_all(EFFECTS_MODE_POND);
     test_pond_wave_travels_and_reflects();
     test_pond_reset_on_entry();
+    check_all(EFFECTS_MODE_CYMATICS);
+    test_cymatics_nodes_follow_the_peak_band();
 
     return CHECK_REPORT();
 }
