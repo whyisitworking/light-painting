@@ -15,5 +15,6 @@ lp_add_module(effects
         mode_fire.c
         mode_storm.c
         mode_pingpong.c
+        mode_swarm.c
     DEPS features color
     MATH)

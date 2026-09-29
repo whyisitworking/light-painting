@@ -26,6 +26,7 @@ typedef enum {
     EFFECTS_MODE_FIRE,
     EFFECTS_MODE_STORM,
     EFFECTS_MODE_PINGPONG,
+    EFFECTS_MODE_SWARM,
     EFFECTS_MODE_COUNT
 } effects_mode_t;
 
@@ -123,6 +124,15 @@ constexpr size_t EFFECTS_PINGPONG_MAX_COMETS = 8;
 constexpr float EFFECTS_PINGPONG_SPEED = 3.f;
 constexpr float EFFECTS_PINGPONG_TAIL = 25.f;
 constexpr float EFFECTS_PINGPONG_CROSS = 3.f;
+
+// Swarm: dots, bands each side of its own a dot looks at, the spring that
+// pulls it to the band (1/s^2) and its friction (1/s), and the level under
+// which a band counts as silent and the dot goes home
+constexpr size_t EFFECTS_SWARM_DOTS = 24;
+constexpr size_t EFFECTS_SWARM_REACH = 3;
+constexpr float EFFECTS_SWARM_SPRING = 120.f;
+constexpr float EFFECTS_SWARM_FRICTION = 17.f;
+constexpr float EFFECTS_SWARM_QUIET = 0.02f;
 
 // Bands counted as bass (glow), and the top fraction counted as treble
 constexpr size_t EFFECTS_BASS_BANDS = 5;
@@ -292,6 +302,12 @@ typedef struct {
         // Beats so far: even ones start at the left end
         unsigned launches;
     } pingpong;
+
+    struct {
+        // LEDs from the left end, and LEDs per second
+        float position[EFFECTS_SWARM_DOTS];
+        float velocity[EFFECTS_SWARM_DOTS];
+    } swarm;
 } effects_t;
 
 /**

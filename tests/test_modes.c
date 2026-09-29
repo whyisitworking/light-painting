@@ -492,6 +492,47 @@ static void test_pingpong_reset_on_entry(void) {
     stop();
 }
 
+// A dot follows the band that lights up in its stretch, and the others of
+// that stretch gather there
+static void test_swarm_chases_the_lit_band(void) {
+    sound_t sound = quiet();
+    // Dot 17 looks at bands 20 to 26 (its centre is band 22.9)
+    float home, target;
+
+    start(EFFECTS_MODE_SWARM);
+    home = effects.swarm.position[17];
+    target = 20.f / (float)(BANDS - 1) * (float)(LEDS - 1);
+    CHECK(fabsf(home - target) > 20.f);
+
+    bands[20] = 1.f;
+    sound.loudness = 0.05f;
+    for (int frame = 0; frame < 150; frame++)
+        render(&sound);
+
+    CHECK_NEAR(effects.swarm.position[17], target, 3.0);
+    // A dot with the lit band out of reach stays home
+    CHECK_NEAR(effects.swarm.position[0], 0.0, 1.0);
+    stop();
+}
+
+static void test_swarm_reset_on_entry(void) {
+    sound_t sound = quiet();
+    float home;
+
+    start(EFFECTS_MODE_SWARM);
+    home = effects.swarm.position[17];
+    bands[20] = 1.f;
+    for (int frame = 0; frame < 100; frame++)
+        render(&sound);
+    CHECK(fabsf(effects.swarm.position[17] - home) > 10.f);
+
+    set_mode(EFFECTS_MODE_RIVER);
+    set_mode(EFFECTS_MODE_SWARM);
+    CHECK(effects.swarm.position[17] == home);
+    CHECK(effects.swarm.velocity[17] == 0.f);
+    stop();
+}
+
 int main(void) {
     test_sin();
     test_random_stream();
@@ -511,6 +552,9 @@ int main(void) {
     test_pingpong_alternates_and_flashes_on_crossing();
     test_pingpong_slots();
     test_pingpong_reset_on_entry();
+    check_all(EFFECTS_MODE_SWARM);
+    test_swarm_chases_the_lit_band();
+    test_swarm_reset_on_entry();
 
     return CHECK_REPORT();
 }
