@@ -113,3 +113,11 @@ test('bands are readable', async () => {
   assert.ok(bands.some((level) => level > 0.1));
   assert.ok(bands.every((level) => level >= 0 && level <= 1));
 });
+
+test('mode rows follow the settings library', async () => {
+  const m = await engine();
+  assert.equal(m._preview_mode_setting_count(2), 1); // River
+  assert.equal(m._preview_mode_setting_id(2, 0), 12); // River speed
+  assert.equal(m._preview_mode_setting_count(0), 0);
+  assert.equal(m._preview_mode_setting_id(0, 0), -1);
+});

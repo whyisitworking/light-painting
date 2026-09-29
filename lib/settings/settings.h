@@ -104,6 +104,17 @@ void settings_clamp(settings_t *this);
 // What the settings make of the visualizer. The backlight is not in it
 visualizer_tuning_t settings_tuning(const settings_t *this);
 
+// Most rows of the menu's Look page a mode adds below Brightness
+constexpr size_t SETTINGS_MODE_IDS_MAX = 2;
+
+/**
+ * The settings only one mode uses, in the order the menu shows them: at most
+ * SETTINGS_MODE_IDS_MAX. Every setting is either in exactly one mode's list
+ * or applies to every mode (test_settings checks it). nullptr and 0 for a
+ * mode without any, or out of range
+ */
+const settings_id_t *settings_mode_ids(effects_mode_t mode, size_t *count);
+
 /**
  * A random look: the mode, the palette and every effect layer at random on
  * their grids, the mode and palette together always different from before.

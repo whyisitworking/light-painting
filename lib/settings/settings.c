@@ -154,6 +154,27 @@ void settings_shuffle(settings_t *this, uint32_t *random) {
     }
 }
 
+static const settings_id_t river_ids[] = {SETTINGS_RIVER_SPEED};
+static const settings_id_t ripples_ids[] = {SETTINGS_RIPPLE_SPEED};
+static const settings_id_t vu_ids[] = {SETTINGS_PEAK_HOLD};
+
+const settings_id_t *settings_mode_ids(effects_mode_t mode, size_t *count) {
+    switch (mode) {
+    case EFFECTS_MODE_RIVER:
+        *count = sizeof(river_ids) / sizeof(river_ids[0]);
+        return river_ids;
+    case EFFECTS_MODE_RIPPLES:
+        *count = sizeof(ripples_ids) / sizeof(ripples_ids[0]);
+        return ripples_ids;
+    case EFFECTS_MODE_VU:
+        *count = sizeof(vu_ids) / sizeof(vu_ids[0]);
+        return vu_ids;
+    default:
+        *count = 0;
+        return nullptr;
+    }
+}
+
 visualizer_tuning_t settings_tuning(const settings_t *this) {
     visualizer_tuning_t tuning = visualizer_default_tuning();
 

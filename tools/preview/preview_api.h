@@ -84,6 +84,11 @@ PREVIEW_EXPORT int preview_set(int id, int value);
 // Every setting to its default
 PREVIEW_EXPORT void preview_reset(void);
 
+// The rows the menu shows under Mode for a mode: how many, and the setting id
+// of each (-1 out of range). From the settings library, as the menu reads it
+PREVIEW_EXPORT int preview_mode_setting_count(int mode);
+PREVIEW_EXPORT int preview_mode_setting_id(int mode, int index);
+
 // The menu's names
 PREVIEW_EXPORT int preview_mode_count(void);
 PREVIEW_EXPORT const char *preview_mode_name(int mode);

@@ -525,6 +525,57 @@ static void test_shuffle(void) {
     CHECK(kept_layers == 1000);
 }
 
+// Every setting is global or in exactly one mode's list, and no mode has more
+// than two rows: nothing is unreachable in the menu, the Look page stays short
+static void test_mode_ids(void) {
+    static const settings_id_t global[] = {
+        SETTINGS_MODE,    SETTINGS_PALETTE,        SETTINGS_BRIGHTNESS,
+        SETTINGS_GAIN,    SETTINGS_BEAT_THRESHOLD, SETTINGS_QUIET_FLOOR,
+        SETTINGS_ATTACK,  SETTINGS_DECAY,          SETTINGS_DRIFT,
+        SETTINGS_WARMTH,  SETTINGS_FLASH,          SETTINGS_SPARKLES,
+        SETTINGS_BACKLIGHT, SETTINGS_TRAILS,       SETTINGS_DIFFUSE,
+        SETTINGS_SYMMETRY, SETTINGS_CHASE,
+    };
+    int owners[SETTINGS_ID_COUNT] = {0};
+    size_t river_count, ripples_count, vu_count;
+    const settings_id_t *river, *ripples, *vu;
+
+    // The 17 that apply to every mode never grow
+    CHECK(sizeof(global) / sizeof(global[0]) == 17);
+
+    for (int mode = 0; mode < EFFECTS_MODE_COUNT; mode++) {
+        size_t count = 99;
+        const settings_id_t *ids =
+            settings_mode_ids((effects_mode_t)mode, &count);
+
+        CHECK(count <= SETTINGS_MODE_IDS_MAX);
+        CHECK(count == 0 || ids != nullptr);
+        for (size_t k = 0; k < count; k++)
+            owners[ids[k]]++;
+    }
+
+    for (int id = 0; id < SETTINGS_ID_COUNT; id++) {
+        bool is_global = false;
+
+        for (size_t k = 0; k < sizeof(global) / sizeof(global[0]); k++)
+            is_global = is_global || global[k] == (settings_id_t)id;
+
+        CHECK(owners[id] == (is_global ? 0 : 1));
+    }
+
+    // The three that moved off the Effects page
+    river = settings_mode_ids(EFFECTS_MODE_RIVER, &river_count);
+    ripples = settings_mode_ids(EFFECTS_MODE_RIPPLES, &ripples_count);
+    vu = settings_mode_ids(EFFECTS_MODE_VU, &vu_count);
+    CHECK(river_count == 1 && river[0] == SETTINGS_RIVER_SPEED);
+    CHECK(ripples_count == 1 && ripples[0] == SETTINGS_RIPPLE_SPEED);
+    CHECK(vu_count == 1 && vu[0] == SETTINGS_PEAK_HOLD);
+
+    // Out of range: none
+    CHECK(settings_mode_ids(EFFECTS_MODE_COUNT, &river_count) == nullptr);
+    CHECK(river_count == 0);
+}
+
 int main(void) {
     test_ranges();
     test_defaults_are_the_constants();
@@ -546,6 +597,7 @@ int main(void) {
     test_log_garbage();
     test_log_power_lost_after_erase();
     test_shuffle();
+    test_mode_ids();
 
     return CHECK_REPORT();
 }

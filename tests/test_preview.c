@@ -265,6 +265,19 @@ static void test_reinit(void) {
     preview_deinit();
 }
 
+static void test_mode_setting_rows(void) {
+    CHECK(preview_init(48828.125f));
+    CHECK(preview_mode_setting_count(EFFECTS_MODE_RIVER) == 1);
+    CHECK(preview_mode_setting_id(EFFECTS_MODE_RIVER, 0) ==
+          SETTINGS_RIVER_SPEED);
+    CHECK(preview_mode_setting_count(EFFECTS_MODE_SPECTRUM) == 0);
+    CHECK(preview_mode_setting_id(EFFECTS_MODE_SPECTRUM, 0) == -1);
+    CHECK(preview_mode_setting_id(EFFECTS_MODE_RIVER, 1) == -1);
+    CHECK(preview_mode_setting_count(-1) == 0);
+    CHECK(preview_mode_setting_count(EFFECTS_MODE_COUNT) == 0);
+    preview_deinit();
+}
+
 int main(void) {
     test_matches_the_visualizer();
     test_settings_look_as_on_the_board();
@@ -273,6 +286,7 @@ int main(void) {
     test_input_trim();
     test_settings_and_names();
     test_reinit();
+    test_mode_setting_rows();
 
     return CHECK_REPORT();
 }

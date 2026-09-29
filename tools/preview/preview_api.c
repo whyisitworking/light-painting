@@ -224,6 +224,29 @@ void preview_reset(void) {
         apply();
 }
 
+int preview_mode_setting_count(int mode) {
+    size_t count = 0;
+
+    if (mode < 0 || mode >= EFFECTS_MODE_COUNT)
+        return 0;
+
+    settings_mode_ids((effects_mode_t)mode, &count);
+
+    return (int)count;
+}
+
+int preview_mode_setting_id(int mode, int index) {
+    size_t count = 0;
+    const settings_id_t *ids;
+
+    if (mode < 0 || mode >= EFFECTS_MODE_COUNT || index < 0)
+        return -1;
+
+    ids = settings_mode_ids((effects_mode_t)mode, &count);
+
+    return (size_t)index < count ? (int)ids[index] : -1;
+}
+
 int preview_mode_count(void) { return EFFECTS_MODE_COUNT; }
 
 const char *preview_mode_name(int mode) {

@@ -47,6 +47,7 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .row { display: grid; grid-template-columns: 150px 1fr 90px; gap: 12px; align-items: center; padding: 4px 0; }
 .row output { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
 .row input[type="range"] { width: 100%; accent-color: var(--accent); }
+.row[hidden] { display: none; }
 #controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 0 32px; }
 #controls h3 { margin: 12px 0 2px; font-size: 13px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
 label.inline { font-weight: 400; color: var(--muted); }

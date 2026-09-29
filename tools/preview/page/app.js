@@ -23,9 +23,9 @@ const SETTINGS = [
   { name: 'Warmth', group: 'Effects', show: (raw) => `${raw} %` },
   { name: 'Beat flash', group: 'Effects', show: (raw) => `${raw} %` },
   { name: 'Sparkles', group: 'Effects', show: (raw, real) => `${(real * 100).toFixed(1)} %` },
-  { name: 'River speed', group: 'Effects', show: (raw) => `${raw}` },
-  { name: 'Ripple speed', group: 'Effects', show: (raw, real) => real.toFixed(1) },
-  { name: 'VU peak hold', group: 'Effects', show: (raw) => `${raw} ms` },
+  { name: 'River speed', group: 'Mode', show: (raw) => `${raw}` },
+  { name: 'Ripple speed', group: 'Mode', show: (raw, real) => real.toFixed(1) },
+  { name: 'VU peak hold', group: 'Mode', show: (raw) => `${raw} ms` },
   { name: 'Screen', hidden: true }, // the LCD backlight: nothing to see here
   { name: 'Trails', group: 'Layers', show: (raw) => (raw === 0 ? 'Off' : `${raw} ms`) },
   { name: 'Diffuse', group: 'Layers', show: (raw) => (raw === 0 ? 'Off' : `${raw} %`) },
@@ -125,7 +125,7 @@ async function main() {
   }
 
   function buildControls() {
-    const groups = new Map(GROUP_ORDER.map((group) => [group, []]));
+    const groups = new Map([...GROUP_ORDER, 'Mode'].map((group) => [group, []]));
     for (let id = 0; id < settingCount; id++) {
       const info = SETTINGS[id] ?? { name: `Setting ${id}`, group: 'Other' };
       if (info.hidden || info.kind) continue;
@@ -137,6 +137,23 @@ async function main() {
     addSelect(look, SETTING_MODE, 'Mode', modeNames);
     addSelect(look, SETTING_PALETTE, 'Palette', paletteNames);
     for (const [id, info] of groups.get('Look')) addSlider(look, id, info);
+    // The selected mode's own rows, as the LCD menu shows them under Mode
+    const modeRows = new Map();
+    for (const [id, info] of groups.get('Mode')) {
+      addSlider(look, id, info);
+      modeRows.set(id, look.lastElementChild);
+    }
+    const showModeRows = () => {
+      const mode = selectedMode();
+      const ids = new Set();
+      for (let i = 0; i < engine._preview_mode_setting_count(mode); i++)
+        ids.add(engine._preview_mode_setting_id(mode, i));
+      for (const [id, row] of modeRows) row.hidden = !ids.has(id);
+    };
+    refreshers.push(showModeRows);
+    showModeRows();
+    // The mode select changes the mode without going through the refreshers
+    look.querySelector(`#setting-${SETTING_MODE}`).addEventListener('change', showModeRows);
     controls.append(look);
     for (const group of GROUP_ORDER.slice(1)) {
       if (!groups.get(group).length) continue;

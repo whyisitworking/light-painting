@@ -143,18 +143,6 @@ static const row_t effects_rows[] = {
      .name = "Sparkles",
      .id = SETTINGS_SPARKLES,
      .format = FORMAT_PER_MILLE},
-    {.kind = ROW_SETTING,
-     .name = "River speed",
-     .id = SETTINGS_RIVER_SPEED,
-     .format = FORMAT_NUMBER},
-    {.kind = ROW_SETTING,
-     .name = "Ripple speed",
-     .id = SETTINGS_RIPPLE_SPEED,
-     .format = FORMAT_TENTHS},
-    {.kind = ROW_SETTING,
-     .name = "VU peak hold",
-     .id = SETTINGS_PEAK_HOLD,
-     .format = FORMAT_MS},
 };
 
 static const row_t layers_rows[] = {
@@ -175,6 +163,31 @@ static const row_t layers_rows[] = {
      .id = SETTINGS_CHASE,
      .format = FORMAT_SPEED},
 };
+
+// The rows of the settings only one mode uses, see settings_mode_ids(). They
+// follow Brightness on the Look page
+static const row_t mode_rows[] = {
+    {.kind = ROW_SETTING,
+     .name = "River speed",
+     .id = SETTINGS_RIVER_SPEED,
+     .format = FORMAT_NUMBER},
+    {.kind = ROW_SETTING,
+     .name = "Ripple speed",
+     .id = SETTINGS_RIPPLE_SPEED,
+     .format = FORMAT_TENTHS},
+    {.kind = ROW_SETTING,
+     .name = "VU peak hold",
+     .id = SETTINGS_PEAK_HOLD,
+     .format = FORMAT_MS},
+};
+
+static const row_t *mode_row(settings_id_t id) {
+    for (size_t i = 0; i < sizeof(mode_rows) / sizeof(mode_rows[0]); i++)
+        if (mode_rows[i].id == id)
+            return &mode_rows[i];
+
+    return nullptr;
+}
 
 static const row_t system_rows[] = {
     {.kind = ROW_SETTING,
@@ -392,6 +405,8 @@ static void reset(lv_obj_t *row_obj) {
     lv_label_set_text(label, "Done");
 }
 
+static void mode_rows_rebuild(lv_obj_t *screen);
+
 static void change(lv_obj_t *row_obj, const row_t *row, int steps) {
     if (!settings_step(menu.settings, row->id, steps))
         return;
@@ -402,6 +417,11 @@ static void change(lv_obj_t *row_obj, const row_t *row, int steps) {
             (palette_t)settings_get(menu.settings, SETTINGS_PALETTE));
 
     show_value(row_obj);
+
+    // The rows below Brightness belong to the mode
+    if (row->id == SETTINGS_MODE)
+        mode_rows_rebuild(lv_obj_get_parent(row_obj));
+
     menu.changed(menu.settings, row->id);
 }
 
@@ -475,6 +495,52 @@ static lv_obj_t *row_create(lv_obj_t *screen, const row_t *row,
     return row_obj;
 }
 
+// A row of a page's screen: its name and its value, arrow or reset note
+static lv_obj_t *page_row(lv_obj_t *screen, const row_t *row) {
+    lv_obj_t *row_obj = row_create(screen, row, row->name);
+
+    if (row->kind == ROW_SETTING) {
+        lv_label_create(row_obj);
+        show_value(row_obj);
+    } else if (row->kind == ROW_RESET) {
+        lv_label_set_text(lv_label_create(row_obj), "");
+    } else {
+        lv_obj_t *arrow = lv_label_create(row_obj);
+        lv_label_set_text(arrow, LV_SYMBOL_RIGHT);
+    }
+
+    return row_obj;
+}
+
+// Adds the selected mode's rows to the Look page's screen
+static void mode_rows_add(lv_obj_t *screen) {
+    size_t count;
+    const settings_id_t *ids = settings_mode_ids(
+        (effects_mode_t)settings_get(menu.settings, SETTINGS_MODE), &count);
+
+    for (size_t i = 0; i < count; i++) {
+        const row_t *row = mode_row(ids[i]);
+
+        if (row != nullptr)
+            page_row(screen, row);
+    }
+}
+
+/**
+ * Replaces the mode rows after Mode changed. In place, not by loading the
+ * screen again: that makes the menu ignore the key until released, and the
+ * Mode row must go on repeating while it is held. The focus stays on Mode,
+ * which is not touched. The back row and the fixed rows come first
+ */
+static void mode_rows_rebuild(lv_obj_t *screen) {
+    uint32_t fixed = pages[PAGE_LOOK].row_count + 1;
+
+    while (lv_obj_get_child_count(screen) > fixed)
+        lv_obj_delete(lv_obj_get_child(screen, -1));
+
+    mode_rows_add(screen);
+}
+
 // A page's screen, focused on the row leading back to from, if it has one,
 // otherwise on its first row
 static lv_obj_t *page_create(page_t page, page_t from) {
@@ -497,21 +563,14 @@ static lv_obj_t *page_create(page_t page, page_t from) {
     for (size_t i = 0; i < def->row_count; i++) {
         const row_t *row = &def->rows[i];
 
-        row_obj = row_create(screen, row, row->name);
-
-        if (row->kind == ROW_SETTING) {
-            lv_label_create(row_obj);
-            show_value(row_obj);
-        } else if (row->kind == ROW_RESET) {
-            lv_label_set_text(lv_label_create(row_obj), "");
-        } else {
-            lv_obj_t *arrow = lv_label_create(row_obj);
-            lv_label_set_text(arrow, LV_SYMBOL_RIGHT);
-        }
+        row_obj = page_row(screen, row);
 
         if (i == 0 || (row->kind == ROW_PAGE && row->page == from))
             focus = row_obj;
     }
+
+    if (page == PAGE_LOOK)
+        mode_rows_add(screen);
 
     lv_group_focus_obj(focus);
 
@@ -614,8 +673,13 @@ void ui_menu_refresh(void) {
     // The status screen is rebuilt, a page shows its values again
     if (menu.page == PAGE_STATUS)
         show(PAGE_STATUS);
-    else
+    else {
+        // Shuffling on boot can change the mode
+        if (menu.page == PAGE_LOOK)
+            mode_rows_rebuild(lv_screen_active());
+
         show_values(lv_screen_active());
+    }
 
     lv_display_trigger_activity(nullptr);
 }
