@@ -10,7 +10,7 @@ Needs [Emscripten](https://emscripten.org) (`brew install emscripten`) and Node.
 tools/preview/build.sh
 ```
 
-This writes `build-preview/preview.html`, one file with everything in it. Open it in Chrome. For the microphone, or if a browser refuses `file://`, serve it:
+This writes `build-preview/preview.html`, one file with everything in it. Open it in a browser (Chrome is the target; it has been tried in the app's built-in browser, not yet in Chrome itself). For the microphone, or if a browser refuses `file://`, serve it:
 
 ```bash
 python3 -m http.server 8765 --directory build-preview

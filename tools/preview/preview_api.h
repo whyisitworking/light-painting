@@ -67,7 +67,10 @@ PREVIEW_EXPORT int preview_push(int count);
  */
 PREVIEW_EXPORT void preview_set_input_trim_db(float db);
 
-// On: every mode renders each hop (the gallery). Off: only the selected mode
+// On: every mode renders each hop (the gallery). Off: only the selected mode.
+// A mode's pixels are then stale, and each mode keeps its own effects state:
+// one selected after being idle resumes its old trails, unlike the board,
+// where one effects instance carries the previous mode's trails over
 PREVIEW_EXPORT void preview_set_gallery(int on);
 
 // The menu's settings: a stored value, its grid, the defaults
