@@ -29,6 +29,7 @@ typedef enum {
     EFFECTS_MODE_SWARM,
     EFFECTS_MODE_PLASMA,
     EFFECTS_MODE_AURORA,
+    EFFECTS_MODE_BLOOM,
     EFFECTS_MODE_COUNT
 } effects_mode_t;
 
@@ -152,6 +153,20 @@ constexpr float EFFECTS_AURORA_RAY_SPEED = 2.f;
 constexpr float EFFECTS_AURORA_CURTAIN_CELLS = 3.f;
 constexpr float EFFECTS_AURORA_RAY_CELLS = 40.f;
 constexpr float EFFECTS_AURORA_GAIN = 3.f;
+
+// Bloom (a 1D Gray-Scott reaction-diffusion, u the food and v the bloom):
+// steps per frame, diffusion of each, the feed rate at rest and what full
+// bass adds to it, the kill rate, the half width of a seed in LEDs, and the
+// loudness that lights it fully is 1 / GAIN. At feed 0.035 and kill 0.06 a
+// spot splits in two and stays; nearer 0.04 it keeps splitting
+constexpr size_t EFFECTS_BLOOM_SUBSTEPS = 4;
+constexpr float EFFECTS_BLOOM_DIFFUSION_U = 0.16f;
+constexpr float EFFECTS_BLOOM_DIFFUSION_V = 0.08f;
+constexpr float EFFECTS_BLOOM_FEED = 0.035f;
+constexpr float EFFECTS_BLOOM_FEED_BASS = 0.006f;
+constexpr float EFFECTS_BLOOM_KILL = 0.06f;
+constexpr size_t EFFECTS_BLOOM_SEED_RADIUS = 2;
+constexpr float EFFECTS_BLOOM_GAIN = 3.f;
 
 // Bands counted as bass (glow), and the top fraction counted as treble
 constexpr size_t EFFECTS_BASS_BANDS = 5;
@@ -339,6 +354,15 @@ typedef struct {
         uint32_t cell[2];
         float fraction[2];
     } aurora;
+
+    struct {
+        // The food and the bloom, led_count each, and the rows a step writes
+        // before they swap in
+        float *u;
+        float *v;
+        float *next_u;
+        float *next_v;
+    } bloom;
 } effects_t;
 
 /**

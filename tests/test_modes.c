@@ -609,6 +609,56 @@ static void test_aurora_drifts_smoothly(void) {
     stop();
 }
 
+static float bloom_peak(void) {
+    float peak = 0.f;
+
+    for (size_t i = 0; i < LEDS; i++)
+        peak = fmaxf(peak, effects.bloom.v[i]);
+
+    return peak;
+}
+
+// A beat seeds a spot; the pattern stays within 0..1 however long it runs
+static void test_bloom_seeds_and_stays_bounded(void) {
+    sound_t sound = quiet();
+
+    start(EFFECTS_MODE_BLOOM);
+    CHECK(bloom_peak() == 0.f);
+
+    sound.loudness = 0.5f;
+    sound.beat = true;
+    sound.beat_strength = 0.8f;
+    render(&sound);
+    CHECK(bloom_peak() > 0.15f);
+    CHECK(!all_dark());
+
+    for (int hop = 0; hop < 3000; hop++) {
+        sound = music(hop);
+        render(&sound);
+        for (size_t i = 0; i < LEDS; i += 7) {
+            CHECK(effects.bloom.u[i] >= 0.f && effects.bloom.u[i] <= 1.f);
+            CHECK(effects.bloom.v[i] >= 0.f && effects.bloom.v[i] <= 1.f);
+        }
+    }
+    stop();
+}
+
+static void test_bloom_reset_on_entry(void) {
+    start(EFFECTS_MODE_BLOOM);
+    for (int hop = 0; hop < 200; hop++) {
+        sound_t sound = music(hop);
+
+        render(&sound);
+    }
+    CHECK(bloom_peak() > 0.f);
+
+    set_mode(EFFECTS_MODE_RIVER);
+    set_mode(EFFECTS_MODE_BLOOM);
+    CHECK(bloom_peak() == 0.f);
+    CHECK(effects.bloom.u[10] == 1.f);
+    stop();
+}
+
 int main(void) {
     test_sin();
     test_random_stream();
@@ -635,6 +685,9 @@ int main(void) {
     test_plasma_moves_and_is_gated();
     check_all(EFFECTS_MODE_AURORA);
     test_aurora_drifts_smoothly();
+    check_all(EFFECTS_MODE_BLOOM);
+    test_bloom_seeds_and_stays_bounded();
+    test_bloom_reset_on_entry();
 
     return CHECK_REPORT();
 }

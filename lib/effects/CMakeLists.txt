@@ -18,5 +18,6 @@ lp_add_module(effects
         mode_swarm.c
         mode_plasma.c
         mode_aurora.c
+        mode_bloom.c
     DEPS features color
     MATH)

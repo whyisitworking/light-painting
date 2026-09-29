@@ -23,6 +23,7 @@ static effects_renderer_t *const renderers[EFFECTS_MODE_COUNT] = {
     [EFFECTS_MODE_SWARM] = effects_mode_swarm,
     [EFFECTS_MODE_PLASMA] = effects_mode_plasma,
     [EFFECTS_MODE_AURORA] = effects_mode_aurora,
+    [EFFECTS_MODE_BLOOM] = effects_mode_bloom,
 };
 
 // Modes without a reset have no state to clear
@@ -32,12 +33,14 @@ static effects_reset_t *const resets[EFFECTS_MODE_COUNT] = {
     [EFFECTS_MODE_STORM] = effects_reset_storm,
     [EFFECTS_MODE_PINGPONG] = effects_reset_pingpong,
     [EFFECTS_MODE_SWARM] = effects_reset_swarm,
+    [EFFECTS_MODE_BLOOM] = effects_reset_bloom,
 };
 
 // Floats the simulations' rows take, see slice_pool()
 static size_t pool_floats(size_t led_count, size_t half_led_count) {
-    // Pond: height, previous; Fire: heat; Storm: afterglow
-    return 3 * led_count + half_led_count;
+    // Pond: height, previous; Fire: heat; Storm: afterglow;
+    // Bloom: u, v and the rows a step writes
+    return 7 * led_count + half_led_count;
 }
 
 static float *take(float **cursor, size_t count) {
@@ -56,6 +59,10 @@ static void slice_pool(effects_t *this, float *pool) {
     this->pond.previous = take(&cursor, this->led_count);
     this->fire.heat = take(&cursor, this->half_led_count);
     this->storm.afterglow = take(&cursor, this->led_count);
+    this->bloom.u = take(&cursor, this->led_count);
+    this->bloom.v = take(&cursor, this->led_count);
+    this->bloom.next_u = take(&cursor, this->led_count);
+    this->bloom.next_v = take(&cursor, this->led_count);
 }
 
 bool effects_init(effects_t *this, size_t led_count, size_t band_count,
