@@ -29,7 +29,7 @@
 - **Fifteen effects, four palettes.** Spectrum, mirrored spectrum, river, ripples, VU meters and glow, and nine newer ones: pond, cymatics, fire, storm, ping-pong, swarm, plasma, aurora and bloom. With a slow palette drift, loudness warmth, a beat flash and gamma correction.
 - **Dark when it's quiet.** Silence and microphone self-noise stay black, by design.
 - **Tuned on the device.** A menu on the board's 1.47" LCD, driven by a 5-way switch: mode, palette, brightness, the sound response and every effect layer, saved to flash. It runs on the second core, and the lights never wait for it.
-- **Tested off the board.** Everything that isn't hardware is plain C23 with unit tests on your computer, including a golden snapshot of the whole pipeline.
+- **Tested off the board.** Everything that isn't hardware is plain C23 with unit tests on your computer, including a golden snapshot of the whole pipeline (recorded so far for the first six modes).
 
 ## Hardware
 
@@ -146,7 +146,7 @@ Pick them in the [menu](#the-menu), under Look. The defaults are `EFFECTS_MODE` 
 | `EFFECTS_MODE_CYMATICS` | A standing wave: the number of nodes follows the loudest band, and the pattern breathes with loudness |
 | `EFFECTS_MODE_FIRE` | Flames burn outward from the centre and cool as they go. Bass and beats feed the centre, treble makes the tips flicker |
 | `EFFECTS_MODE_STORM` | A strong beat strikes a crackling bolt, longer for a stronger beat, with a few branches and a dim flash of sky. Rain sparkles in between |
-| `EFFECTS_MODE_PING_PONG` | Beats launch comets alternately from the two ends; they flash where they cross (up to 8 at once) |
+| `EFFECTS_MODE_PINGPONG` | Beats launch comets alternately from the two ends; they flash where they cross (up to 8 at once) |
 | `EFFECTS_MODE_SWARM` | About 24 dots, each chasing the loudest band near it, so the group slides and clusters where the music is |
 | `EFFECTS_MODE_PLASMA` | Layered sines scrolling along the strip: bass speeds them up, beats jerk them forward, the tone balance shifts the colour |
 | `EFFECTS_MODE_AURORA` | Slow drifting curtains, with fine rays that grow with treble. A calm mode |
@@ -244,7 +244,7 @@ The default mode and palette (`EFFECTS_MODE`, `EFFECTS_PALETTE`: River, Synthwav
 The sound analysis and the effects each have their constants at the top of their header, with the reasoning behind every default. Those the [menu](#the-menu) changes are its defaults:
 
 - [`lib/features/features.h`](lib/features/features.h): the band range, auto-gain (`FEATURES_RANGE_DB`, `FEATURES_MIN_CEILING_DB`), smoothing, and beat detection (`FEATURES_BEAT_THRESHOLD`, `FEATURES_BEAT_MIN_LEVEL`, …).
-- [`lib/effects/effects.h`](lib/effects/effects.h): the mode and palette, river and ripple speeds, the VU peak hold, drift, warmth, flash, sparkles and the four layers.
+- [`lib/effects/effects.h`](lib/effects/effects.h): the mode and palette, each new mode's constants, river and ripple speeds, the VU peak hold, drift, warmth, flash, sparkles and the four layers.
 
 The latency bench, `cmake --build build-tests --target test_latency && ./build-tests/test_latency`, prints how quickly the analysis reacts to kicks and tones and how often it reacts to noise. Run it after changing the beat constants.
 
@@ -397,13 +397,14 @@ ctest --test-dir build-tests --output-on-failure
 | `spectrum` | Scaling, the stereo sum, the sliding window, tones in their bin, the I2S word decode |
 | `features` | Bands, silence, self-noise, auto-gain, beats on kicks and none on noise, and each tuning |
 | `palette` | Stops, interpolation, wrapping and reflecting |
-| `effects` | Every mode: silence, positions, motion, the flash, determinism, each tuning and the brightness |
+| `effects` | The first six modes: silence, positions, motion, the flash, determinism, each tuning and the brightness |
 | `visualizer` | End to end from I²S words: silence, a tone, kicks, and the same tuning on every hop drawing what it draws tuned once, the defaults what they draw untuned |
-| `golden` | The exact pixels of every mode for a fixed input |
+| `modes` | The nine newer modes: dark in silence, dark within 10 s of the music stopping, one behaviour each, determinism, and the state cleared on entering a mode; plus the sine table, the random stream and the peak-band helpers |
+| `golden` | The exact pixels of the first six modes for a fixed input; the other nine are run but not compared until they are recorded after the tuning pass |
 | `stats` | The microphone levels in dBFS, an offset ignored, the window's means, worsts and rates, the stack peaks |
 | `settings` | Ranges and steps, shuffles, every default equal to the constant it replaces, records and their damage, and the flash log on a simulated NOR flash: torn writes, garbage, power lost after an erase |
 
-`test_golden` is a tripwire: it fails on **any** change to the pixels. When a change is meant to alter the look, check that the other tests still pass, then record the new hashes into [`tests/test_golden.c`](tests/test_golden.c):
+`test_golden` is a tripwire: for the modes it has recorded (`RECORDED` in the file, the first six), it fails on **any** change to the pixels. When a change is meant to alter the look, check that the other tests still pass, then record the new hashes into [`tests/test_golden.c`](tests/test_golden.c):
 
 ```bash
 build-tests/test_golden --print
@@ -444,7 +445,9 @@ Build with `-DPRINT_DIAGNOSTICS=ON` to have core 1 print them over USB serial, e
 1. Add a value to `effects_mode_t` in [`lib/effects/effects.h`](lib/effects/effects.h), before `EFFECTS_MODE_COUNT`.
 2. Write its renderer in a new `lib/effects/mode_<name>.c`. It draws into `this->frame`, which starts black, using the helpers in [`effects_internal.h`](lib/effects/effects_internal.h). Declare it there.
 3. Add it to the `renderers` table in [`effects.c`](lib/effects/effects.c), and the file to [`lib/effects/CMakeLists.txt`](lib/effects/CMakeLists.txt).
-4. Test it in `tests/test_effects.c`, and record the golden hashes again.
+4. If it has state, add a reset to the `resets` table in [`effects.c`](lib/effects/effects.c). If it has per-LED rows, make the same edit to both `pool_floats` and `slice_pool` there.
+5. Add its name in [`app/ui/ui_names.c`](app/ui/ui_names.c).
+6. Test it in `tests/test_modes.c`, and record the golden hashes again, which now also means raising `RECORDED` in [`tests/test_golden.c`](tests/test_golden.c).
 
 ### Adding a palette
 

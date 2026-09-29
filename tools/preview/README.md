@@ -39,7 +39,7 @@ then open `http://localhost:8765/preview.html`.
 
 ```bash
 tools/preview/check-golden.sh   # the golden test, compiled to WebAssembly: same pixels as the host build
-tools/preview/check.sh          # builds the engine and runs its 7 Node tests
+tools/preview/check.sh          # builds the engine and runs its 8 Node tests
 ctest --test-dir build-tests    # test_preview: the engine's pixels equal the visualizer's
 ```
 
@@ -49,3 +49,7 @@ ctest --test-dir build-tests    # test_preview: the engine's pixels equal the vi
 - `common.sh`, `build.sh`, `check.sh`, `check-golden.sh`, `build-page.mjs` - the build
 - `page/` - the page (`index.html`, `style.css`, `app.js`)
 - `test/engine.test.mjs` - Node tests of the WebAssembly engine
+
+## Differences from the board
+
+The preview keeps one effects instance per mode, fixed to that mode, so switching mode never runs the mode-entry reset the board runs. A simulation such as Pond resumes its old waves when you switch back to it with the gallery off, so its look on selection can differ from the board's.
