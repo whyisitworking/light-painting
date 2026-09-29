@@ -49,3 +49,17 @@ lp_add_test(golden visualizer)
 lp_add_test(latency visualizer)
 lp_add_test(stats stats)
 lp_add_test(settings settings)
+
+# The preview tool's engine (tools/preview): the pipeline for every mode at
+# once, also compiled to WebAssembly by tools/preview/build.sh
+set(PREVIEW_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/../tools/preview/preview_api.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../app/ui/ui_names.c)
+add_library(preview_api STATIC ${PREVIEW_SOURCES})
+set_source_files_properties(${PREVIEW_SOURCES}
+    PROPERTIES COMPILE_OPTIONS "${PROJECT_WARNINGS}")
+target_compile_options(preview_api PUBLIC
+    -iquote${CMAKE_CURRENT_SOURCE_DIR}/../tools/preview
+    -iquote${CMAKE_CURRENT_SOURCE_DIR}/../app/ui)
+target_link_libraries(preview_api PUBLIC settings visualizer)
+lp_add_test(preview preview_api)

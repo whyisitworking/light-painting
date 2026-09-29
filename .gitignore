@@ -4,6 +4,7 @@ build-tests/
 build-sanitize/
 build-docker/
 build-print/
+build-preview/
 
 # Editor and language server caches
 .cache/
