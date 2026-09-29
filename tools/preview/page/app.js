@@ -293,12 +293,9 @@ async function main() {
   async function createGraph() {
     const ctx = new AudioContext({ latencyHint: 'interactive' });
     try {
-      const url = URL.createObjectURL(new Blob([WORKLET], { type: 'text/javascript' }));
-      try {
-        await ctx.audioWorklet.addModule(url);
-      } finally {
-        URL.revokeObjectURL(url);
-      }
+      // A data: URL, not a Blob URL: a page opened from disk has an opaque
+      // origin, and Chrome refuses a worklet module from its blob:null URL
+      await ctx.audioWorklet.addModule('data:text/javascript;base64,' + btoa(WORKLET));
       const tap = new AudioWorkletNode(ctx, 'tap');
       tap.port.onmessage = (event) => feed(event.data);
       // The tap outputs silence; connecting it keeps the browser pulling it
