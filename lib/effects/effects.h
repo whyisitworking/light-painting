@@ -25,6 +25,7 @@ typedef enum {
     EFFECTS_MODE_CYMATICS,
     EFFECTS_MODE_FIRE,
     EFFECTS_MODE_STORM,
+    EFFECTS_MODE_PINGPONG,
     EFFECTS_MODE_COUNT
 } effects_mode_t;
 
@@ -116,6 +117,13 @@ constexpr float EFFECTS_STORM_GLOW_S = 0.08f;
 constexpr float EFFECTS_STORM_SKY_S = 0.15f;
 constexpr float EFFECTS_STORM_SKY_LEVEL = 0.15f;
 
+// Ping-pong: comets alive at once, LEDs a comet travels per frame, its tail
+// length in LEDs, and how close two heads must be to flash
+constexpr size_t EFFECTS_PINGPONG_MAX_COMETS = 8;
+constexpr float EFFECTS_PINGPONG_SPEED = 3.f;
+constexpr float EFFECTS_PINGPONG_TAIL = 25.f;
+constexpr float EFFECTS_PINGPONG_CROSS = 3.f;
+
 // Bands counted as bass (glow), and the top fraction counted as treble
 constexpr size_t EFFECTS_BASS_BANDS = 5;
 constexpr float EFFECTS_TREBLE_FRACTION = 0.25f;
@@ -162,6 +170,20 @@ typedef struct {
     // False once it left the strip, the slot is free
     bool active;
 } effects_pulse_t;
+
+// One comet of the ping-pong mode, launched from an end by a beat
+typedef struct {
+    // LEDs from the left end of the head
+    float position;
+    // +1 towards the right end, -1 towards the left
+    float direction;
+    // Beat strength 0..1, sets the brightness
+    float strength;
+    // Palette position, steps by 1/8 per beat
+    float color_position;
+    // False once its tail left the strip, the slot is free
+    bool active;
+} effects_comet_t;
 
 // Render state. Allocated by effects_init(), the render path never allocates
 typedef struct {
@@ -264,6 +286,12 @@ typedef struct {
         float glow_k;
         float sky_k;
     } storm;
+
+    struct {
+        effects_comet_t comets[EFFECTS_PINGPONG_MAX_COMETS];
+        // Beats so far: even ones start at the left end
+        unsigned launches;
+    } pingpong;
 } effects_t;
 
 /**

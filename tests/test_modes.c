@@ -416,6 +416,82 @@ static void test_storm_reset_on_entry(void) {
     stop();
 }
 
+static bool has_white_pixel(void) {
+    for (size_t i = 0; i < LEDS; i++) {
+        color_ws2812_t color = {.value = pixels[i]};
+
+        if (color.grba.r == 255 && color.grba.g == 255 && color.grba.b == 255)
+            return true;
+    }
+
+    return false;
+}
+
+// Beats launch from alternate ends; where two cross they flash
+static void test_pingpong_alternates_and_flashes_on_crossing(void) {
+    sound_t sound = quiet();
+    int first_flash = -1;
+    int active = 0;
+    float up = 0.f, down = 0.f;
+
+    start(EFFECTS_MODE_PINGPONG);
+    sound.beat = true;
+    sound.beat_strength = 0.8f;
+    render(&sound);
+    CHECK(lum(pixels[0]) > 0);
+    CHECK(lum(pixels[LEDS - 1]) == 0);
+    render(&sound);
+    sound.beat = false;
+
+    for (size_t c = 0; c < EFFECTS_PINGPONG_MAX_COMETS; c++)
+        if (effects.pingpong.comets[c].active) {
+            active++;
+            if (effects.pingpong.comets[c].direction > 0.f)
+                up += 1.f;
+            else
+                down += 1.f;
+        }
+    CHECK(active == 2 && up == 1.f && down == 1.f);
+
+    for (int frame = 2; frame < 90; frame++) {
+        render(&sound);
+        if (has_white_pixel() && first_flash < 0)
+            first_flash = frame;
+    }
+    // They meet after about 50 frames (3 LEDs a frame each, 300 apart)
+    CHECK(first_flash >= 40 && first_flash <= 60);
+    stop();
+}
+
+// Nine beats in a row: at most eight comets, the most advanced makes room
+static void test_pingpong_slots(void) {
+    sound_t sound = quiet();
+
+    start(EFFECTS_MODE_PINGPONG);
+    sound.beat = true;
+    sound.beat_strength = 0.5f;
+    for (int beat = 0; beat < 9; beat++)
+        render(&sound);
+    for (size_t c = 0; c < EFFECTS_PINGPONG_MAX_COMETS; c++)
+        CHECK(effects.pingpong.comets[c].active);
+    stop();
+}
+
+static void test_pingpong_reset_on_entry(void) {
+    sound_t sound = quiet();
+
+    start(EFFECTS_MODE_PINGPONG);
+    sound.beat = true;
+    sound.beat_strength = 0.5f;
+    render(&sound);
+    set_mode(EFFECTS_MODE_RIVER);
+    set_mode(EFFECTS_MODE_PINGPONG);
+    for (size_t c = 0; c < EFFECTS_PINGPONG_MAX_COMETS; c++)
+        CHECK(!effects.pingpong.comets[c].active);
+    CHECK(effects.pingpong.launches == 0);
+    stop();
+}
+
 int main(void) {
     test_sin();
     test_random_stream();
@@ -431,6 +507,10 @@ int main(void) {
     check_all(EFFECTS_MODE_STORM);
     test_storm_strike_length_and_fade();
     test_storm_reset_on_entry();
+    check_all(EFFECTS_MODE_PINGPONG);
+    test_pingpong_alternates_and_flashes_on_crossing();
+    test_pingpong_slots();
+    test_pingpong_reset_on_entry();
 
     return CHECK_REPORT();
 }

@@ -19,6 +19,7 @@ static effects_renderer_t *const renderers[EFFECTS_MODE_COUNT] = {
     [EFFECTS_MODE_CYMATICS] = effects_mode_cymatics,
     [EFFECTS_MODE_FIRE] = effects_mode_fire,
     [EFFECTS_MODE_STORM] = effects_mode_storm,
+    [EFFECTS_MODE_PINGPONG] = effects_mode_pingpong,
 };
 
 // Modes without a reset have no state to clear
@@ -26,6 +27,7 @@ static effects_reset_t *const resets[EFFECTS_MODE_COUNT] = {
     [EFFECTS_MODE_POND] = effects_reset_pond,
     [EFFECTS_MODE_FIRE] = effects_reset_fire,
     [EFFECTS_MODE_STORM] = effects_reset_storm,
+    [EFFECTS_MODE_PINGPONG] = effects_reset_pingpong,
 };
 
 // Floats the simulations' rows take, see slice_pool()
