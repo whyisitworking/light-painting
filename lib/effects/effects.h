@@ -23,6 +23,7 @@ typedef enum {
     EFFECTS_MODE_GLOW,
     EFFECTS_MODE_POND,
     EFFECTS_MODE_CYMATICS,
+    EFFECTS_MODE_FIRE,
     EFFECTS_MODE_COUNT
 } effects_mode_t;
 
@@ -95,6 +96,14 @@ constexpr float EFFECTS_CYMATICS_MAX_NODES = 24.f;
 constexpr float EFFECTS_CYMATICS_SLEW_S = 0.15f;
 constexpr float EFFECTS_CYMATICS_BREATH_HZ = 0.2f;
 constexpr float EFFECTS_CYMATICS_GAIN = 2.5f;
+
+// Fire: LEDs per frame the heat moves outward (0 to 1), its cooling time
+// constant, how many LEDs from the centre the sparks land in, and how much
+// of the tips the treble makes flicker
+constexpr float EFFECTS_FIRE_SPEED = 0.6f;
+constexpr float EFFECTS_FIRE_COOL_S = 0.35f;
+constexpr size_t EFFECTS_FIRE_SPARK_LEDS = 6;
+constexpr float EFFECTS_FIRE_FLICKER = 0.5f;
 
 // Bands counted as bass (glow), and the top fraction counted as treble
 constexpr size_t EFFECTS_BASS_BANDS = 5;
@@ -228,6 +237,13 @@ typedef struct {
         float nodes;
         float phase;
     } cymatics;
+
+    struct {
+        // Heat 0..1 from the centre out, half_led_count, and what a frame
+        // keeps of it (a time constant, so the hop rate does not matter)
+        float *heat;
+        float cool_k;
+    } fire;
 } effects_t;
 
 /**

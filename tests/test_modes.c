@@ -305,6 +305,58 @@ static void test_cymatics_nodes_follow_the_peak_band(void) {
     stop();
 }
 
+static size_t hottest(void) {
+    size_t best = 0;
+
+    for (size_t i = 0; i < effects.half_led_count; i++)
+        if (effects.fire.heat[i] > effects.fire.heat[best])
+            best = i;
+
+    return best;
+}
+
+// Bass makes heat at the centre, and it moves outward as it cools
+static void test_fire_burns_outward(void) {
+    sound_t sound = quiet();
+    size_t early, late;
+
+    start(EFFECTS_MODE_FIRE);
+    for (size_t b = 0; b < EFFECTS_BASS_BANDS; b++)
+        bands[b] = 1.f;
+    sound.loudness = 0.2f;
+
+    for (int frame = 0; frame < 10; frame++)
+        render(&sound);
+    CHECK(effects.fire.heat[0] > 0.5f);
+
+    sound = quiet();
+    for (int frame = 0; frame < 10; frame++)
+        render(&sound);
+    early = hottest();
+    for (int frame = 0; frame < 20; frame++)
+        render(&sound);
+    late = hottest();
+
+    CHECK(late > early + 5);
+    CHECK(effects.fire.heat[0] < 0.2f);
+    stop();
+}
+
+static void test_fire_reset_on_entry(void) {
+    start(EFFECTS_MODE_FIRE);
+    for (int hop = 0; hop < 200; hop++) {
+        sound_t sound = music(hop);
+
+        render(&sound);
+    }
+    CHECK(effects.fire.heat[hottest()] > 0.f);
+
+    set_mode(EFFECTS_MODE_RIVER);
+    set_mode(EFFECTS_MODE_FIRE);
+    CHECK(effects.fire.heat[hottest()] == 0.f);
+    stop();
+}
+
 int main(void) {
     test_sin();
     test_random_stream();
@@ -314,6 +366,9 @@ int main(void) {
     test_pond_reset_on_entry();
     check_all(EFFECTS_MODE_CYMATICS);
     test_cymatics_nodes_follow_the_peak_band();
+    check_all(EFFECTS_MODE_FIRE);
+    test_fire_burns_outward();
+    test_fire_reset_on_entry();
 
     return CHECK_REPORT();
 }

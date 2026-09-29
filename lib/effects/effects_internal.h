@@ -32,6 +32,8 @@ effects_renderer_t effects_mode_glow;
 effects_renderer_t effects_mode_pond;
 effects_reset_t effects_reset_pond;
 effects_renderer_t effects_mode_cymatics;
+effects_renderer_t effects_mode_fire;
+effects_reset_t effects_reset_fire;
 
 /**
  * The layers, on top of every mode: slides, folds, blurs and trails
