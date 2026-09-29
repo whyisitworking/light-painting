@@ -13,9 +13,15 @@ const read = (...parts) => readFileSync(join(...parts), 'utf8');
 // A script must not contain the end of its own element
 const inlineScript = (text) => text.replaceAll('</script', '<\\/script');
 
+const template = read(here, 'page', 'index.html');
+for (const marker of ['/*STYLE*/', '/*ENGINE*/', '/*APP*/']) {
+  const n = template.split(marker).length - 1;
+  if (n !== 1) throw new Error(`index.html must hold ${marker} exactly once, it has ${n}`);
+}
+
 // Replacer functions: the engine holds "$" sequences a replacement string
 // would interpret
-const html = read(here, 'page', 'index.html')
+const html = template
   .replace('/*STYLE*/', () => read(here, 'page', 'style.css'))
   .replace('/*ENGINE*/', () => inlineScript(read(out, 'engine.js')))
   .replace('/*APP*/', () => inlineScript(read(here, 'page', 'app.js')));

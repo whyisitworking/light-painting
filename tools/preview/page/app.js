@@ -68,6 +68,8 @@ async function main() {
     engine._preview_set_gallery(state.gallery ? 1 : 0);
   }
   start(FIRMWARE_RATE);
+  // A reload can restore the checkbox to checked: it follows the state
+  $('#gallery-toggle').checked = state.gallery;
 
   const setSetting = (id, value) => {
     const stored = engine._preview_set(id, value);
@@ -216,6 +218,13 @@ async function main() {
   $('#gallery-toggle').addEventListener('change', (event) => {
     state.gallery = event.target.checked;
     engine._preview_set_gallery(state.gallery ? 1 : 0);
+    // The tiles stop being painted: dark, not the last frame
+    if (!state.gallery) {
+      strips.forEach((entry) => {
+        entry.context.fillStyle = '#000';
+        entry.context.fillRect(0, 0, LED_COUNT, 1);
+      });
+    }
   });
 
   const bandsContext = $('#bands').getContext('2d');
