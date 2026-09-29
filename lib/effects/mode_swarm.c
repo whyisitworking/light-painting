@@ -52,14 +52,15 @@ void effects_mode_swarm(effects_t *this, const sound_t *sound) {
         if (level < EFFECTS_SWARM_QUIET)
             continue;
 
-        for (int k = -2; k <= 2; k++) {
+        // A soft Gaussian glow, a bright dot in the middle
+        for (int k = -6; k <= 6; k++) {
             int at = (int)floorf(*x) + k;
-            float weight = 1.f - fabsf((float)at - *x) / 1.5f;
+            float d = ((float)at - *x) / EFFECTS_SWARM_GLOW;
 
-            if (at >= 0 && at < (int)this->led_count && weight > 0.f)
+            if (at >= 0 && at < (int)this->led_count)
                 color_rgb_add(&this->frame[at],
                               color_rgb_scale(effects_color_at(this, sound, (float)best / last_band),
-                                              level * weight));
+                                              fminf(1.f, level * EFFECTS_SWARM_GAIN) * expf(-0.5f * d * d)));
         }
     }
 }

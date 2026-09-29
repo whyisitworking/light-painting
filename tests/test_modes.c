@@ -381,13 +381,14 @@ static int strike_size(float strength) {
     return size;
 }
 
-// A stronger beat strikes a longer bolt, and it fades fast
+// A stronger beat strikes a longer bolt (a weak one still strikes half as
+// hard, EFFECTS_STORM_STRENGTH_FLOOR), and it fades fast
 static void test_storm_strike_length_and_fade(void) {
     sound_t sound = quiet();
     int weak = strike_size(0.3f), strong = strike_size(1.f);
 
     CHECK(weak >= 30);
-    CHECK(strong * 2 > weak * 3);
+    CHECK(strong * 5 > weak * 6);
 
     start(EFFECTS_MODE_STORM);
     sound.beat = true;

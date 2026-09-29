@@ -99,15 +99,19 @@ constexpr size_t EFFECTS_POND_SUBSTEPS = 3;
 
 // Pond: time constants of the waves' motion dying and of the water level
 // settling back (damping alone would leave a permanent offset)
-constexpr float EFFECTS_POND_DAMPING_S = 1.f;
+constexpr float EFFECTS_POND_DAMPING_S = 2.5f;
 constexpr float EFFECTS_POND_LEAK_S = 2.f;
 
 // Pond: a stone's width in LEDs, the height of a drizzle drop and the chance
-// of one per frame at full treble, and how bright a wave of height 1/GAIN is
-constexpr float EFFECTS_POND_STONE_WIDTH = 2.f;
-constexpr float EFFECTS_POND_DRIZZLE_HEIGHT = 0.15f;
-constexpr float EFFECTS_POND_DRIZZLE_RATE = 0.02f;
-constexpr float EFFECTS_POND_GAIN = 2.f;
+// of one per frame at full treble, how bright a wave of height 1/GAIN is,
+// the least a beat's stone weighs (of a full one) however weak the beat, and
+// the wave height under which the water shows black (so crests stand out)
+constexpr float EFFECTS_POND_STONE_WIDTH = 3.f;
+constexpr float EFFECTS_POND_DRIZZLE_HEIGHT = 0.05f;
+constexpr float EFFECTS_POND_DRIZZLE_RATE = 0.003f;
+constexpr float EFFECTS_POND_GAIN = 9.f;
+constexpr float EFFECTS_POND_STONE_FLOOR = 0.5f;
+constexpr float EFFECTS_POND_BLACK = 0.03f;
 
 // Cymatics: most nodes of the standing wave, how long the nodes take to
 // slide to a new count, how fast it breathes (turns per second), and the
@@ -128,28 +132,36 @@ constexpr float EFFECTS_FIRE_FLICKER = 0.5f;
 // Storm: LEDs of a bolt at beat strength 0 and 1, the side branches it
 // gets, the time constants of the bolt's afterglow and of the sky flash, and
 // the sky flash at full strength
-constexpr size_t EFFECTS_STORM_MIN_LENGTH = 20;
-constexpr size_t EFFECTS_STORM_MAX_LENGTH = 160;
-constexpr size_t EFFECTS_STORM_BRANCHES = 3;
-constexpr float EFFECTS_STORM_GLOW_S = 0.08f;
-constexpr float EFFECTS_STORM_SKY_S = 0.15f;
-constexpr float EFFECTS_STORM_SKY_LEVEL = 0.15f;
+constexpr size_t EFFECTS_STORM_MIN_LENGTH = 40;
+constexpr size_t EFFECTS_STORM_MAX_LENGTH = 200;
+constexpr size_t EFFECTS_STORM_BRANCHES = 5;
+constexpr float EFFECTS_STORM_GLOW_S = 0.14f;
+constexpr float EFFECTS_STORM_SKY_S = 0.25f;
+constexpr float EFFECTS_STORM_SKY_LEVEL = 0.5f;
+// The least a beat strikes with (of a full one) however weak the beat
+constexpr float EFFECTS_STORM_STRENGTH_FLOOR = 0.5f;
 
 // Ping-pong: comets alive at once, LEDs a comet travels per frame, its tail
-// length in LEDs, and how close two heads must be to flash
+// length in LEDs, the LEDs of full-bright head and how sharply the tail
+// fades (its power, 1 is linear), and how close two heads must be to flash
 constexpr size_t EFFECTS_PINGPONG_MAX_COMETS = 8;
 constexpr float EFFECTS_PINGPONG_SPEED = 3.f;
-constexpr float EFFECTS_PINGPONG_TAIL = 25.f;
+constexpr float EFFECTS_PINGPONG_TAIL = 60.f;
+constexpr float EFFECTS_PINGPONG_HEAD = 4.f;
+constexpr float EFFECTS_PINGPONG_FADE = 2.f;
 constexpr float EFFECTS_PINGPONG_CROSS = 3.f;
 
 // Swarm: dots, bands each side of its own a dot looks at, the spring that
 // pulls it to the band (1/s^2) and its friction (1/s), and the level under
-// which a band counts as silent and the dot goes home
+// which a band counts as silent and the dot goes home, the width (Gaussian
+// sigma) of a dot's glow in LEDs and how much a band's level is amplified
 constexpr size_t EFFECTS_SWARM_DOTS = 24;
 constexpr size_t EFFECTS_SWARM_REACH = 3;
 constexpr float EFFECTS_SWARM_SPRING = 120.f;
 constexpr float EFFECTS_SWARM_FRICTION = 17.f;
 constexpr float EFFECTS_SWARM_QUIET = 0.02f;
+constexpr float EFFECTS_SWARM_GLOW = 2.5f;
+constexpr float EFFECTS_SWARM_GAIN = 2.f;
 
 // Plasma: turns per second the pattern scrolls at rest and per unit of bass,
 // the jerk a full beat gives (turns), and the loudness that lights it fully
@@ -161,25 +173,37 @@ constexpr float EFFECTS_PLASMA_GAIN = 3.f;
 
 // Aurora: curtains drift and the fine rays flicker, in noise cells per
 // second; cells across the strip for each; the loudness that lights it fully
-// is 1 / GAIN
+// is 1 / GAIN; the noise value where a curtain starts to light and the range
+// over which it reaches full brightness
 constexpr float EFFECTS_AURORA_CURTAIN_SPEED = 0.12f;
 constexpr float EFFECTS_AURORA_RAY_SPEED = 2.f;
 constexpr float EFFECTS_AURORA_CURTAIN_CELLS = 3.f;
 constexpr float EFFECTS_AURORA_RAY_CELLS = 40.f;
 constexpr float EFFECTS_AURORA_GAIN = 3.f;
+constexpr float EFFECTS_AURORA_EDGE = 0.25f;
+constexpr float EFFECTS_AURORA_SPAN = 0.3f;
 
 // Bloom (a 1D Gray-Scott reaction-diffusion, u the food and v the bloom):
 // steps per frame, diffusion of each, the feed rate at rest and what full
 // bass adds to it, the kill rate, the half width of a seed in LEDs, and the
 // loudness that lights it fully is 1 / GAIN. At feed 0.035 and kill 0.06 a
-// spot splits in two and stays; nearer 0.04 it keeps splitting
-constexpr size_t EFFECTS_BLOOM_SUBSTEPS = 4;
+// spot splits in two and stays; nearer 0.04 it keeps splitting, and below
+// about 0.03 it dies. So FEED sits low, and the kill rate drifts by +/-DRIFT
+// with a period of DRIFT_S, so the pattern splits in a kind phase and thins
+// out in a harsh one instead of freezing into a fence. Each beat also wipes
+// a window of WIPE_RADIUS LEDs clean (not where it seeds), so old spots die
+constexpr size_t EFFECTS_BLOOM_SUBSTEPS = 8;
 constexpr float EFFECTS_BLOOM_DIFFUSION_U = 0.16f;
 constexpr float EFFECTS_BLOOM_DIFFUSION_V = 0.08f;
-constexpr float EFFECTS_BLOOM_FEED = 0.035f;
-constexpr float EFFECTS_BLOOM_FEED_BASS = 0.006f;
+constexpr float EFFECTS_BLOOM_FEED = 0.030f;
+constexpr float EFFECTS_BLOOM_FEED_BASS = 0.f;
 constexpr float EFFECTS_BLOOM_KILL = 0.06f;
-constexpr size_t EFFECTS_BLOOM_SEED_RADIUS = 2;
+constexpr size_t EFFECTS_BLOOM_SEED_RADIUS = 3;
+constexpr size_t EFFECTS_BLOOM_WIPE_RADIUS = 12;
+// Bloom: the v under which nothing counts as alive, and a lone spot is seeded
+constexpr float EFFECTS_BLOOM_ALIVE = 0.05f;
+constexpr float EFFECTS_BLOOM_KILL_DRIFT = 0.004f;
+constexpr float EFFECTS_BLOOM_DRIFT_S = 5.f;
 constexpr float EFFECTS_BLOOM_GAIN = 3.f;
 
 // Bands counted as bass (glow), and the top fraction counted as treble
@@ -389,6 +413,8 @@ typedef struct {
         float *v;
         float *next_u;
         float *next_v;
+        // Where in its slow kill-rate drift (radians)
+        float phase;
     } bloom;
 } effects_t;
 

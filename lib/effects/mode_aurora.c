@@ -57,11 +57,13 @@ void effects_mode_aurora(effects_t *this, const sound_t *sound) {
                               this->aurora.cell[0], this->aurora.fraction[0]);
         float rays = noise(x * EFFECTS_AURORA_RAY_CELLS, this->aurora.cell[1],
                            this->aurora.fraction[1]);
-        float shape = fmaxf(0.f, (curtain - 0.3f) / 0.7f);
+        // Broad curtains: value noise rarely leaves the middle, so a
+        // smooth ramp from EDGE to EDGE+SPAN lights the good parts fully
+        float ramp = fminf(1.f, fmaxf(0.f, (curtain - EFFECTS_AURORA_EDGE) / EFFECTS_AURORA_SPAN));
+        float shape = smooth(ramp);
 
-        shape *= shape;
         this->frame[i] = color_rgb_scale(
-            effects_color_at(this, sound, 0.3f + 0.4f * curtain),
-            level * shape * (1.f - 0.8f * treble * (1.f - rays)));
+            effects_color_at(this, sound, 0.45f + 0.4f * curtain),
+            level * shape * (1.f - 0.5f * treble * (1.f - rays)));
     }
 }

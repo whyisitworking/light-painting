@@ -28,9 +28,11 @@ void effects_mode_storm(effects_t *this, const sound_t *sound) {
     float *glow = this->storm.afterglow;
 
     if (sound->beat) {
+        float strength = EFFECTS_STORM_STRENGTH_FLOOR +
+                         (1.f - EFFECTS_STORM_STRENGTH_FLOOR) * sound->beat_strength;
         size_t length =
             EFFECTS_STORM_MIN_LENGTH +
-            (size_t)(sound->beat_strength *
+            (size_t)(strength *
                      (float)(EFFECTS_STORM_MAX_LENGTH - EFFECTS_STORM_MIN_LENGTH));
         size_t start, branch;
 
@@ -41,7 +43,7 @@ void effects_mode_storm(effects_t *this, const sound_t *sound) {
                          (float)(this->led_count - length + 1));
         strike(this, start, length);
 
-        branch = length / 5;
+        branch = length / 3;
         for (size_t b = 0; b < EFFECTS_STORM_BRANCHES; b++) {
             size_t at = start + (size_t)(effects_random_unit(this) * (float)length);
             // Half of them go the other way
@@ -53,7 +55,7 @@ void effects_mode_storm(effects_t *this, const sound_t *sound) {
         }
 
         this->storm.sky = fmaxf(this->storm.sky,
-                                EFFECTS_STORM_SKY_LEVEL * sound->beat_strength);
+                                EFFECTS_STORM_SKY_LEVEL * strength);
     }
 
     for (size_t i = 0; i < this->led_count; i++) {
@@ -72,7 +74,7 @@ void effects_mode_storm(effects_t *this, const sound_t *sound) {
             level);
         // The core of a bolt is white
         color_rgb_add(&color,
-                      color_rgb_scale((rgb_t){1.f, 1.f, 1.f}, 0.6f * level * level));
+                      color_rgb_scale((rgb_t){1.f, 1.f, 1.f}, level * level));
         color_rgb_add(&this->frame[i], color);
     }
 

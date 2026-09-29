@@ -33,7 +33,9 @@ void effects_mode_pond(effects_t *this, const sound_t *sound) {
     float *height = this->pond.height, *previous = this->pond.previous;
 
     if (sound->beat)
-        drop(this, sound->centroid * (float)last, sound->beat_strength);
+        drop(this, sound->centroid * (float)last,
+             EFFECTS_POND_STONE_FLOOR +
+                 (1.f - EFFECTS_POND_STONE_FLOOR) * sound->beat_strength);
 
     if (effects_random_unit(this) < treble * EFFECTS_POND_DRIZZLE_RATE)
         drop(this, effects_random_unit(this) * (float)last,
@@ -75,7 +77,7 @@ void effects_mode_pond(effects_t *this, const sound_t *sound) {
             continue;
         }
 
-        level = fminf(1.f, fabsf(height[i]) * EFFECTS_POND_GAIN);
+        level = fminf(1.f, fmaxf(0.f, fabsf(height[i]) - EFFECTS_POND_BLACK) * EFFECTS_POND_GAIN);
         position = 0.5f + 0.5f * fmaxf(-1.f, fminf(1.f, height[i]));
         this->frame[i] =
             color_rgb_scale(effects_color_at(this, sound, position), level);

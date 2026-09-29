@@ -82,17 +82,25 @@ void effects_mode_pingpong(effects_t *this, const sound_t *sound) {
             continue;
 
         color = effects_color_at(this, sound, comet->color_position);
-        brightness = 0.6f + 0.4f * comet->strength;
+        brightness = 0.8f + 0.2f * comet->strength;
 
-        for (size_t k = 0; (float)k < EFFECTS_PINGPONG_TAIL; k++) {
+        // A bright head, then a tail that fades as a power of the distance
+        // (a glow, not a ramp); the head's core is whitened
+        for (int k = -2; (float)k < EFFECTS_PINGPONG_TAIL; k++) {
             float at = comet->position - comet->direction * (float)k;
+            float level, along = fmaxf(0.f, (float)k - EFFECTS_PINGPONG_HEAD);
+            rgb_t pixel;
 
             if (at < 0.f || at > last)
                 continue;
 
-            color_rgb_add(&this->frame[(size_t)(at + 0.5f)],
-                          color_rgb_scale(color,
-                                          brightness * (1.f - (float)k / EFFECTS_PINGPONG_TAIL)));
+            level = k < 0 ? 0.5f
+                          : powf(1.f - along / (EFFECTS_PINGPONG_TAIL - EFFECTS_PINGPONG_HEAD),
+                                 EFFECTS_PINGPONG_FADE);
+            pixel = color_rgb_scale(color, brightness * level);
+            if ((float)k < EFFECTS_PINGPONG_HEAD)
+                color_rgb_add(&pixel, color_rgb_scale((rgb_t){1.f, 1.f, 1.f}, 0.5f * brightness));
+            color_rgb_add(&this->frame[(size_t)(at + 0.5f)], pixel);
         }
 
         comet->position += comet->direction * EFFECTS_PINGPONG_SPEED;
