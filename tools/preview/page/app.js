@@ -323,7 +323,7 @@ async function main() {
   // await has been superseded and must release whatever it acquired
   let generation = 0;
 
-  async function choose(name) {
+  async function choose(name, keepTrim) {
     const mine = ++generation;
     const isCurrent = () => mine === generation;
     if (current) {
@@ -338,10 +338,14 @@ async function main() {
     try {
       const g = await ensureGraph();
       if (!isCurrent()) return;
-      await g.ctx.resume();
-      if (!isCurrent()) return;
-      setTrim(SOURCES[name].trim);
+      // Not awaited before start(): a share picker needs a fresh click, and
+      // every start only connects nodes, which a suspended context accepts
+      const resumed = g.ctx.resume();
+      resumed.catch(() => {});
+      if (!keepTrim) setTrim(SOURCES[name].trim);
       await SOURCES[name].start(g, $('#source-extra'), isCurrent);
+      if (!isCurrent()) return;
+      await resumed;
       if (!isCurrent()) return;
       current = name;
     } catch (error) {
@@ -503,12 +507,22 @@ async function main() {
         throw new Error('This browser cannot share audio from the computer');
       // Chrome only offers audio together with video. The unknown members are
       // ignored by a browser that does not know them
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-        systemAudio: 'include',
-        windowAudio: 'system',
-      });
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+          systemAudio: 'include',
+          windowAudio: 'system',
+        });
+      } catch (error) {
+        const text = `${error.name} ${error.message}`;
+        if (/user gesture|transient activation/i.test(text))
+          throw new Error('Click Computer audio again: the browser wanted a fresher click.');
+        if (error.name === 'NotAllowedError' || /permission denied/i.test(text))
+          throw new Error('Sharing was cancelled.');
+        throw error;
+      }
       const release = () => stream.getTracks().forEach((track) => track.stop());
       if (!isCurrent()) return release();
       const audioTracks = stream.getAudioTracks();
@@ -547,6 +561,7 @@ async function main() {
   let micStream = null;
   let micNode = null;
   let micDeviceId;
+  let micRefocus = false; // set by the device select, consumed by the restart
   addSource('mic', {
     label: 'Microphone',
     trim: 0,
@@ -559,9 +574,11 @@ async function main() {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio });
       } catch (error) {
-        if (micDeviceId && (error.name === 'OverconstrainedError' || error.name === 'NotFoundError')) {
+        micRefocus = false;
+        if (micDeviceId && isCurrent()) {
           micDeviceId = undefined;
-          throw new Error('The chosen input device is unavailable; the default input is used next.');
+          if (error.name === 'OverconstrainedError' || error.name === 'NotFoundError')
+            throw new Error('The chosen input device is unavailable; the default input is used next.');
         }
         throw error;
       }
@@ -589,9 +606,11 @@ async function main() {
           select.id = 'mic-device';
           inputs.forEach((device, i) => select.append(new Option(device.label || `Input ${i + 1}`, device.deviceId)));
           select.value = inUse;
+          if (select.selectedIndex < 0) select.selectedIndex = 0;
           select.addEventListener('change', () => {
             micDeviceId = select.value;
-            choose('mic');
+            micRefocus = true;
+            choose('mic', true);
           });
           const label = document.createElement('label');
           label.htmlFor = select.id;
@@ -599,9 +618,12 @@ async function main() {
           const hint = document.createElement('p');
           hint.textContent = 'To hear what your Mac plays, install a virtual input such as BlackHole and pick it here.';
           extra.append(label, select, hint);
+          if (micRefocus) select.focus();
         }
+        micRefocus = false;
         if (track) stopOnEnd(track, isCurrent, 'The microphone stopped.');
       } catch (error) {
+        micRefocus = false;
         release();
         throw error;
       }
