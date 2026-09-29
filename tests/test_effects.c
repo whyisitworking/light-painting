@@ -105,77 +105,114 @@ static void test_mirrored_spectrum_band_position(void) {
     effects_deinit(&effects);
 }
 
-// A beat flashes the whole strip, then fades
-static void test_beat_flash(void) {
+// Lit LED 10 (band 0), unlit LED 290: bands past the middle are silent
+static constexpr size_t LIT = 10, UNLIT = 290;
+
+static void half_lit_bands(void) {
+    for (size_t b = 0; b < BANDS; b++)
+        bands[b] = b < BANDS / 2 ? 0.2f : 0.f;
+}
+
+// One frame of a fresh instance: the reference the beat is compared to
+static void render_fresh(const effects_tuning_t *tuning, const sound_t *sound,
+                         uint32_t *out) {
     effects_t effects;
-    sound_t sound = quiet();
-    unsigned first;
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
-    set_mode(&effects, EFFECTS_MODE_SPECTRUM);
+    effects_tune(&effects, tuning);
+    effects_render(&effects, sound, out);
+    effects_deinit(&effects);
+}
+
+// A beat lifts what is lit, then fades back; what is dark stays dark
+static void test_beat_flash(void) {
+    effects_t effects;
+    effects_tuning_t tuning = effects_default_tuning();
+    sound_t sound = quiet();
+    uint32_t plain[LEDS];
+    unsigned first;
+
+    half_lit_bands();
+    tuning.mode = EFFECTS_MODE_SPECTRUM;
+    tuning.drift_period_s = 0.f;
+    render_fresh(&tuning, &sound, plain);
+    CHECK(brightness(plain[LIT]) > 0);
+    CHECK(plain[UNLIT] == 0);
+
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
+    effects_tune(&effects, &tuning);
 
     sound.beat = true;
     sound.beat_strength = 1.f;
     effects_render(&effects, &sound, pixels);
-    first = brightness(pixels[0]);
-    CHECK(first > 0);
+    first = brightness(pixels[LIT]);
+    CHECK(first > brightness(plain[LIT]));
 
-    // White added after gamma, as it will be shown
+    // No white added: what is silent (the upper bands) is still exactly
+    // dark, and nothing got dimmer
     for (size_t i = 0; i < LEDS; i++) {
-        color_ws2812_t color = {.value = pixels[i]};
-        long white = lroundf(EFFECTS_FLASH_LEVEL * 255.f);
+        color_ws2812_t before = {.value = plain[i]};
+        color_ws2812_t after = {.value = pixels[i]};
 
-        CHECK(color.grba.r == white && color.grba.g == white &&
-              color.grba.b == white);
+        CHECK(after.grba.r >= before.grba.r && after.grba.g >= before.grba.g &&
+              after.grba.b >= before.grba.b);
+        if (i > LEDS * 3 / 5)
+            CHECK(pixels[i] == 0);
     }
 
     sound = quiet();
+    half_lit_bands();
+    sound.bands = bands;
     for (int frame = 0; frame < 5; frame++)
         effects_render(&effects, &sound, pixels);
-    CHECK(brightness(pixels[0]) < first);
+    CHECK(brightness(pixels[LIT]) < first);
+    CHECK(brightness(pixels[LIT]) >= brightness(plain[LIT]));
 
     for (int frame = 0; frame < 200; frame++)
         effects_render(&effects, &sound, pixels);
-    CHECK(all_dark());
+    CHECK(memcmp(pixels, plain, sizeof(pixels)) == 0);
 
     effects_deinit(&effects);
 }
 
-// The flash saturates on bright pixels instead of wrapping to dark
-static void test_beat_flash_saturates(void) {
-    effects_t effects;
+// Flash level 0: a beat changes nothing
+static void test_beat_flash_off(void) {
+    effects_tuning_t tuning = effects_default_tuning();
     sound_t sound = quiet();
     uint32_t plain[LEDS];
-    unsigned white = (unsigned)lroundf(EFFECTS_FLASH_LEVEL * 255.f);
+
+    half_lit_bands();
+    tuning.mode = EFFECTS_MODE_SPECTRUM;
+    tuning.flash_level = 0.f;
+    render_fresh(&tuning, &sound, plain);
+
+    sound.beat = true;
+    sound.beat_strength = 1.f;
+    render_fresh(&tuning, &sound, pixels);
+    CHECK(memcmp(pixels, plain, sizeof(pixels)) == 0);
+}
+
+// The lift saturates on bright pixels instead of wrapping to dark
+static void test_beat_flash_saturates(void) {
+    effects_tuning_t tuning = effects_default_tuning();
+    sound_t sound = quiet();
+    uint32_t plain[LEDS];
 
     for (size_t b = 0; b < BANDS; b++)
         bands[b] = 1.f;
+    tuning.mode = EFFECTS_MODE_SPECTRUM;
+    render_fresh(&tuning, &sound, plain);
 
-    CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
-    set_mode(&effects, EFFECTS_MODE_SPECTRUM);
-    effects_render(&effects, &sound, plain);
-    effects_deinit(&effects);
-
-    CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
-    set_mode(&effects, EFFECTS_MODE_SPECTRUM);
     sound.beat = true;
     sound.beat_strength = 1.f;
-    effects_render(&effects, &sound, pixels);
-    effects_deinit(&effects);
+    render_fresh(&tuning, &sound, pixels);
 
     for (size_t i = 0; i < LEDS; i++) {
         color_ws2812_t before = {.value = plain[i]};
         color_ws2812_t after = {.value = pixels[i]};
 
-        CHECK(after.grba.r == (before.grba.r + white > 255
-                                   ? 255
-                                   : before.grba.r + white));
-        CHECK(after.grba.g == (before.grba.g + white > 255
-                                   ? 255
-                                   : before.grba.g + white));
-        CHECK(after.grba.b == (before.grba.b + white > 255
-                                   ? 255
-                                   : before.grba.b + white));
+        CHECK(after.grba.r >= before.grba.r && after.grba.g >= before.grba.g &&
+              after.grba.b >= before.grba.b);
     }
 }
 
@@ -558,33 +595,26 @@ static void test_brightness_zero_is_dark(void) {
     effects_deinit(&effects);
 }
 
-// At half brightness the pixels are gamma of half their level, and the
-// flash half as bright to the eye too: scaled by 0.5 ^ gamma after gamma
+// At half brightness the pixels are gamma of half their level
 static void test_half_brightness(void) {
     effects_t effects;
     effects_tuning_t tuning = effects_default_tuning();
     sound_t sound = quiet();
     uint8_t full = color_gamma(1.f), half = color_gamma(0.5f);
-    long white = lroundf(EFFECTS_FLASH_LEVEL * 255.f * powf(0.5f, COLOR_GAMMA));
 
     CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
     tuning.mode = EFFECTS_MODE_SPECTRUM;
     tuning.brightness = 0.5f;
     effects_tune(&effects, &tuning);
 
-    // The flash alone, on silence
+    // A beat on silence: nothing lit to lift
     sound.beat = true;
     sound.beat_strength = 1.f;
     effects_render(&effects, &sound, pixels);
-    for (size_t i = 0; i < LEDS; i++) {
-        color_ws2812_t color = {.value = pixels[i]};
-
-        CHECK(color.grba.r == white && color.grba.g == white &&
-              color.grba.b == white);
-    }
+    CHECK(all_dark());
     effects_deinit(&effects);
 
-    // Full levels, no flash: no channel above gamma of half
+    // Full levels, no beat: no channel above gamma of half
     CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
     effects_tune(&effects, &tuning);
     sound = quiet();
@@ -619,6 +649,95 @@ static void test_half_brightness(void) {
     effects_deinit(&effects);
 }
 
+// Spectrum pixel 0 after a long steady level, then one frame at another
+static uint32_t punched_after(float steady, float then) {
+    effects_t effects;
+    effects_tuning_t tuning = effects_default_tuning();
+    sound_t sound = quiet();
+    uint32_t out[LEDS];
+
+    tuning.mode = EFFECTS_MODE_SPECTRUM;
+    tuning.drift_period_s = 0.f;
+    tuning.flash_level = 0.f;
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
+    effects_tune(&effects, &tuning);
+
+    for (size_t b = 0; b < BANDS; b++)
+        bands[b] = steady;
+    for (int frame = 0; frame < 400; frame++)
+        effects_render(&effects, &sound, out);
+    for (size_t b = 0; b < BANDS; b++)
+        bands[b] = then;
+    effects_render(&effects, &sound, out);
+    effects_deinit(&effects);
+
+    return out[0];
+}
+
+// The same level rendered by a fresh instance: nothing to punch against
+static uint32_t raw_level(float level) { return punched_after(level, level); }
+
+static void check_near_pixel(uint32_t got, uint32_t want) {
+    color_ws2812_t a = {.value = got}, b = {.value = want};
+
+    CHECK(abs((int)a.grba.r - (int)b.grba.r) <= 1);
+    CHECK(abs((int)a.grba.g - (int)b.grba.g) <= 1);
+    CHECK(abs((int)a.grba.b - (int)b.grba.b) <= 1);
+}
+
+// Lit LEDs of the VU bar after a steady loudness, then one frame at another
+static size_t vu_lit_after(float steady, float then) {
+    effects_t effects;
+    effects_tuning_t tuning = effects_default_tuning();
+    sound_t sound = quiet();
+    uint32_t out[LEDS];
+    size_t lit = 0;
+
+    tuning.mode = EFFECTS_MODE_VU;
+    tuning.flash_level = 0.f;
+    CHECK(effects_init(&effects, LEDS, BANDS, HOP_PERIOD_S, 1));
+    effects_tune(&effects, &tuning);
+
+    sound.loudness = steady;
+    for (int frame = 0; frame < 400; frame++)
+        effects_render(&effects, &sound, out);
+    sound.loudness = then;
+    effects_render(&effects, &sound, out);
+    effects_deinit(&effects);
+
+    for (size_t i = 0; i < LEDS; i++)
+        lit += out[i] != 0;
+
+    return lit;
+}
+
+// A level at its average passes through, one above is expanded (v + 3 (v -
+// average)), clamped at 1, one below sinks to 0
+static void test_punch(void) {
+    // Steady: the same as the raw level, on the first frame and the 400th
+    check_near_pixel(punched_after(0.4f, 0.4f), raw_level(0.4f));
+
+    // 0.3 -> 0.4 shows as 0.4 + 3 * 0.1
+    check_near_pixel(punched_after(0.3f, 0.4f), raw_level(0.7f));
+    CHECK(brightness(punched_after(0.3f, 0.4f)) >
+          2 * (brightness(raw_level(0.4f)) - brightness(raw_level(0.3f))) +
+              brightness(raw_level(0.3f)));
+
+    // Past 1 is 1
+    CHECK(punched_after(0.5f, 1.f) == raw_level(1.f));
+
+    // 0.5 -> 0.4 shows as 0.4 - 3 * 0.1
+    check_near_pixel(punched_after(0.5f, 0.4f), raw_level(0.1f));
+
+    // Far below the average, dark
+    CHECK(punched_after(0.5f, 0.1f) == 0);
+
+    // The loudness too: the VU bar of 0.3 -> 0.4 is the bar of 0.7
+    CHECK(vu_lit_after(0.3f, 0.4f) == vu_lit_after(0.7f, 0.7f));
+    // Below its average the bar is empty, only the held peak dot is lit
+    CHECK(vu_lit_after(0.5f, 0.1f) <= 2);
+}
+
 int main(void) {
     test_rejects_invalid();
     check_silence_is_dark(EFFECTS_MODE_SPECTRUM);
@@ -626,6 +745,7 @@ int main(void) {
     test_spectrum_band_position();
     test_mirrored_spectrum_band_position();
     test_beat_flash();
+    test_beat_flash_off();
     test_beat_flash_saturates();
     check_silence_is_dark(EFFECTS_MODE_RIVER);
     test_river_flows_outward();
@@ -646,6 +766,7 @@ int main(void) {
     check_silence_is_dark(EFFECTS_MODE_GLOW);
     test_vu();
     test_glow_follows_bass();
+    test_punch();
 
     return CHECK_REPORT();
 }

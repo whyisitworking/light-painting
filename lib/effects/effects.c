@@ -37,10 +37,11 @@ static effects_reset_t *const resets[EFFECTS_MODE_COUNT] = {
 };
 
 // Floats the simulations' rows take, see slice_pool()
-static size_t pool_floats(size_t led_count, size_t half_led_count) {
+static size_t pool_floats(size_t led_count, size_t half_led_count,
+                          size_t band_count) {
     // Pond: height, previous; Fire: heat; Storm: afterglow;
-    // Bloom: u, v and the rows a step writes
-    return 7 * led_count + half_led_count;
+    // Bloom: u, v and the rows a step writes; Punch: two rows of bands
+    return 7 * led_count + half_led_count + 2 * band_count;
 }
 
 static float *take(float **cursor, size_t count) {
@@ -63,6 +64,8 @@ static void slice_pool(effects_t *this, float *pool) {
     this->bloom.v = take(&cursor, this->led_count);
     this->bloom.next_u = take(&cursor, this->led_count);
     this->bloom.next_v = take(&cursor, this->led_count);
+    this->punch.band_avg = take(&cursor, this->band_count);
+    this->punch.bands = take(&cursor, this->band_count);
 }
 
 bool effects_init(effects_t *this, size_t led_count, size_t band_count,
@@ -79,7 +82,8 @@ bool effects_init(effects_t *this, size_t led_count, size_t band_count,
     sparkles = (float *)calloc(led_count, sizeof(float));
     previous = (rgb_t *)calloc(led_count, sizeof(rgb_t));
     scratch = (rgb_t *)calloc(led_count, sizeof(rgb_t));
-    pool = (float *)calloc(pool_floats(led_count, half_led_count), sizeof(float));
+    pool = (float *)calloc(pool_floats(led_count, half_led_count, band_count),
+                  sizeof(float));
 
     if (frame == nullptr || river == nullptr || sparkles == nullptr ||
         previous == nullptr || scratch == nullptr || pool == nullptr) {
@@ -101,6 +105,7 @@ bool effects_init(effects_t *this, size_t led_count, size_t band_count,
         .half_led_count = half_led_count,
         .hop_period_s = hop_period_s,
         .flash_k = expf(-hop_period_s / (EFFECTS_FLASH_MS / 1000.f)),
+        .punch.average_k = expf(-hop_period_s / EFFECTS_PUNCH_AVERAGE_S),
         .frame = frame,
         .river.history = river,
         .sparkles.levels = sparkles,
@@ -186,9 +191,6 @@ void effects_tune(effects_t *this, const effects_tuning_t *tuning) {
         this->tuning.chase_leds_per_s = tuning->chase_leds_per_s;
 
     this->peak_hold_s = this->tuning.peak_hold_ms / 1000.f;
-    // The pixels are scaled before gamma, the flash after it: by the same
-    // factor as they end up with. Exactly 1 at full brightness
-    this->flash_duty = powf(this->tuning.brightness, COLOR_GAMMA);
     // What a frame keeps of the one before, per hop: 0 with the trails off
     this->layers.trails_k =
         this->tuning.trails_ms > 0.f
@@ -200,15 +202,51 @@ void effects_tune(effects_t *this, const effects_tuning_t *tuning) {
 // brightness is to scale what is shown. NaN stays NaN, which shows dark
 static float cap(float value) { return value > 1.f ? 1.f : value; }
 
+// level relative to its slow average, expanded: see EFFECTS_PUNCH_GAIN.
+// Silence is exactly 0 whatever the average was
+static float punch_level(float level, float *average, float average_k) {
+    float punched = level + EFFECTS_PUNCH_GAIN * (level - *average);
+
+    // Updated after use: the first frame above the average shows the full
+    // step
+    *average += (level - *average) * (1.f - average_k);
+
+    return punched < 0.f ? 0.f : punched > 1.f ? 1.f : punched;
+}
+
+// Fills this->punch.bands and returns the punched sound. beat, strength and
+// centroid pass through
+static sound_t punch_sound(effects_t *this, const sound_t *sound) {
+    sound_t punched = *sound;
+
+    // The first render has no history: a single frame shows as it is
+    if (!this->punch.primed) {
+        memcpy(this->punch.band_avg, sound->bands,
+               this->band_count * sizeof(float));
+        this->punch.loudness_avg = sound->loudness;
+        this->punch.primed = true;
+    }
+
+    for (size_t b = 0; b < this->band_count; b++)
+        this->punch.bands[b] = punch_level(
+            sound->bands[b], &this->punch.band_avg[b], this->punch.average_k);
+    punched.bands = this->punch.bands;
+    punched.loudness = punch_level(
+        sound->loudness, &this->punch.loudness_avg, this->punch.average_k);
+
+    return punched;
+}
+
 void effects_render(effects_t *this, const sound_t *sound, uint32_t *pixels) {
-    color_ws2812_t flash;
-    uint8_t white;
+    sound_t punched = punch_sound(this, sound);
+    // A beat lifts what is lit and dark stays dark, unlike adding white
+    float lift;
 
     memset(this->frame, 0, this->led_count * sizeof(rgb_t));
 
     // A mode without a renderer stays dark
     if (renderers[this->tuning.mode] != nullptr)
-        renderers[this->tuning.mode](this, sound);
+        renderers[this->tuning.mode](this, &punched);
 
     effects_layers_apply(this);
 
@@ -216,23 +254,18 @@ void effects_render(effects_t *this, const sound_t *sound, uint32_t *pixels) {
         this->flash =
             fmaxf(this->flash, sound->beat_strength * this->tuning.flash_level);
 
-    // The flash goes on after gamma, as shown: added before it, 0.35 would
-    // come out as 25 / 255. Saturating, so bright pixels do not wrap dark
-    white = (uint8_t)lroundf(this->flash * 255.f * this->flash_duty);
-    flash = color_ws2812_from_rgb(white, white, white);
+    lift = 1.f + EFFECTS_FLASH_GAIN * this->flash;
 
     for (size_t i = 0; i < this->led_count; i++) {
-        rgb_t color = color_rgb_scale((rgb_t){cap(this->frame[i].r),
-                                              cap(this->frame[i].g),
-                                              cap(this->frame[i].b)},
-                                      this->tuning.brightness);
+        rgb_t color = color_rgb_scale(
+            (rgb_t){cap(this->frame[i].r * lift), cap(this->frame[i].g * lift),
+                    cap(this->frame[i].b * lift)},
+            this->tuning.brightness);
 
-        pixels[i] =
-            color_ws2812_add(color_ws2812_from_rgb(color_gamma(color.r),
-                                                   color_gamma(color.g),
-                                                   color_gamma(color.b)),
-                             flash)
-                .value;
+        pixels[i] = color_ws2812_from_rgb(color_gamma(color.r),
+                                          color_gamma(color.g),
+                                          color_gamma(color.b))
+                        .value;
     }
 
     this->flash *= this->flash_k;

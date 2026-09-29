@@ -54,9 +54,23 @@ constexpr float EFFECTS_DRIFT_PERIOD_S = 60.f;
 // Palette shift towards its end at full loudness, 0 disables
 constexpr float EFFECTS_WARMTH = 0.25f;
 
-// White added on a beat of full strength, and its fade time constant
+// Beat pulse: how far a beat of full strength lifts the brightness of what
+// is lit (the pulse is level * GAIN, added to 1), and its fade time constant.
+// Scaling keeps the palette's colours where adding white washed them out,
+// and what is dark stays dark; the per-channel cap then saturates hot
+// pixels towards the palette's brightest colour
 constexpr float EFFECTS_FLASH_LEVEL = 0.35f;
+constexpr float EFFECTS_FLASH_GAIN = 4.f;
 constexpr float EFFECTS_FLASH_MS = 80.f;
+
+// Punch: real music keeps the bands and the loudness within a narrow range,
+// so modes that scale brightness by them show no contrast. The modes get
+// each level relative to its own slow average instead: what rises above it
+// is expanded by 1 + GAIN, what falls below it sinks, and a level at its
+// average (or a constant sound) is unchanged. AVERAGE_S is the time
+// constant of that average, long enough to span a phrase
+constexpr float EFFECTS_PUNCH_AVERAGE_S = 1.5f;
+constexpr float EFFECTS_PUNCH_GAIN = 3.f;
 
 // Sparkles: chance per LED per frame at full treble, and fade per frame
 constexpr float EFFECTS_SPARKLE_RATE = 0.03f;
@@ -190,7 +204,8 @@ typedef struct {
     float drift_period_s;
     // EFFECTS_WARMTH: 0 or more
     float warmth;
-    // EFFECTS_FLASH_LEVEL, EFFECTS_SPARKLE_RATE: 0 to 1
+    // EFFECTS_FLASH_LEVEL: 0 to 1, the beat pulse of what is lit, 0 disables
+    // it. EFFECTS_SPARKLE_RATE: 0 to 1
     float flash_level;
     float sparkle_rate;
     // EFFECTS_TRAILS_MS: 0 or more, 0 disables the trails
@@ -241,8 +256,6 @@ typedef struct {
     effects_tuning_t tuning;
     // tuning.peak_hold_ms in seconds
     float peak_hold_s;
-    // What the brightness scales the flash by, after gamma
-    float flash_duty;
 
     // Time since init modulo two drift periods, drives the drift. 0 while
     // the drift is disabled
@@ -251,9 +264,23 @@ typedef struct {
     // chance, see effects_random()
     uint32_t random;
 
-    // Current beat flash level and its fade per frame
+    // Current beat pulse level and its fade per frame
     float flash;
     float flash_k;
+
+    // The modes get the sound relative to its slow average, see
+    // EFFECTS_PUNCH_GAIN
+    struct {
+        // Slow average of each band, and the sound handed to the mode, both
+        // band_count (allocated from the pool)
+        float *band_avg;
+        float *bands;
+        float loudness_avg;
+        // What the averages keep per frame
+        float average_k;
+        // False until the first render sets the averages to the raw sound
+        bool primed;
+    } punch;
 
     // Colours being rendered, led_count
     rgb_t *frame;

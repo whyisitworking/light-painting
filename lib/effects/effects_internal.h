@@ -7,8 +7,8 @@
  * Adding a mode: a value in effects_mode_t, a mode_*.c file with its
  * renderer, declared below, its entry in the table in effects.c and, for a
  * mode with state, a reset in the table below it. A
- * renderer draws into this->frame, which is black when it is called; the
- * layers (layers.c), the beat flash, gamma and the drift clock are applied
+ * renderer gets the punched sound (see EFFECTS_PUNCH_GAIN) and draws into this->frame, which is black when it is called; the
+ * layers (layers.c), the beat pulse, gamma and the drift clock are applied
  * after it, for all modes.
  */
 
