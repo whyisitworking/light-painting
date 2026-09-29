@@ -405,7 +405,65 @@ async function main() {
     },
   });
 
-  // Task 5 adds the audio file and the microphone here
+  // An audio file: played by an audio element (seeking, volume), heard and
+  // tapped
+  let fileNode = null;
+  addSource('file', {
+    label: 'Audio file',
+    trim: -18,
+    async start(g, extra) {
+      const picker = document.createElement('input');
+      picker.type = 'file';
+      picker.accept = 'audio/*';
+      picker.setAttribute('aria-label', 'Choose an audio file');
+      const player = document.createElement('audio');
+      player.controls = true;
+      player.loop = true;
+      player.addEventListener('error', () => note('That file could not be played.'));
+      player.addEventListener('play', () => g.ctx.resume());
+      picker.addEventListener('change', () => {
+        const [file] = picker.files;
+        if (!file) return;
+        note(null);
+        player.src = URL.createObjectURL(file);
+        player.play().catch(() => {});
+      });
+      extra.append(picker, player);
+      // One node per element for good: rebuilt with the element each time
+      fileNode = g.ctx.createMediaElementSource(player);
+      fileNode.connect(g.ctx.destination);
+      fileNode.connect(g.tap);
+    },
+    stop() {
+      fileNode?.disconnect();
+      fileNode = null;
+      $('#source-extra audio')?.pause();
+    },
+  });
+
+  // The microphone: tapped, not heard (that would feed back). The browser's
+  // own gain control, echo cancelling and noise suppression are off: they
+  // would reshape the sound before the analysis
+  let micStream = null;
+  let micNode = null;
+  addSource('mic', {
+    label: 'Microphone',
+    trim: 0,
+    async start(g) {
+      micStream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
+      });
+      micNode = g.ctx.createMediaStreamSource(micStream);
+      micNode.connect(g.tap);
+    },
+    stop() {
+      micNode?.disconnect();
+      micStream?.getTracks().forEach((track) => track.stop());
+      micNode = null;
+      micStream = null;
+    },
+  });
+
   window.preview = { engine, SOURCES, addSource, choose, note, state };
 }
 
