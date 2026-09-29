@@ -258,12 +258,12 @@ async function main() {
     class Tap extends AudioWorkletProcessor {
       process(inputs) {
         const input = inputs[0];
-        if (input.length) {
-          const mono = new Float32Array(input[0].length);
-          for (const channel of input) for (let i = 0; i < mono.length; i++) mono[i] += channel[i];
-          if (input.length > 1) for (let i = 0; i < mono.length; i++) mono[i] /= input.length;
-          this.port.postMessage(mono, [mono.buffer]);
-        }
+        // With no source connected the input is empty: post silence, so the
+        // engine keeps advancing and the modes fall off
+        const mono = new Float32Array(input.length ? input[0].length : 128);
+        for (const channel of input) for (let i = 0; i < mono.length; i++) mono[i] += channel[i];
+        if (input.length > 1) for (let i = 0; i < mono.length; i++) mono[i] /= input.length;
+        this.port.postMessage(mono, [mono.buffer]);
         return true;
       }
     }
