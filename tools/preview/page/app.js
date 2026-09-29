@@ -479,29 +479,128 @@ async function main() {
     },
   });
 
+  // A track that ends by itself (Chrome's "Stop sharing", an unplugged device)
+  // stops its source. Tracks stopped by stop() fire no ended event, so this
+  // cannot loop; a start that has been superseded is left alone
+  function stopOnEnd(track, isCurrent, message) {
+    track.addEventListener('ended', () => {
+      if (!isCurrent()) return;
+      choose(null);
+      note(message);
+    }, { once: true });
+  }
+
+  // Computer audio: a browser tab (or, on newer Chrome and macOS, the system)
+  // shared through Chrome's picker. Tapped, not heard: the shared audio keeps
+  // playing on its own, and connecting it would double it
+  let displayStream = null;
+  let displayNode = null;
+  addSource('display', {
+    label: 'Computer audio',
+    trim: -18,
+    async start(g, extra, isCurrent) {
+      if (!navigator.mediaDevices?.getDisplayMedia)
+        throw new Error('This browser cannot share audio from the computer');
+      // Chrome only offers audio together with video. The unknown members are
+      // ignored by a browser that does not know them
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+        systemAudio: 'include',
+        windowAudio: 'system',
+      });
+      const release = () => stream.getTracks().forEach((track) => track.stop());
+      if (!isCurrent()) return release();
+      const audioTracks = stream.getAudioTracks();
+      if (!audioTracks.length) {
+        release();
+        throw new Error(
+          'No audio was shared. In the picker choose a Chrome tab and tick "Also share tab audio", ' +
+            'or a screen or window and tick "Also share system audio".');
+      }
+      // The video is never shown: kept alive (stopping it may end the share)
+      // but switched off
+      stream.getVideoTracks().forEach((track) => { track.enabled = false; });
+      try {
+        const node = g.ctx.createMediaStreamSource(new MediaStream(audioTracks));
+        node.connect(g.tap);
+        displayStream = stream;
+        displayNode = node;
+        stopOnEnd(audioTracks[0], isCurrent, 'Sharing stopped.');
+      } catch (error) {
+        release();
+        throw error;
+      }
+    },
+    stop() {
+      displayNode?.disconnect();
+      displayStream?.getTracks().forEach((track) => track.stop());
+      displayNode = null;
+      displayStream = null;
+    },
+  });
+
   // The microphone: tapped, not heard (that would feed back). The browser's
   // own gain control, echo cancelling and noise suppression are off: they
-  // would reshape the sound before the analysis
+  // would reshape the sound before the analysis. Another input (a virtual
+  // device such as BlackHole) can be picked; undefined is the default input
   let micStream = null;
   let micNode = null;
+  let micDeviceId;
   addSource('mic', {
     label: 'Microphone',
     trim: 0,
     async start(g, extra, isCurrent) {
       if (!navigator.mediaDevices?.getUserMedia)
         throw new Error('The microphone needs a secure page (https or localhost)');
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
-      });
+      const audio = { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 };
+      if (micDeviceId) audio.deviceId = { exact: micDeviceId };
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio });
+      } catch (error) {
+        if (micDeviceId && (error.name === 'OverconstrainedError' || error.name === 'NotFoundError')) {
+          micDeviceId = undefined;
+          throw new Error('The chosen input device is unavailable; the default input is used next.');
+        }
+        throw error;
+      }
       const release = () => stream.getTracks().forEach((track) => track.stop());
       // Superseded while the permission prompt was open: this stream is ours
       // alone to release, and the newer start's state is not touched
       if (!isCurrent()) return release();
       try {
+        // Device labels are only available after permission was given. The
+        // state is written after this await: a superseded start must not have
+        // written any
+        let inputs = [];
+        try {
+          inputs = (await navigator.mediaDevices.enumerateDevices()).filter((device) => device.kind === 'audioinput');
+        } catch {}
+        if (!isCurrent()) return release();
         const node = g.ctx.createMediaStreamSource(stream);
         node.connect(g.tap);
         micStream = stream;
         micNode = node;
+        const [track] = stream.getAudioTracks();
+        if (inputs.length) {
+          const inUse = track?.getSettings().deviceId ?? micDeviceId;
+          const select = document.createElement('select');
+          select.id = 'mic-device';
+          inputs.forEach((device, i) => select.append(new Option(device.label || `Input ${i + 1}`, device.deviceId)));
+          select.value = inUse;
+          select.addEventListener('change', () => {
+            micDeviceId = select.value;
+            choose('mic');
+          });
+          const label = document.createElement('label');
+          label.htmlFor = select.id;
+          label.textContent = 'Input device';
+          const hint = document.createElement('p');
+          hint.textContent = 'To hear what your Mac plays, install a virtual input such as BlackHole and pick it here.';
+          extra.append(label, select, hint);
+        }
+        if (track) stopOnEnd(track, isCurrent, 'The microphone stopped.');
       } catch (error) {
         release();
         throw error;
