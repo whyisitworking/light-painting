@@ -307,6 +307,7 @@ All memory is allocated once at startup, and neither loop allocates. The firmwar
 │   ├── color/           linear RGB, gamma, the WS2812 word
 │   └── swapchain/       lock-free triple buffer between contexts or cores
 ├── third_party/lvgl     LVGL v9.6.0, a git submodule
+├── tools/preview        a page that runs the real analysis and effects in the browser (WebAssembly)
 ├── cmake/modules.cmake  lp_add_module(): one definition per module, for both builds
 └── tests/               host tests (CTest)
 ```
@@ -406,6 +407,8 @@ cmake -S tests -B build-sanitize "-DCMAKE_C_FLAGS=-fsanitize=address,undefined -
 ```bash
 cmake --build build-sanitize && ctest --test-dir build-sanitize --output-on-failure
 ```
+
+To see the modes without the strip, [`tools/preview`](tools/preview) builds a page that plays a demo signal, an audio file or the microphone through the firmware's own analysis and effects (needs Emscripten).
 
 ### Continuous integration
 
