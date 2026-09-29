@@ -87,7 +87,7 @@ test('a trim far below any level is silence', async () => {
   const m = await engine();
   m._preview_set_input_trim_db(-200);
   feed(m, 40000, music);
-  assert.equal(lit(m, 2), 0);
+  assert.equal(lit(m, m._preview_get(0)), 0);
   assert.equal(m._preview_loudness(), 0);
 });
 

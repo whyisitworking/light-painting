@@ -11,8 +11,9 @@ CompileFlags:
 
 ---
 
-# The host tests have a database of their own (tests/CMakeLists.txt)
+# The host tests (tests/ and tools/preview/) have a database of their own
+# (tests/CMakeLists.txt)
 If:
-  PathMatch: tests/.*
+  PathMatch: (tests|tools/preview)/.*
 CompileFlags:
   CompilationDatabase: build-tests
