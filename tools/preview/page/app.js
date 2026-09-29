@@ -269,8 +269,6 @@ async function main() {
     }
     registerProcessor('tap', Tap);`;
 
-  let graph = null;
-
   function feed(samples) {
     for (let offset = 0; offset < samples.length; offset += INPUT_CAPACITY) {
       const chunk = samples.subarray(offset, offset + INPUT_CAPACITY);
@@ -279,24 +277,49 @@ async function main() {
     }
   }
 
-  async function ensureGraph() {
-    if (graph) return graph;
+  // Cached as a promise: two quick clicks share one context, and a failed
+  // creation is dropped (context closed) so a later click can try again
+  let graphPromise = null;
+
+  async function createGraph() {
     const ctx = new AudioContext({ latencyHint: 'interactive' });
-    await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: 'text/javascript' })));
-    const tap = new AudioWorkletNode(ctx, 'tap');
-    tap.port.onmessage = (event) => feed(event.data);
-    // The tap outputs silence; connecting it keeps the browser pulling it
-    tap.connect(ctx.destination);
-    // The browser's rate, not the firmware's: the engine starts over at it
-    start(ctx.sampleRate);
-    graph = { ctx, tap };
-    return graph;
+    try {
+      const url = URL.createObjectURL(new Blob([WORKLET], { type: 'text/javascript' }));
+      try {
+        await ctx.audioWorklet.addModule(url);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+      const tap = new AudioWorkletNode(ctx, 'tap');
+      tap.port.onmessage = (event) => feed(event.data);
+      // The tap outputs silence; connecting it keeps the browser pulling it
+      tap.connect(ctx.destination);
+      // The browser's rate, not the firmware's: the engine starts over at it
+      start(ctx.sampleRate);
+      return { ctx, tap };
+    } catch (error) {
+      ctx.close().catch(() => {});
+      throw error;
+    }
+  }
+
+  function ensureGraph() {
+    graphPromise ??= createGraph().catch((error) => {
+      graphPromise = null;
+      throw error;
+    });
+    return graphPromise;
   }
 
   const SOURCES = {};
   let current = null;
+  // Each choose() takes a number; a start that finds a newer number after an
+  // await has been superseded and must release whatever it acquired
+  let generation = 0;
 
   async function choose(name) {
+    const mine = ++generation;
+    const isCurrent = () => mine === generation;
     if (current) {
       SOURCES[current].stop();
       current = null;
@@ -308,11 +331,19 @@ async function main() {
     if (!name) return;
     try {
       const g = await ensureGraph();
+      if (!isCurrent()) return;
       await g.ctx.resume();
+      if (!isCurrent()) return;
       setTrim(SOURCES[name].trim);
-      await SOURCES[name].start(g, $('#source-extra'));
+      await SOURCES[name].start(g, $('#source-extra'), isCurrent);
+      if (!isCurrent()) return;
       current = name;
     } catch (error) {
+      if (!isCurrent()) return;
+      // A start that threw may hold part of its setup; stop() is null-safe
+      try {
+        SOURCES[name].stop();
+      } catch {}
       note(`${SOURCES[name].label}: ${error.message ?? error}`);
       for (const button of document.querySelectorAll('#source-buttons button'))
         button.setAttribute('aria-pressed', 'false');
@@ -412,6 +443,7 @@ async function main() {
     label: 'Audio file',
     trim: -18,
     async start(g, extra) {
+      // Synchronous: nothing to supersede, and a throw is cleaned up by stop()
       const picker = document.createElement('input');
       picker.type = 'file';
       picker.accept = 'audio/*';
@@ -449,12 +481,25 @@ async function main() {
   addSource('mic', {
     label: 'Microphone',
     trim: 0,
-    async start(g) {
-      micStream = await navigator.mediaDevices.getUserMedia({
+    async start(g, extra, isCurrent) {
+      if (!navigator.mediaDevices?.getUserMedia)
+        throw new Error('The microphone needs a secure page (https or localhost)');
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
       });
-      micNode = g.ctx.createMediaStreamSource(micStream);
-      micNode.connect(g.tap);
+      const release = () => stream.getTracks().forEach((track) => track.stop());
+      // Superseded while the permission prompt was open: this stream is ours
+      // alone to release, and the newer start's state is not touched
+      if (!isCurrent()) return release();
+      try {
+        const node = g.ctx.createMediaStreamSource(stream);
+        node.connect(g.tap);
+        micStream = stream;
+        micNode = node;
+      } catch (error) {
+        release();
+        throw error;
+      }
     },
     stop() {
       micNode?.disconnect();
