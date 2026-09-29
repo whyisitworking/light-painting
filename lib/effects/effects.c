@@ -18,17 +18,20 @@ static effects_renderer_t *const renderers[EFFECTS_MODE_COUNT] = {
     [EFFECTS_MODE_POND] = effects_mode_pond,
     [EFFECTS_MODE_CYMATICS] = effects_mode_cymatics,
     [EFFECTS_MODE_FIRE] = effects_mode_fire,
+    [EFFECTS_MODE_STORM] = effects_mode_storm,
 };
 
 // Modes without a reset have no state to clear
 static effects_reset_t *const resets[EFFECTS_MODE_COUNT] = {
     [EFFECTS_MODE_POND] = effects_reset_pond,
     [EFFECTS_MODE_FIRE] = effects_reset_fire,
+    [EFFECTS_MODE_STORM] = effects_reset_storm,
 };
 
 // Floats the simulations' rows take, see slice_pool()
 static size_t pool_floats(size_t led_count, size_t half_led_count) {
-    return 2 * led_count + half_led_count; // Pond: height, previous; Fire: heat
+    // Pond: height, previous; Fire: heat; Storm: afterglow
+    return 3 * led_count + half_led_count;
 }
 
 static float *take(float **cursor, size_t count) {
@@ -46,6 +49,7 @@ static void slice_pool(effects_t *this, float *pool) {
     this->pond.height = take(&cursor, this->led_count);
     this->pond.previous = take(&cursor, this->led_count);
     this->fire.heat = take(&cursor, this->half_led_count);
+    this->storm.afterglow = take(&cursor, this->led_count);
 }
 
 bool effects_init(effects_t *this, size_t led_count, size_t band_count,
@@ -99,6 +103,8 @@ bool effects_init(effects_t *this, size_t led_count, size_t band_count,
     this->pond.leak_k =
         expf(-hop_period_s / (float)EFFECTS_POND_SUBSTEPS / EFFECTS_POND_LEAK_S);
     this->fire.cool_k = expf(-hop_period_s / EFFECTS_FIRE_COOL_S);
+    this->storm.glow_k = expf(-hop_period_s / EFFECTS_STORM_GLOW_S);
+    this->storm.sky_k = expf(-hop_period_s / EFFECTS_STORM_SKY_S);
 
     for (size_t mode = 0; mode < EFFECTS_MODE_COUNT; mode++)
         if (resets[mode] != nullptr)

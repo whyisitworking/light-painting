@@ -24,6 +24,7 @@ typedef enum {
     EFFECTS_MODE_POND,
     EFFECTS_MODE_CYMATICS,
     EFFECTS_MODE_FIRE,
+    EFFECTS_MODE_STORM,
     EFFECTS_MODE_COUNT
 } effects_mode_t;
 
@@ -104,6 +105,16 @@ constexpr float EFFECTS_FIRE_SPEED = 0.6f;
 constexpr float EFFECTS_FIRE_COOL_S = 0.35f;
 constexpr size_t EFFECTS_FIRE_SPARK_LEDS = 6;
 constexpr float EFFECTS_FIRE_FLICKER = 0.5f;
+
+// Storm: LEDs of a bolt at beat strength 0 and 1, the side branches it
+// gets, the time constants of the bolt's afterglow and of the sky flash, and
+// the sky flash at full strength
+constexpr size_t EFFECTS_STORM_MIN_LENGTH = 20;
+constexpr size_t EFFECTS_STORM_MAX_LENGTH = 160;
+constexpr size_t EFFECTS_STORM_BRANCHES = 3;
+constexpr float EFFECTS_STORM_GLOW_S = 0.08f;
+constexpr float EFFECTS_STORM_SKY_S = 0.15f;
+constexpr float EFFECTS_STORM_SKY_LEVEL = 0.15f;
 
 // Bands counted as bass (glow), and the top fraction counted as treble
 constexpr size_t EFFECTS_BASS_BANDS = 5;
@@ -244,6 +255,15 @@ typedef struct {
         float *heat;
         float cool_k;
     } fire;
+
+    struct {
+        // Brightness of what the last bolts left, led_count, and the dim
+        // flash of the sky; what each keeps per frame
+        float *afterglow;
+        float sky;
+        float glow_k;
+        float sky_k;
+    } storm;
 } effects_t;
 
 /**

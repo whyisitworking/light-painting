@@ -13,5 +13,6 @@ lp_add_module(effects
         mode_pond.c
         mode_cymatics.c
         mode_fire.c
+        mode_storm.c
     DEPS features color
     MATH)

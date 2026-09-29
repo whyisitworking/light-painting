@@ -40,7 +40,7 @@ static sound_t music(int hop) {
     };
 }
 
-[[maybe_unused]] static unsigned lum(uint32_t pixel) {
+static unsigned lum(uint32_t pixel) {
     color_ws2812_t color = {.value = pixel};
 
     return color.grba.r + color.grba.g + color.grba.b;
@@ -357,6 +357,65 @@ static void test_fire_reset_on_entry(void) {
     stop();
 }
 
+static int bright_count(unsigned above) {
+    int count = 0;
+
+    for (size_t i = 0; i < LEDS; i++)
+        count += lum(pixels[i]) > above;
+
+    return count;
+}
+
+static int strike_size(float strength) {
+    sound_t sound = quiet();
+    int size;
+
+    start(EFFECTS_MODE_STORM);
+    sound.beat = true;
+    sound.beat_strength = strength;
+    render(&sound);
+    size = bright_count(150);
+    stop();
+
+    return size;
+}
+
+// A stronger beat strikes a longer bolt, and it fades fast
+static void test_storm_strike_length_and_fade(void) {
+    sound_t sound = quiet();
+    int weak = strike_size(0.3f), strong = strike_size(1.f);
+
+    CHECK(weak >= 30);
+    CHECK(strong * 2 > weak * 3);
+
+    start(EFFECTS_MODE_STORM);
+    sound.beat = true;
+    sound.beat_strength = 1.f;
+    render(&sound);
+    sound.beat = false;
+    for (int frame = 0; frame < 40; frame++)
+        render(&sound);
+    CHECK(bright_count(150) == 0);
+    stop();
+}
+
+static void test_storm_reset_on_entry(void) {
+    sound_t sound = quiet();
+
+    start(EFFECTS_MODE_STORM);
+    sound.beat = true;
+    sound.beat_strength = 1.f;
+    render(&sound);
+    CHECK(effects.storm.sky > 0.f);
+
+    set_mode(EFFECTS_MODE_RIVER);
+    set_mode(EFFECTS_MODE_STORM);
+    CHECK(effects.storm.sky == 0.f);
+    for (size_t i = 0; i < LEDS; i++)
+        CHECK(effects.storm.afterglow[i] == 0.f);
+    stop();
+}
+
 int main(void) {
     test_sin();
     test_random_stream();
@@ -369,6 +428,9 @@ int main(void) {
     check_all(EFFECTS_MODE_FIRE);
     test_fire_burns_outward();
     test_fire_reset_on_entry();
+    check_all(EFFECTS_MODE_STORM);
+    test_storm_strike_length_and_fade();
+    test_storm_reset_on_entry();
 
     return CHECK_REPORT();
 }
