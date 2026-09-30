@@ -50,6 +50,7 @@ lp_add_test(golden visualizer)
 lp_add_test(latency visualizer)
 lp_add_test(stats stats)
 lp_add_test(settings settings)
+lp_add_test(song song)
 
 # The preview tool's engine (tools/preview): the pipeline for every mode at
 # once, also compiled to WebAssembly by tools/preview/build.sh
