@@ -28,6 +28,8 @@ typedef enum {
     SHOW_LOOK_PULSE,
     SHOW_LOOK_FLOW,
     SHOW_LOOK_STAGE,
+    SHOW_LOOK_SWEEP,
+    SHOW_LOOK_STORM,
     SHOW_LOOK_COUNT
 } show_look_t;
 
@@ -111,6 +113,48 @@ constexpr float SHOW_STAGE_SPARK_LEVEL = 0.5f;
 constexpr float SHOW_STAGE_SPARK_SHARE = 0.1f;
 constexpr float SHOW_STAGE_DROP_FADE_S = 0.2f;
 
+// Sweep (first guesses): beam speeds in LEDs per second (calm, the build's
+// start and end, high at no groove plus the groove's share), tail lengths in
+// LEDs, levels, the drop's volley (beams from each end, spaced, faster by
+// SWEEP_VOLLEY_SPEED), the crossing flash (radius, fade), and the field
+// wash (just above the lowest step, see there)
+constexpr float SHOW_SWEEP_CALM_SPEED = 120.f;
+constexpr float SHOW_SWEEP_BUILD_SPEED = 280.f;
+constexpr float SHOW_SWEEP_HIGH_SPEED = 180.f;
+constexpr float SHOW_SWEEP_GROOVE_SPEED = 150.f;
+constexpr float SHOW_SWEEP_CALM_TAIL = 25.f;
+constexpr float SHOW_SWEEP_TAIL = 40.f;
+constexpr float SHOW_SWEEP_SHORT_TAIL = 15.f;
+constexpr float SHOW_SWEEP_CALM_LEVEL = 0.5f;
+constexpr float SHOW_SWEEP_LEVEL = 0.8f;
+constexpr size_t SHOW_SWEEP_VOLLEY = 4;
+constexpr float SHOW_SWEEP_VOLLEY_GAP = 20.f;
+constexpr float SHOW_SWEEP_VOLLEY_SPEED = 1.2f;
+constexpr float SHOW_SWEEP_CROSS_RADIUS = 8.f;
+constexpr float SHOW_SWEEP_CROSS_FADE_S = 0.1f;
+constexpr float SHOW_SWEEP_WASH = 0.22f;
+
+// Storm (first guesses): the near-black field wash (just above the lowest
+// step, see there); rain sparks per high
+// hit in calm and high and at the end of a build, and their level; the
+// distant sheet glow of a low hit in calm; the least low hit strength that
+// strikes in high; a bolt's length at strength 0 and 1, its branches, the
+// afterglow and sky fade, the sky flash at full strength, and the drop's
+constexpr float SHOW_STORM_WASH = 0.22f;
+constexpr float SHOW_STORM_RAIN = 2.f;
+constexpr float SHOW_STORM_HIGH_RAIN = 4.f;
+constexpr float SHOW_STORM_BUILD_RAIN = 10.f;
+constexpr float SHOW_STORM_RAIN_LEVEL = 0.4f;
+constexpr float SHOW_STORM_SHEET = 0.12f;
+constexpr float SHOW_STORM_STRIKE_MIN = 0.3f;
+constexpr size_t SHOW_STORM_MIN_LENGTH = 40;
+constexpr size_t SHOW_STORM_MAX_LENGTH = 200;
+constexpr size_t SHOW_STORM_BRANCHES = 5;
+constexpr float SHOW_STORM_GLOW_S = 0.14f;
+constexpr float SHOW_STORM_SKY_S = 0.25f;
+constexpr float SHOW_STORM_SKY_LEVEL = 0.3f;
+constexpr float SHOW_STORM_DROP_SKY = 0.6f;
+
 // What can be changed while running
 typedef struct {
     // SHOW_LOOK, SHOW_SCENE: one of the looks and scenes
@@ -156,6 +200,19 @@ typedef struct {
         float flash_keep;
     } stage;
 
+    // Sweep: beams launched so far (even ones from the left end)
+    struct {
+        unsigned launches;
+    } sweep;
+
+    // Storm: the bolts' afterglow, led_count, the sky flash, and what each
+    // keeps per hop
+    struct {
+        float *glow;
+        float sky;
+        float glow_keep;
+        float sky_keep;
+    } storm;
 } show_t;
 
 /**

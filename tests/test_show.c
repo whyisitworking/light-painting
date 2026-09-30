@@ -185,6 +185,29 @@ static void test_gap_ends_black(void) {
     }
 }
 
+// Sweep's drop fires its whole volley: every beam of it, the ones queued
+// furthest off the strip too, is still on its way after a tenth of a second
+static void test_sweep_volley(void) {
+    show_t show;
+    sound_t sound;
+    size_t beams = 0;
+
+    CHECK(start(&show, SHOW_LOOK_SWEEP));
+    sound = silence();
+    sound.part = PARTS_HIGH;
+    sound.event = PARTS_DROP;
+    show_render(&show, &sound, pixels);
+    sound.event = PARTS_NONE;
+    for (size_t hop = 0; (float)hop * HOP_PERIOD_S < 0.1f; hop++)
+        show_render(&show, &sound, pixels);
+
+    for (size_t i = 0; i < BLOCKS_MAX_BEAMS; i++)
+        beams += show.blocks.beams[i].active;
+    CHECK(beams == 2 * SHOW_SWEEP_VOLLEY);
+
+    show_deinit(&show);
+}
+
 // A drop or a lift swaps the field and the accent, and a second swaps back
 static void test_swap(void) {
     show_t show;
@@ -283,8 +306,8 @@ static void test_deterministic_and_clean_switch(void) {
     size_t differing = 0;
     bool flow_clean = true;
 
-    CHECK(start(&one, SHOW_LOOK_PULSE));
-    CHECK(start(&two, SHOW_LOOK_PULSE));
+    CHECK(start(&one, SHOW_LOOK_STORM));
+    CHECK(start(&two, SHOW_LOOK_STORM));
     for (size_t hop = 0; hop < 400; hop++) {
         sound_t sound = music(hop, PARTS_HIGH);
 
@@ -357,6 +380,7 @@ int main(void) {
     test_gap();
     test_gap_ends_black();
     test_swap();
+    test_sweep_volley();
     test_flash_guard_for_every_look();
     test_calm_shows();
     test_deterministic_and_clean_switch();

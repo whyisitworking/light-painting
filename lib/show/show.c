@@ -10,12 +10,16 @@ static show_look_fn *const looks[SHOW_LOOK_COUNT] = {
     [SHOW_LOOK_PULSE] = show_look_pulse,
     [SHOW_LOOK_FLOW] = show_look_flow,
     [SHOW_LOOK_STAGE] = show_look_stage,
+    [SHOW_LOOK_SWEEP] = show_look_sweep,
+    [SHOW_LOOK_STORM] = show_look_storm,
 };
 
 // Looks without state of their own have no reset
 static show_reset_fn *const resets[SHOW_LOOK_COUNT] = {
     [SHOW_LOOK_FLOW] = show_reset_flow,
     [SHOW_LOOK_STAGE] = show_reset_stage,
+    [SHOW_LOOK_SWEEP] = show_reset_sweep,
+    [SHOW_LOOK_STORM] = show_reset_storm,
 };
 
 static float keep_for(float hop_period_s, float time_constant_s) {
@@ -26,13 +30,19 @@ bool show_init(show_t *this, size_t led_count, size_t band_count,
                float hop_period_s, size_t bend_count, uint32_t seed) {
     size_t half_led_count = (led_count + 1) / 2;
     rgb_t *history;
+    float *glow;
 
     if (led_count < 2 || band_count < 2 || !(hop_period_s > 0.f))
         return false;
 
     history = (rgb_t *)calloc(half_led_count, sizeof(rgb_t));
-    if (history == nullptr)
+    glow = (float *)calloc(led_count, sizeof(float));
+
+    if (history == nullptr || glow == nullptr) {
+        free(history);
+        free(glow);
         return false;
+    }
 
     *this = (show_t){
         .led_count = led_count,
@@ -46,10 +56,14 @@ bool show_init(show_t *this, size_t led_count, size_t band_count,
         .flow.history = history,
         .flow.boost_keep = keep_for(hop_period_s, SHOW_FLOW_BOOST_S),
         .stage.flash_keep = keep_for(hop_period_s, SHOW_STAGE_DROP_FADE_S),
+        .storm.glow = glow,
+        .storm.glow_keep = keep_for(hop_period_s, SHOW_STORM_GLOW_S),
+        .storm.sky_keep = keep_for(hop_period_s, SHOW_STORM_SKY_S),
     };
 
     if (!blocks_init(&this->blocks, led_count, hop_period_s, bend_count)) {
         free(history);
+        free(glow);
         return false;
     }
 
@@ -143,4 +157,5 @@ void show_render(show_t *this, const sound_t *sound, uint32_t *pixels) {
 void show_deinit(show_t *this) {
     blocks_deinit(&this->blocks);
     free(this->flow.history);
+    free(this->storm.glow);
 }

@@ -22,6 +22,10 @@ show_look_fn show_look_flow;
 show_reset_fn show_reset_flow;
 show_look_fn show_look_stage;
 show_reset_fn show_reset_stage;
+show_look_fn show_look_sweep;
+show_reset_fn show_reset_sweep;
+show_look_fn show_look_storm;
+show_reset_fn show_reset_storm;
 
 // A role's colour in the scene, field and accent swapped after a drop or a
 // lift

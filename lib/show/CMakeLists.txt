@@ -7,5 +7,7 @@ lp_add_module(show
         look_pulse.c
         look_flow.c
         look_stage.c
+        look_sweep.c
+        look_storm.c
     DEPS features color
     MATH)
