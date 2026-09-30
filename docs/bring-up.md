@@ -39,14 +39,14 @@ Both on the bus, one with L/R to ground, the other to 3.3 V.
 
 A few LEDs, through the level shifter, on the strip's 5 V supply.
 
-- **See:** the first LEDs follow the sound (the defaults light the middle of a 300 LED strip, so play something loud or use Spectrum mode). The colours are those of the palette. Diagnostics: LEDs about 150 fps.
+- **See:** the first LEDs follow the sound (the defaults light the middle of a 300 LED strip first, so play something loud, or pick Flow, which starts at the centre). The colours are those of the scene. Diagnostics: LEDs about 150 fps.
 - **If not:** see "The strip stays dark", "Colours are swapped" and "Random colours or glitches" in the README.
 
 ## 6. The full strip
 
 All 300 LEDs, on their own supply, grounds joined.
 
-- **See:** brightness from 10 % to 100 % under Look. The beat flash on kicks. No flicker in silence.
+- **See:** brightness from 10 % to 100 % under Look. Pulse bursting from the centre on kicks. No flicker in silence, and never more than three big flashes a second.
 - **If not:** voltage drop along the strip shows as colours shifting towards red at the far end: feed power at both ends.
 
 ## 7. Saving
@@ -56,8 +56,10 @@ All 300 LEDs, on their own supply, grounds joined.
 
 ## 8. Tuning, with music
 
-- **Quiet floor (Sound):** silence dark, quiet music still lit. In a quiet room the diagnostics read loudness about 0 and no beats.
-- **Beat threshold (Sound):** beats on the kicks, none on the rest.
+- **Quiet floor (Sound):** silence dark, quiet music still lit. In a quiet room the diagnostics read loudness about 0 and no hits.
+- **Hit sensitivity (Sound, higher: more hits):** hits on the kicks, none on the rest.
+- **Song parts:** play a song you know; the looks should hold back in the verse, tighten in the build, go dark in the pause before the drop, and burst on it. `tools/timeline` prints what the analysis heard for a WAV of the song, to compare.
+- **Calm washes:** in calm every look shows a dim field wash at full Brightness, one step above off on the strip (see `lib/show/show.h`). Tune the washes' levels with the looks.
 - **Brightness floor:** whether 10 % is a useful lowest brightness, or it should be 20-30 %. An open decision.
 
 ## 9. Soak

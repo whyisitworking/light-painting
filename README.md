@@ -15,7 +15,7 @@
 [![CI](https://github.com/whyisitworking/light-painting/actions/workflows/ci.yml/badge.svg)](https://github.com/whyisitworking/light-painting/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 
-[Features](#features) · [Hardware](#hardware) · [Quick start](#quick-start) · [Modes](#modes-and-palettes) · [Menu](#the-menu) · [Configuration](#configuration) · [How it works](#how-it-works) · [Architecture](#architecture) · [Development](#development) · [License](#license)
+[Features](#features) · [Hardware](#hardware) · [Quick start](#quick-start) · [Looks](#looks-and-scenes) · [Menu](#the-menu) · [Configuration](#configuration) · [How it works](#how-it-works) · [Architecture](#architecture) · [Development](#development) · [License](#license)
 
 </div>
 
@@ -25,11 +25,11 @@
 
 - **Fast.** A fresh analysis every 5.2 ms (about 190 per second): a 512-point FFT with 50 % overlap, on the RP2350's single precision FPU.
 - **Hands-off I/O.** PIO state machines generate the I²S and WS2812 signals, and DMA moves every sample and pixel. Interrupts fire only once per audio buffer and once per LED frame, leaving the CPU to the analysis.
-- **Musical, not just loud.** 32 log-spaced bands from 60 Hz to 12 kHz, an auto-gain that follows the room, attack/decay smoothing, and beat detection on the bass.
-- **Fifteen effects, four palettes.** Spectrum, mirrored spectrum, river, ripples, VU meters and glow, and nine newer ones: pond, cymatics, fire, storm, ping-pong, swarm, plasma, aurora and bloom. With a slow palette drift, loudness warmth, a beat flash and gamma correction.
-- **Dark when it's quiet.** Silence and microphone self-noise stay black, by design.
-- **Tuned on the device.** A menu on the board's 1.47" LCD, driven by a 5-way switch: mode, palette, brightness, the sound response and every effect layer, saved to flash. It runs on the second core, and the lights never wait for it.
-- **Tested off the board.** Everything that isn't hardware is plain C23 with unit tests on your computer, including a golden snapshot of the whole pipeline (recorded so far for the first six modes).
+- **Musical, not just loud.** 32 log-spaced bands from 60 Hz to 12 kHz; a volume control set once per song, not every second, so a verse stays smaller than the chorus; the starts of sounds found in three regions (low, mid, high); and the song's parts: calm, build, the gap before a drop, the drop.
+- **Five looks, five scenes.** Pulse, Flow, Stage, Sweep and Storm, each with one idea of its own and a behaviour for every part of a song, in scenes of three colours: a field, an accent and a hit.
+- **Dark when it's quiet, and never too much.** Silence and microphone self-noise stay black. At most three flashes a second (WCAG 2.3.1, measured in light as WCAG measures it), whatever a look draws.
+- **Tuned on the device.** A menu on the board's 1.47" LCD, driven by a 5-way switch: look, scene, brightness, song parts and the sound response, saved to flash. It runs on the second core, and the lights never wait for it.
+- **Tested off the board.** Everything that isn't hardware is plain C23 with unit tests on your computer, including a synthetic song whose parts the analysis must find, and a golden snapshot of the whole pipeline (recorded after the looks' tuning pass).
 
 ## Hardware
 
@@ -39,7 +39,7 @@
 | INMP441 I²S MEMS microphone | 2 | a left and a right one on the same bus, summed to mono |
 | WS2812B LED strip | 300 LEDs | GRB order, 5 V |
 | 3.3 → 5 V level shifter | 1 | on the LED data line, e.g. a 74AHCT125 or 74HCT245 |
-| 5 V power supply | 1 | sized for the strip: 300 LEDs at full white draw about 18 A |
+| 5 V power supply | 1 | sized for the strip: 300 LEDs at full white draw about 18 A, and the firmware does not limit it |
 | 5-way navigation switch | 1 | up, down, left, right and a centre press to a common pin, e.g. a module labelled COM, UP, DWN, LFT, RHT, MID (SET and RST unused) |
 
 ### Wiring
@@ -130,60 +130,37 @@ LCD init!
 
 The LCD comes on about 125 ms later with the status screen. The lights start right away, so a serial monitor attached late misses these lines. Build with `-DWAIT_FOR_USB_HOST=ON` to wait up to 2 s for one. Building a board for the first time? Follow [the bring-up checklist](docs/bring-up.md).
 
-## Modes and palettes
+## Looks and scenes
 
-Pick them in the [menu](#the-menu), under Look. The defaults are `EFFECTS_MODE` and `EFFECTS_PALETTE` in [`lib/effects/effects.h`](lib/effects/effects.h).
+Pick them in the [menu](#the-menu), under Look. The defaults are `SHOW_LOOK` and `SHOW_SCENE` in [`lib/show/show.h`](lib/show/show.h): Pulse, Neon Noir.
 
-| Mode | What you see |
+Every look draws with the same few blocks, each with one meaning: a **wash** of background colour for the part of the song, **bursts** for low and mid hits, **sparks** for high hits, **beams** for motion. And each has one idea no other look has:
+
+| Look | Idea | Calm | Build | Drop, high |
+|---|---|---|---|---|
+| Pulse *(default)* | the whole strip hits as one | a dim wash breathing with the groove, soft bursts on the kicks | bursts narrower and quicker, the wash pales | the strip fills in the hit colour; wide bursts on kicks, bursts at both ends on snares, sparks on hi-hats |
+| Flow | colour pours out from the centre | a slow, dim stream | faster and faster | it jumps forward; kicks inject the hit colour |
+| Stage | a mirrored equaliser, bass at the centre | small bars, a wash on the wings and bends | bars squeeze towards the centre | bars flash in the hit colour, sparks on the strongest |
+| Sweep | beams crossing the strip | a few slow beams | launched faster and faster | a volley from both ends, flashing where beams meet; beams turn the corner into the bends |
+| Storm | darkness and lightning | faint rain, distant sheet lightning on kicks | the rain thickens | a bolt across the whole strip; then lightning on strong kicks |
+
+In the gap before a drop every look fades to black within about 30 ms. On a drop, or a chorus arriving without a build (a lift, which waits for the next kick), the field and accent colours swap, on the beat. The next drop or lift swaps them back, so the calm after a drop keeps the swapped colours.
+
+| Scene *(field, accent, hit)* | |
 |---|---|
-| `EFFECTS_MODE_SPECTRUM` | The 32 bands along the strip, bass to treble. Colour from the palette, brightness from the level |
-| `EFFECTS_MODE_SPECTRUM_MIRRORED` | The same, bass in the centre and treble towards both ends |
-| `EFFECTS_MODE_RIVER` *(default)* | The colour of the sound enters at the centre and flows outward, one LED per frame |
-| `EFFECTS_MODE_RIPPLES` | Every beat launches a pulse from the centre (up to 8 at once), sized by its strength, with treble sparkles |
-| `EFFECTS_MODE_VU` | Twin meters filling from both ends with loudness, and peak dots that hold, then fall |
-| `EFFECTS_MODE_GLOW` | The whole strip breathes with the bass, with treble sparkles |
-| `EFFECTS_MODE_POND` | Each beat drops a stone, placed by the sound's brightness (centroid); waves travel, bounce off the ends and cross. Treble adds small drops |
-| `EFFECTS_MODE_CYMATICS` | A standing wave: the number of nodes follows the loudest band, and the pattern breathes with loudness |
-| `EFFECTS_MODE_FIRE` | Flames burn outward from the centre and cool as they go. Bass and beats feed the centre, treble makes the tips flicker |
-| `EFFECTS_MODE_STORM` | A strong beat strikes a crackling bolt, longer for a stronger beat, with a few branches and a dim flash of sky. Rain sparkles in between |
-| `EFFECTS_MODE_PINGPONG` | Beats launch comets alternately from the two ends; they flash where they cross (up to 8 at once) |
-| `EFFECTS_MODE_SWARM` | About 24 dots, each chasing the loudest band near it, so the group slides and clusters where the music is |
-| `EFFECTS_MODE_PLASMA` | Layered sines scrolling along the strip: bass speeds them up, beats jerk them forward, the tone balance shifts the colour |
-| `EFFECTS_MODE_AURORA` | Slow drifting curtains, with fine rays that grow with treble. A calm mode |
-| `EFFECTS_MODE_BLOOM` *(experimental)* | A reaction-diffusion pattern: spots split, grow and die. Bass changes the feed, beats seed new spots |
+| Neon Noir *(default)* | deep blue, hot magenta, white |
+| Ember | dark red, amber, gold |
+| Dusk | teal, amber, warm white |
+| Acid | violet, lime, white |
+| Ice | navy, cyan, white |
 
-The last nine were added without the strip: nobody has tuned their looks yet, every number in them (damping, speeds, counts, cooling) is a first guess, and nothing about them is measured on the board (frame time, RAM or looks). Bloom is the least certain. Tune them in the [preview](tools/preview) first.
+The looks were written without the strip: every number in them is a first guess, to be tuned in the [preview](tools/preview) and on the strip, and nothing about them is measured on the board. After the looks draw, for every look: overlapping colours are scaled down whole, keeping their hue; the flash guard allows at most three flashes of the whole strip in any second, a flash being the light (after gamma) rising and falling by a tenth of full, as WCAG defines it, and holds back any more; then the Brightness setting and gamma 2.2 (`COLOR_GAMMA` in `lib/color/color.h`). The calm washes sit just above the strip's lowest step at full Brightness (see `lib/show/show.h`), so at a low Brightness they may round to off.
 
-| Palette | Stops |
-|---|---|
-| `PALETTE_RAINBOW` | red → yellow → green → cyan → blue → magenta, wrapping around |
-| `PALETTE_SYNTHWAVE` *(default)* | deep indigo → violet → hot pink → orange → cyan |
-| `PALETTE_FIRE` | ember → red → orange → gold → white-hot |
-| `PALETTE_OCEAN` | abyss → deep blue → teal → aqua → foam |
-
-These apply to every mode, and the menu changes all but gamma:
-
-| Layer | Effect | Default (`lib/effects/effects.h`) |
-|---|---|---|
-| Drift | The palette slowly shifts, one full span per minute | `EFFECTS_DRIFT_PERIOD_S` (0 disables it) |
-| Warmth | Louder music shifts colours towards the palette's end | `EFFECTS_WARMTH` (0 disables it) |
-| Beat flash | A white flash on each beat, fading with an 80 ms time constant | `EFFECTS_FLASH_LEVEL`, `EFFECTS_FLASH_MS` |
-| Gamma | 2.2, so fades look even to the eye | `COLOR_GAMMA` in `lib/color/color.h` |
-
-Four more layers sit on top of any mode, all off by default, in the menu's Layers page:
-
-| Layer | Effect | Menu setting |
-|---|---|---|
-| Trails | What was shown lingers and fades: the brighter of the new frame and the last one, faded | Off, 50–1000 ms (fade time constant) |
-| Diffuse | Every frame blurs a little into the neighbouring LEDs | Off, 5–100 % (100 % averages three LEDs) |
-| Symmetry | The whole image squeezed into 2, 3 or 4 segments, every other one reversed | Off, 2–4 |
-| Chase | The whole image slides along the strip and wraps around | Off, ±10–200 LEDs per second |
-
-They apply in that order, Chase, Symmetry, Diffuse, then Trails, before the brightness and gamma, so a sliding image leaves a glowing smear.
+The song parts come from a few running averages of the sound (`lib/features/parts.h`), nothing recorded: **calm** and **high** by the level against the song's usual one, a **build** when the level rises for 2 s with busier or brighter sound, a **gap** when it falls silent, and a **drop** on a kick with the level jumping, only right after a build or a gap and at most one every 15 s. A chorus without a build is a lift, never a drop. Silence changes nothing but into a gap: 3 s of it, or 10 s far quieter than the song, ends the song, and the parts start over from what comes next. The Gain does not move them. They can be switched off under Look: the looks then follow the groove and the hits only.
 
 ## The menu
 
-The LCD shows the status screen: the mode, the palette with a swatch of its colours, the brightness, and how the last save went. Press the switch's centre to open the menu.
+The LCD shows the status screen: the look, the scene with a swatch of its three colours, the brightness, and how the last save went. Press the switch's centre to open the menu.
 
 | Key | On a page |
 |---|---|
@@ -196,24 +173,13 @@ After 30 s without a key, the status screen comes back, except from Diagnostics.
 
 | Page | Setting | Range, step | Default | Replaces |
 |---|---|---|---|---|
-| Look | Mode | the fifteen modes | River | `EFFECTS_MODE` |
-| | Palette | the four palettes | Synthwave | `EFFECTS_PALETTE` |
+| Look | Look | the five looks | Pulse | `SHOW_LOOK` |
+| | Scene | the five scenes | Neon Noir | `SHOW_SCENE` |
 | | Brightness | 10–100 %, 5 | 100 % | |
-| | The selected mode's own rows (River: speed; Ripples: speed; VU meters: peak hold) | see the next lines | | follow Brightness, change with Mode |
+| | Song parts | On, Off | On | |
 | Sound | Gain | 0.5–4.0×, 0.1 | 1.5× | `VISUALIZER_GAIN` |
-| | Beat threshold (lower: more beats) | 1.5–6.0×, 0.1 | 2.8× | `FEATURES_BEAT_THRESHOLD` |
+| | Hit sensitivity (higher: more hits) | 1.5–6.0, 0.1 | 3.0 | `FEATURES_HIT_THRESHOLD`, which is 9 ÷ the sensitivity |
 | | Quiet floor | −45…−10 dB, 1 | −32 dB | `FEATURES_MIN_CEILING_DB` |
-| | Attack, decay | 2–60 ms, 2; 20–600 ms, 10 | 10 ms, 120 ms | `FEATURES_ATTACK_MS`, `FEATURES_DECAY_MS` |
-| Effects | Palette drift | Off, 10–300 s, 10 | 60 s | `EFFECTS_DRIFT_PERIOD_S` |
-| | Warmth, beat flash | 0–100 %, 5 | 25 %, 35 % | `EFFECTS_WARMTH`, `EFFECTS_FLASH_LEVEL` |
-| | Sparkles | 0–10 %, 0.5 | 3 % | `EFFECTS_SPARKLE_RATE` |
-| Look, River | Speed | 1–4 (LEDs per frame) | 1 | `EFFECTS_RIVER_SPEED` |
-| Look, Ripples | Speed | 0.5–6.0, 0.5 (LEDs per frame) | 2.0 | `EFFECTS_RIPPLE_SPEED` |
-| Look, VU meters | Peak hold | 0–2000 ms, 50 | 300 ms | `EFFECTS_PEAK_HOLD_MS` |
-| Layers | Trails | Off, 50–1000 ms, 50 | Off | `EFFECTS_TRAILS_MS` |
-| | Diffuse | Off, 5–100 %, 5 | Off | `EFFECTS_DIFFUSE` |
-| | Symmetry | Off, 2–4 segments | Off | `EFFECTS_SYMMETRY` |
-| | Chase | Off, ±10–200 LEDs/s, 10 | Off | `EFFECTS_CHASE_LEDS_PER_S` |
 | System | Screen (LCD backlight) | 10–100 %, 10 | 80 % | |
 | | Diagnostics | the microphones, the timing, the stacks: see [Diagnostics](#diagnostics) | | |
 | | Reset to defaults | press twice within 3 s | | |
@@ -231,22 +197,24 @@ Brightness is perceptual: each step looks equally brighter. Below about 20 % the
 | `LED_DATA_PIN` | `8` | Strip data |
 | `AUDIO_FFT_SIZE` | `512` | Samples per analysis. Larger resolves lower notes, smaller reacts faster |
 | `AUDIO_HOP_SIZE` | `256` | New samples per analysis |
-| `VISUALIZER_SEED` | `1` | Sparkle pattern |
+| `LED_BEND_COUNT` | `0` | LEDs at each end that bend onto a side wall: Sweep's beams turn the corner there. Count them once the strip is mounted |
+| `VISUALIZER_SEED` | `1` | The looks' random choices: where sparks and bolts land |
 | `LCD_*` | from the board header | The LCD's SPI and pins, 320 × 172 landscape, `LCD_MADCTL` `0x70` (`0xB0` turns it 180°) |
 | `JOYSTICK_*_PIN` | `0`–`4` | The switch's up, down, left, right and centre |
 | `UI_IDLE_TIMEOUT_MS` | `30'000` | Back to the status screen after this long without a key |
 | `UI_SAVE_DELAY_MS`, `UI_SAVE_RETRY_MS` | `3'000`, `30'000` | Save this long after the last change; retry after a failed save |
 
-The default mode and palette (`EFFECTS_MODE`, `EFFECTS_PALETTE`: River, Synthwave) are in [`lib/effects/effects.h`](lib/effects/effects.h), the input gain (`VISUALIZER_GAIN`: 1.5 on top of the microphone's ×8) in [`lib/visualizer/visualizer.h`](lib/visualizer/visualizer.h).
+The default look and scene (`SHOW_LOOK`, `SHOW_SCENE`: Pulse, Neon Noir) are in [`lib/show/show.h`](lib/show/show.h), the input gain (`VISUALIZER_GAIN`: 1.5 on top of the microphone's ×8) in [`lib/visualizer/visualizer.h`](lib/visualizer/visualizer.h).
 
 ### Tuning
 
-The sound analysis and the effects each have their constants at the top of their header, with the reasoning behind every default. Those the [menu](#the-menu) changes are its defaults:
+The sound analysis and the show each have their constants at the top of their header, with the reasoning behind every default. Those the [menu](#the-menu) changes are its defaults:
 
-- [`lib/features/features.h`](lib/features/features.h): the band range, auto-gain (`FEATURES_RANGE_DB`, `FEATURES_MIN_CEILING_DB`), smoothing, and beat detection (`FEATURES_BEAT_THRESHOLD`, `FEATURES_BEAT_MIN_LEVEL`, …).
-- [`lib/effects/effects.h`](lib/effects/effects.h): the mode and palette, each new mode's constants, river and ripple speeds, the VU peak hold, drift, warmth, flash, sparkles and the four layers.
+- [`lib/features/features.h`](lib/features/features.h): the band range, the volume control (`FEATURES_RANGE_DB`, `FEATURES_CEILING_FALL_DB_PER_S`, `FEATURES_MIN_CEILING_DB`), smoothing, the groove, and the hits (`FEATURES_HIT_THRESHOLD`, the three regions' edges and minimum rises, …).
+- [`lib/features/parts.h`](lib/features/parts.h): the song parts' averages, margins and safeguards.
+- [`lib/show/show.h`](lib/show/show.h): the look and scene, the washes' lowest step, and every look's constants; [`lib/show/scene.c`](lib/show/scene.c) the scenes' colours; [`lib/show/rules.h`](lib/show/rules.h) the flash guard.
 
-The latency bench, `cmake --build build-tests --target test_latency && ./build-tests/test_latency`, prints how quickly the analysis reacts to kicks and tones and how often it reacts to noise. Run it after changing the beat constants.
+The latency bench, `cmake --build build-tests --target test_latency && ./build-tests/test_latency`, prints how quickly the analysis reacts to kicks and tones and how often it reacts to noise. Run it after changing the hit constants, and judge on its many noise seeds, never on one.
 
 ### Build options
 
@@ -254,7 +222,7 @@ The latency bench, `cmake --build build-tests --target test_latency && ./build-t
 |---|---|---|
 | `-DPRINT_DIAGNOSTICS=ON` | off | Core 1 prints the [diagnostics](#diagnostics) over USB every 0.5 s, even without the LCD |
 | `-DWAIT_FOR_USB_HOST=ON` | off | Waits up to 2 s at startup for a USB serial host |
-| `-DBOOT_BUTTON_SHUFFLE=ON` | off | For demos: each press of the board's BOOT button shows a random look (mode, palette and effect layers; brightness and sound response untouched), applied and saved like a menu change |
+| `-DBOOT_BUTTON_SHUFFLE=ON` | off | For demos: each press of the board's BOOT button shows a random look and scene (brightness, song parts and sound response untouched), applied and saved like a menu change |
 | `-DTEST_SIGNAL=ON` | off | For timing without microphones: a synthetic song ([`lib/song`](lib/song)) replaces them, made before each hop's work is timed so its cost is not counted. Read the work per hop on the Diagnostics page or with `-DPRINT_DIAGNOSTICS=ON` |
 | `-DPICO_BOARD=…` | `waveshare_rp2350_lcd_1.47` | Target board |
 
@@ -268,7 +236,7 @@ flowchart TB
     end
     subgraph analysis ["Analysis · lib/visualizer"]
         direction LR
-        SPECTRUM["spectrum<br/>mono · window · FFT"] -- "256 bins" --> FEAT["features<br/>bands · gain · beats"] -- "sound_t" --> FX["effects<br/>mode · palette · gamma"]
+        SPECTRUM["spectrum<br/>mono · window · FFT"] -- "256 bins" --> FEAT["features<br/>bands · gain · hits · parts"] -- "sound_t" --> FX["show<br/>look · scene · rules"]
     end
     subgraph output ["Output · platform/ws2812"]
         direction LR
@@ -280,8 +248,8 @@ flowchart TB
 
 1. **Capture.** A PIO state machine clocks both microphones at the fastest integer divider under the INMP441's 3.2 MHz maximum: 48 828.125 Hz at 150 MHz. A self-triggering DMA channel streams the words into a two-chunk ring, and each completed chunk (256 stereo frames) is handed to the main loop through a triple buffer.
 2. **Spectrum.** The two channels are summed to mono and appended to a 512-sample sliding window. The window is multiplied by a sine window and transformed with a real FFT, done as a 256-point complex FFT: 256 bins, 95.4 Hz apart.
-3. **Features.** The bins become 32 log-spaced bands. Their power in dB is normalized under an auto-gain ceiling that jumps up to the loudest band and falls back 6 dB/s, but never below a minimum that keeps a quiet room dark. Each band is then smoothed (10 ms attack, 120 ms decay). A beat is the smoothed bass energy jumping above 2.8× its one-second average, while the bass is audible, at most once per 150 ms.
-4. **Effects.** The current mode draws into a linear RGB frame. The layers (Chase, Symmetry, Diffuse, Trails) reshape it. Gamma correction, the beat flash and the packing into WS2812 words follow, for every mode.
+3. **Features.** The bins become 32 log-spaced bands. Their power in dB is normalized under an auto-gain ceiling that rises to a loud part within about 300 ms and falls back 15 dB a minute, never below a minimum that keeps a quiet room dark. Each band is then smoothed (10 ms attack, 120 ms decay), and the loudness averaged over 1.5 s is the groove. Hits are spectral flux: in each of three regions (below 150 Hz, 150 Hz–2 kHz, above 5 kHz) the bands' rise in dB over two hops, well above its own recent average. The song parts follow from running averages of the level in dB, before the auto-gain.
+4. **Show.** The current look draws into a linear RGB frame with the shared blocks and its own. For every look the gap fade, hue-safe mixing, the flash guard, the Brightness setting, gamma and the packing into WS2812 words follow.
 5. **Output.** DMA feeds the frame to a second PIO state machine, which generates the WS2812 timing and the latch, and raises an interrupt. That interrupt starts the newest frame, so the strip always shows the latest render and never a torn one (about 150 frames/s at 300 LEDs).
 
 All of that runs on core 0. The menu runs on core 1, with its own stack:
@@ -313,15 +281,16 @@ All memory is allocated once at startup, and neither loop allocates. The firmwar
 ├── lib/                 portable C23, no Pico SDK, unit tested on the host
 │   ├── settings/        the menu's settings, their records and log in flash
 │   ├── stats/           what the diagnostics show: mic levels, timing, stacks
-│   ├── visualizer/      the pipeline: spectrum → features → effects
+│   ├── visualizer/      the pipeline: spectrum → features → show
 │   ├── spectrum/        I2S words to a magnitude spectrum
-│   ├── features/        bands, auto-gain, smoothing, beats
-│   ├── effects/         one mode_*.c per mode, palettes, sparkles, layers
+│   ├── features/        bands, auto-gain, smoothing, hits, song parts
+│   ├── show/            the looks (one look_*.c each), scenes, blocks, rules
+│   ├── song/            a synthetic song, for the tests and timing builds
 │   ├── fft/             radix-2 complex and real FFTs
 │   ├── color/           linear RGB, gamma, the WS2812 word
 │   └── swapchain/       lock-free triple buffer between contexts or cores
 ├── third_party/lvgl     LVGL v9.6.0, a git submodule
-├── tools/preview        a page that runs the real analysis and effects in the browser (WebAssembly)
+├── tools/preview        a page that runs the real analysis and show in the browser (WebAssembly)
 ├── cmake/modules.cmake  lp_add_module(): one definition per module, for both builds
 └── tests/               host tests (CTest)
 ```
@@ -344,9 +313,10 @@ flowchart TB
     end
     subgraph lib ["lib/ (portable)"]
         settings --> visualizer
-        visualizer --> spectrum & features & effects
+        visualizer --> spectrum & features & show
         spectrum --> fft
-        effects --> features & color
+        show --> features & color
+        song
         swapchain
         stats
     end
@@ -396,16 +366,19 @@ ctest --test-dir build-tests --output-on-failure
 | `swapchain` | Ordering, newest wins, and two threads at full speed: never torn, never older |
 | `color` | The WS2812 word layout, saturation, gamma |
 | `spectrum` | Scaling, the stereo sum, the sliding window, tones in their bin, the I2S word decode |
-| `features` | Bands, silence, self-noise, auto-gain, beats on kicks and none on noise, and each tuning |
-| `palette` | Stops, interpolation, wrapping and reflecting |
-| `effects` | The first six modes: silence, positions, motion, the flash, determinism, each tuning and the brightness |
-| `visualizer` | End to end from I²S words: silence, a tone, kicks, and the same tuning on every hop drawing what it draws tuned once, the defaults what they draw untuned |
-| `modes` | The nine newer modes: dark in silence, dark within 10 s of the music stopping, one behaviour each, determinism, and the state cleared on entering a mode; plus the sine table, the random stream and the peak-band helpers |
-| `golden` | The exact pixels of the first six modes for a fixed input; the other nine are run but not compared until they are recorded after the tuning pass |
+| `features` | Bands, silence, self-noise, the slow auto-gain, hits of each region on its own sounds and none on noise, kicks over a bass line, the groove, and each tuning |
+| `song` | The synthetic song's sections and determinism |
+| `parts` | The synthetic song's parts in order through the real analysis, lifts on the beat, gaps, drops only after a build or a gap and 15 s apart, silence and a far quieter part ending the song, the Gain leaving them alone, and switched off |
+| `scene` | Every scene's roles in range, field darker than accent darker than hit |
+| `blocks` | Wash, bursts growing and fading, the full pools, beams moving, coming onto the strip and ending, fading into a bend, sparks, the reset |
+| `rules` | Hue-safe mixing, at most three flashes a second in light (the whole strip, a flicker near full, a white burst), slow rises let through |
+| `show` | Every look dark in silence and lit by music in every part, the calm washes lit in every scene, the gap and black after it, the colour swap, Sweep's whole volley, the flash guard for every look, determinism, a clean look switch, the tuning |
+| `visualizer` | End to end from I²S words: silence, a tone on Stage, kicks as low hits, and the same tuning on every hop drawing what it draws tuned once, the defaults what they draw untuned |
+| `golden` | The exact pixels of every look for a fixed input, once recorded after the tuning pass; until then run but not compared |
 | `stats` | The microphone levels in dBFS, an offset ignored, the window's means, worsts and rates, the stack peaks |
 | `settings` | Ranges and steps, shuffles, every default equal to the constant it replaces, records and their damage, and the flash log on a simulated NOR flash: torn writes, garbage, power lost after an erase |
 
-`test_golden` is a tripwire: for the modes it has recorded (`RECORDED` in the file, the first six), it fails on **any** change to the pixels. When a change is meant to alter the look, check that the other tests still pass, then record the new hashes into [`tests/test_golden.c`](tests/test_golden.c):
+`test_golden` is a tripwire: for the looks it has recorded (`RECORDED` in the file, none until the tuning pass), it fails on **any** change to the pixels. When a change is meant to alter the look, check that the other tests still pass, then record the new hashes into [`tests/test_golden.c`](tests/test_golden.c):
 
 ```bash
 build-tests/test_golden --print
@@ -423,7 +396,7 @@ cmake -S tests -B build-sanitize "-DCMAKE_C_FLAGS=-fsanitize=address,undefined -
 cmake --build build-sanitize && ctest --test-dir build-sanitize --output-on-failure
 ```
 
-To see the modes without the strip, [`tools/preview`](tools/preview) builds a page that plays a demo signal, an audio file or the microphone through the firmware's own analysis and effects (needs Emscripten).
+To see the looks without the strip, [`tools/preview`](tools/preview) builds a page that plays a demo signal, an audio file or the microphone through the firmware's own analysis and show, with the current song part shown (needs Emscripten).
 
 ### Continuous integration
 
@@ -434,32 +407,31 @@ To see the modes without the strip, [`tools/preview`](tools/preview) builds a pa
 System › Diagnostics shows, every 0.5 s, what core 0 measures of the lights' loop, and stays until you leave it:
 
 - Each microphone's level in dBFS. A quiet room reads about -85 or a little higher, talking nearby about -60, loud music -30 to -20. "none" is a microphone sending nothing at all.
-- The auto-gain ceiling, the mean loudness and the beats per second.
+- The auto-gain ceiling, the mean loudness and the low hits per second.
 - The work per hop, mean and worst, and the worst as a share of the 5.2 ms a hop allows (the measuring itself adds about 35 us).
 - The audio buffers lost since start (should stay 0) and the frames the strip latched per second (about 150 at 300 LEDs).
 - The most each core's stack has ever used.
 
-Build with `-DPRINT_DIAGNOSTICS=ON` to have core 1 print them over USB serial, even without the LCD. The lights never print. In a quiet room, loudness should read about 0 with no beats. If it doesn't, raise `FEATURES_MIN_CEILING_DB`.
+Build with `-DPRINT_DIAGNOSTICS=ON` to have core 1 print them over USB serial, even without the LCD. The lights never print. In a quiet room, loudness should read about 0 with no hits. If it doesn't, raise `FEATURES_MIN_CEILING_DB`.
 
-### Adding an effect mode
+### Adding a look
 
-1. Add a value to `effects_mode_t` in [`lib/effects/effects.h`](lib/effects/effects.h), before `EFFECTS_MODE_COUNT`.
-2. Write its renderer in a new `lib/effects/mode_<name>.c`. It draws into `this->frame`, which starts black, using the helpers in [`effects_internal.h`](lib/effects/effects_internal.h). Declare it there.
-3. Add it to the `renderers` table in [`effects.c`](lib/effects/effects.c), and the file to [`lib/effects/CMakeLists.txt`](lib/effects/CMakeLists.txt).
-4. If it has state, add a reset to the `resets` table in [`effects.c`](lib/effects/effects.c). If it has per-LED rows, make the same edit to both `pool_floats` and `slice_pool` there.
+1. Add a value to `show_look_t` in [`lib/show/show.h`](lib/show/show.h), before `SHOW_LOOK_COUNT`, and its first-guess constants next to the others there.
+2. Write it in a new `lib/show/look_<name>.c`. It draws into `this->blocks.frame`, which starts black, with the blocks of [`blocks.h`](lib/show/blocks.h) and the helpers in [`show_internal.h`](lib/show/show_internal.h), asks the scene for roles through `show_color()`, never for colours, and ends with `blocks_draw()`. Declare it there. Give it one idea no other look has, and a behaviour for every song part.
+3. Add it to the `looks` table in [`show.c`](lib/show/show.c), and the file to [`lib/show/CMakeLists.txt`](lib/show/CMakeLists.txt).
+4. If it has state of its own, add it to `show_t`, allocate it in `show_init()`, and add a reset to the `resets` table in `show.c`.
 5. Add its name in [`app/ui/ui_names.c`](app/ui/ui_names.c).
-6. Test it in `tests/test_modes.c`, and record the golden hashes again, which now also means raising `RECORDED` in [`tests/test_golden.c`](tests/test_golden.c).
+6. `tests/test_show.c` covers every look already (silence, parts, the rules); add a test of its idea there, and record the golden hashes again.
 
-### Adding a palette
+### Adding a scene
 
-1. Add a value to `palette_t` in [`lib/effects/palette.h`](lib/effects/palette.h), before `PALETTE_COUNT`.
-2. Add its stops (linear RGB, 0..1) and its entry in the `palettes` table in [`palette.c`](lib/effects/palette.c): `true` wraps around like the rainbow, `false` reflects at the ends.
+Add a value to `scene_t` in [`lib/show/scene.h`](lib/show/scene.h), before `SCENE_COUNT`, its three colours (linear RGB, 0..1: field, accent, hit) in [`scene.c`](lib/show/scene.c), and its name in [`app/ui/ui_names.c`](app/ui/ui_names.c). Keep the field the darkest and the hit the brightest: `tests/test_scene.c` checks it.
 
 ### Conventions
 
 - C23, 4-space indent, 80 columns.
 - A module is a folder, a `.c`/`.h` pair and a CMake target of the same name, e.g. `lib/spectrum/spectrum.{c,h}` and `spectrum`. Its test is `tests/test_<module>.c`.
-- Everything public carries the module prefix: the state is `<module>_t`, other types `<module>_<what>_t`, functions `<module>_<verb>()` taking the state as `this`, constants and enum values `<MODULE>_*`. Enum values repeat their type's name: `EFFECTS_MODE_RIVER` of `effects_mode_t`. Only `static` helpers inside one `.c` go unprefixed, and the two types every module passes around: `rgb_t` (color) and `sound_t` (features).
+- Everything public carries the module prefix: the state is `<module>_t`, other types `<module>_<what>_t`, functions `<module>_<verb>()` taking the state as `this`, constants and enum values `<MODULE>_*`. Enum values repeat their type's name: `SHOW_LOOK_PULSE` of `show_look_t`. Only `static` helpers inside one `.c` go unprefixed, and the two types every module passes around: `rgb_t` (color) and `sound_t` (features).
 - Names say what they count and in which unit: `fft_size`, `hop_size`, `led_count`, `word_count`, and `_s`, `_ms`, `_us`, `_hz`, `_db` suffixes (`hop_period_s`, `FEATURES_ATTACK_MS`).
 - Includes come in groups a blank line apart: the module's own header, then our other headers, in quotes, then the Pico SDK and C library ones in angle brackets. Quotes always mean ours.
 - Header guards are `<MODULE>_H`, prefixed with the folder outside modules (`APP_CONFIG_H`, `TESTS_CHECK_H`).
@@ -508,9 +480,9 @@ The driver sends GRB, the WS2812B order. For another order, change the byte layo
 </details>
 
 <details>
-<summary><b>Beats are missed, or fire on everything</b></summary>
+<summary><b>Hits are missed, or fire on everything</b></summary>
 
-Change the beat threshold in the menu (Sound, lower is more sensitive), or `FEATURES_BEAT_MIN_LEVEL` in `lib/features/features.h`. Each constant's comment explains the measurements behind its default.
+Change the hit sensitivity in the menu (Sound, higher is more hits), or a region's `MIN_RISE_DB` in `lib/features/features.h`. Each constant's comment explains the measurements behind its default; run the latency bench after changing one.
 
 </details>
 
@@ -542,13 +514,15 @@ Swap the `JOYSTICK_*_PIN` numbers in `app/config.h` to match how the switch is m
 <details>
 <summary><b>The settings are back to their defaults after a power cycle</b></summary>
 
-They are saved 3 s after the last change: a power cut within those 3 s loses that change. "Not saved" on the status screen means the flash refused, and it is tried again 30 s later. A firmware that changes what a stored value means (e.g. reordered modes) raises `SETTINGS_VERSION`, and starts from the defaults once.
+They are saved 3 s after the last change: a power cut within those 3 s loses that change. "Not saved" on the status screen means the flash refused, and it is tried again 30 s later. A firmware that changes what a stored value means (e.g. reordered looks) raises `SETTINGS_VERSION`, and starts from the defaults once.
 
 </details>
 
 ## Roadmap
 
-- [x] An on-device menu (LCD) to switch modes and palettes at runtime, and much more.
+- [x] An on-device menu (LCD) to switch looks and scenes at runtime, and much more.
+- [x] Looks that follow the song: hits, and the parts of a song (build, gap, drop).
+- [ ] Tempo and phrases: a beat grid, bars, and firing just ahead of the beat.
 - [ ] Stereo effects, using the two microphones separately.
 - [ ] Stopping and restarting sampling at runtime.
 

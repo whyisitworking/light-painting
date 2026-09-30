@@ -2,7 +2,7 @@
 #define COLOR_H
 
 /**
- * Colours: linear RGB as the effects compute it, gamma correction, and the
+ * Colours: linear RGB as the show computes it, gamma correction, and the
  * WS2812 word the LED driver shifts out
  */
 

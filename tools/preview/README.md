@@ -1,6 +1,6 @@
 # Preview
 
-A page that runs the firmware's own analysis and effects on a demo signal, an audio file, the computer's audio or a microphone, and shows every mode as 300 LEDs, with the menu's settings as controls. The C code is compiled to WebAssembly, so what you see is what the code computes, not a re-implementation. It is not measured on the board: timing and the LEDs' real look are still the strip's to show.
+A page that runs the firmware's own analysis and show on a demo signal, an audio file, the computer's audio or a microphone, and shows every look as 300 LEDs, with the menu's settings as controls. The C code is compiled to WebAssembly, so what you see is what the code computes, not a re-implementation. It is not measured on the board: timing and the LEDs' real look are still the strip's to show.
 
 ## Build and open
 
@@ -20,7 +20,7 @@ then open `http://localhost:8765/preview.html`.
 
 ## Using it
 
-- **Source:** the demo signal, an audio file, computer audio, or the microphone. The demo is a 12 s loop: 10 s of a 120 BPM kick and snare, hi-hats, a bass line, a chord pad and a lead, all with harmonics, then 2 s of silence to watch the modes fall off. Stopping a source makes the strip fall dark by itself: the engine keeps running on silence.
+- **Source:** the demo signal, an audio file, computer audio, or the microphone. The demo is a 12 s loop: 10 s of a 120 BPM kick and snare, hi-hats, a bass line, a chord pad and a lead, all with harmonics, then 2 s of silence to watch the looks fall off. Stopping a source makes the strip fall dark by itself: the engine keeps running on silence.
 - **Input level:** the board's microphones hear a room, far quieter than a song at full volume, and the quiet floor depends on absolute level. Lower it until the strip behaves like the board would (dark in quiet, alive in music). It starts at -18 dB for the demo, an audio file and computer audio, and at 0 dB for the microphone (and a virtual input picked on it).
 - **Microphone:** the browser's echo cancelling, noise suppression and automatic gain are turned off, so the analysis hears the raw signal. The microphone source (before the input-device picker was added) was exercised with a refused permission and a mocked stream, not with a real microphone; the input-device picker and the Computer audio source have not been run at all, not even with mocked streams.
 - **Computer audio:** click it and Chrome's share picker opens. Pick a Chrome tab and tick "Also share tab audio" (tab audio on Chrome for macOS is documented by third-party sources; not tried here). Newer Chrome and macOS may also offer system audio: Chrome 141 and macOS 14.2 or later were reported (by a third-party article, not confirmed against Chrome's documentation, and not tried here). The shared video is switched off and never shown, and the audio is only analysed, not played again: the tab keeps playing on its own. Chrome's own "Stop sharing" stops the source.
@@ -32,7 +32,7 @@ then open `http://localhost:8765/preview.html`.
   5. If the loudness strip is pinned, lower "Input level".
 - Neither capture route has been run: the code builds and passes a syntax check, but it has not been tried with a real share picker, a real device or even a mocked stream. Nothing is measured on the LED board.
 - **Settings:** the same ranges and steps as the board's menu, taken from the firmware's `settings` module, so a new setting shows up on its own.
-- **All modes:** tick "show all at once" to render every mode and compare them; click a tile to select it.
+- **All looks:** tick "show all at once" to render every look and compare them; click a tile to select it.
 - The browser's audio rate (usually 48 000 Hz) differs a little from the firmware's 48 828 Hz, so timing is about 2 % off.
 
 ## Checks
@@ -52,4 +52,4 @@ ctest --test-dir build-tests    # test_preview: the engine's pixels equal the vi
 
 ## Differences from the board
 
-The preview keeps one effects instance per mode, fixed to that mode, so switching mode never runs the mode-entry reset the board runs. A simulation such as Pond resumes its old waves when you switch back to it with the gallery off, so its look on selection can differ from the board's.
+The preview keeps one show per look, fixed to that look. Selecting a look starts it clean, as switching looks does on the board; in the gallery every look runs all along.

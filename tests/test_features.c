@@ -437,6 +437,7 @@ static void test_default_tuning_changes_nothing(void) {
     CHECK(features.decay_k == decay_k);
     CHECK(features.tuning.hit_threshold == FEATURES_HIT_THRESHOLD);
     CHECK(features.tuning.min_ceiling_db == FEATURES_MIN_CEILING_DB);
+    CHECK(features.tuning.song_parts);
 
     features_deinit(&features);
 }
@@ -449,13 +450,9 @@ static void test_tuning_ignores_invalid(void) {
     CHECK(features_init(&features, BINS, BIN_HZ, HOP_PERIOD_S));
 
     tuning = features_default_tuning();
-    tuning.attack_ms = 0.f;
-    tuning.decay_ms = NAN;
     tuning.min_ceiling_db = INFINITY;
     tuning.hit_threshold = 4.f;
     features_tune(&features, &tuning);
-    CHECK(features.tuning.attack_ms == FEATURES_ATTACK_MS);
-    CHECK(features.tuning.decay_ms == FEATURES_DECAY_MS);
     CHECK(features.tuning.min_ceiling_db == FEATURES_MIN_CEILING_DB);
     CHECK(features.tuning.hit_threshold == 4.f);
 
@@ -466,33 +463,6 @@ static void test_tuning_ignores_invalid(void) {
     CHECK(features.tuning.hit_threshold == 4.f);
 
     features_deinit(&features);
-}
-
-// Hops for a tone to bring its band to 0.63, with the given attack
-static int hops_to_rise(float attack_ms) {
-    features_t features;
-    features_tuning_t tuning;
-    size_t band;
-    int hops = 0;
-
-    CHECK(features_init(&features, BINS, BIN_HZ, HOP_PERIOD_S));
-    tuning = features_default_tuning();
-    tuning.attack_ms = attack_ms;
-    features_tune(&features, &tuning);
-    band = band_of(&features, 10 * BIN_HZ);
-
-    fill(1e-6f);
-    bins[10] = 0.1f;
-    while (features_update(&features, bins)->bands[band] < 0.63f && hops < 1000)
-        hops++;
-
-    features_deinit(&features);
-
-    return hops;
-}
-
-static void test_tuned_attack(void) {
-    CHECK(hops_to_rise(50.f) > hops_to_rise(FEATURES_ATTACK_MS));
 }
 
 // Low hits at 120 BPM with the given threshold, over noise 20 dB below
@@ -606,7 +576,6 @@ int main(void) {
     test_no_hit_from_the_floor_climbing();
     test_default_tuning_changes_nothing();
     test_tuning_ignores_invalid();
-    test_tuned_attack();
     test_tuned_hit_threshold();
     test_tuned_quiet_floor();
     test_groove();

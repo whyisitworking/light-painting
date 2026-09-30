@@ -24,8 +24,6 @@ static bool is_positive(float value) { return value > 0.f && isfinite(value); }
 
 features_tuning_t features_default_tuning(void) {
     return (features_tuning_t){
-        .attack_ms = FEATURES_ATTACK_MS,
-        .decay_ms = FEATURES_DECAY_MS,
         .min_ceiling_db = FEATURES_MIN_CEILING_DB,
         .hit_threshold = FEATURES_HIT_THRESHOLD,
         .song_parts = true,
@@ -33,20 +31,12 @@ features_tuning_t features_default_tuning(void) {
 }
 
 void features_tune(features_t *this, const features_tuning_t *tuning) {
-    if (is_positive(tuning->attack_ms))
-        this->tuning.attack_ms = tuning->attack_ms;
-    if (is_positive(tuning->decay_ms))
-        this->tuning.decay_ms = tuning->decay_ms;
     if (isfinite(tuning->min_ceiling_db))
         this->tuning.min_ceiling_db = tuning->min_ceiling_db;
     if (is_positive(tuning->hit_threshold))
         this->tuning.hit_threshold = tuning->hit_threshold;
     this->tuning.song_parts = tuning->song_parts;
     parts_enable(&this->parts, tuning->song_parts);
-
-    this->attack_k =
-        smoothing_factor(this->hop_period_s, this->tuning.attack_ms);
-    this->decay_k = smoothing_factor(this->hop_period_s, this->tuning.decay_ms);
 }
 
 // The bands wholly inside [low_hz, high_hz), at least one
@@ -126,6 +116,8 @@ bool features_init(features_t *this, size_t bin_count, float bin_hz,
     this->bin_count = bin_count;
     this->bin_hz = bin_hz;
     this->hop_period_s = hop_period_s;
+    this->attack_k = smoothing_factor(hop_period_s, FEATURES_ATTACK_MS);
+    this->decay_k = smoothing_factor(hop_period_s, FEATURES_DECAY_MS);
     parts_init(&this->parts, hop_period_s);
     this->gain_db = 0.f;
     this->tuning = features_default_tuning();
@@ -214,9 +206,6 @@ static void detect_hits(features_t *this, const float *power, float floor_db) {
     }
 
     this->hit_slot = (this->hit_slot + 1) % FEATURES_HIT_LAG;
-
-    this->sound.beat = this->sound.hits[FEATURES_LOW].fired;
-    this->sound.beat_strength = this->sound.hits[FEATURES_LOW].strength;
 }
 
 // Levels first, then hits, against the fresh floor

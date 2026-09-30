@@ -35,7 +35,8 @@ constexpr float FEATURES_CEILING_RISE_MS = 300.f;
 constexpr float FEATURES_CEILING_FALL_DB_PER_S = 0.25f;
 constexpr float FEATURES_MIN_CEILING_DB = -32.f;
 
-// Per band smoothing time constants
+// Per band smoothing time constants: constants, the menu no longer changes
+// them
 constexpr float FEATURES_ATTACK_MS = 10.f;
 constexpr float FEATURES_DECAY_MS = 120.f;
 
@@ -96,9 +97,6 @@ typedef enum {
 
 // What can be changed while running, the constants above are the defaults
 typedef struct {
-    // FEATURES_ATTACK_MS, FEATURES_DECAY_MS: positive
-    float attack_ms;
-    float decay_ms;
     // FEATURES_MIN_CEILING_DB: finite
     float min_ceiling_db;
     // FEATURES_HIT_THRESHOLD: positive
@@ -113,7 +111,7 @@ typedef struct {
     float strength;
 } features_hit_t;
 
-// The sound of one hop, what the effects render from
+// The sound of one hop, what the show renders from
 typedef struct {
     // FEATURES_BAND_COUNT levels, 0..1, smoothed
     const float *bands;
@@ -133,9 +131,6 @@ typedef struct {
     float part_time_s;
     float build_progress;
     parts_event_t event;
-    // The low hit, until the effects move to the hits: the same values
-    bool beat;
-    float beat_strength;
 } sound_t;
 
 // What a region's hits need between hops
