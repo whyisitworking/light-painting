@@ -18,6 +18,10 @@ typedef void show_look_fn(show_t *this, const sound_t *sound);
 typedef void show_reset_fn(show_t *this);
 
 show_look_fn show_look_pulse;
+show_look_fn show_look_flow;
+show_reset_fn show_reset_flow;
+show_look_fn show_look_stage;
+show_reset_fn show_reset_stage;
 
 // A role's colour in the scene, field and accent swapped after a drop or a
 // lift

@@ -8,10 +8,15 @@
 
 static show_look_fn *const looks[SHOW_LOOK_COUNT] = {
     [SHOW_LOOK_PULSE] = show_look_pulse,
+    [SHOW_LOOK_FLOW] = show_look_flow,
+    [SHOW_LOOK_STAGE] = show_look_stage,
 };
 
 // Looks without state of their own have no reset
-static show_reset_fn *const resets[SHOW_LOOK_COUNT] = {};
+static show_reset_fn *const resets[SHOW_LOOK_COUNT] = {
+    [SHOW_LOOK_FLOW] = show_reset_flow,
+    [SHOW_LOOK_STAGE] = show_reset_stage,
+};
 
 static float keep_for(float hop_period_s, float time_constant_s) {
     return expf(-hop_period_s / time_constant_s);
@@ -20,8 +25,13 @@ static float keep_for(float hop_period_s, float time_constant_s) {
 bool show_init(show_t *this, size_t led_count, size_t band_count,
                float hop_period_s, size_t bend_count, uint32_t seed) {
     size_t half_led_count = (led_count + 1) / 2;
+    rgb_t *history;
 
     if (led_count < 2 || band_count < 2 || !(hop_period_s > 0.f))
+        return false;
+
+    history = (rgb_t *)calloc(half_led_count, sizeof(rgb_t));
+    if (history == nullptr)
         return false;
 
     *this = (show_t){
@@ -33,10 +43,15 @@ bool show_init(show_t *this, size_t led_count, size_t band_count,
         .random = seed != 0 ? seed : 1,
         .gap = 1.f,
         .gap_keep = keep_for(hop_period_s, SHOW_GAP_FADE_MS / 1000.f),
+        .flow.history = history,
+        .flow.boost_keep = keep_for(hop_period_s, SHOW_FLOW_BOOST_S),
+        .stage.flash_keep = keep_for(hop_period_s, SHOW_STAGE_DROP_FADE_S),
     };
 
-    if (!blocks_init(&this->blocks, led_count, hop_period_s, bend_count))
+    if (!blocks_init(&this->blocks, led_count, hop_period_s, bend_count)) {
+        free(history);
         return false;
+    }
 
     rules_init(&this->rules, hop_period_s);
 
@@ -51,12 +66,17 @@ show_tuning_t show_default_tuning(void) {
     };
 }
 
+// The look starts clean: no blocks, no state of its own
+static void restart(show_t *this) {
+    blocks_reset(&this->blocks);
+    if (resets[this->tuning.look] != nullptr)
+        resets[this->tuning.look](this);
+}
+
 void show_tune(show_t *this, const show_tuning_t *tuning) {
     if (tuning->look < SHOW_LOOK_COUNT && tuning->look != this->tuning.look) {
         this->tuning.look = tuning->look;
-        blocks_reset(&this->blocks);
-        if (resets[tuning->look] != nullptr)
-            resets[tuning->look](this);
+        restart(this);
     }
     if (tuning->scene < SCENE_COUNT)
         this->tuning.scene = tuning->scene;
@@ -93,10 +113,13 @@ void show_render(show_t *this, const sound_t *sound, uint32_t *pixels) {
     if (sound->event != PARTS_NONE)
         this->swapped = !this->swapped;
 
-    // A gap fades out; any other part shows at once
+    // A gap fades out; any other part shows at once. Faded to black, the
+    // look starts clean, so nothing the gap hid comes back after it
     this->gap = sound->part == PARTS_GAP ? this->gap * this->gap_keep : 1.f;
-    if (this->gap < BLOCKS_DARK)
+    if (this->gap < BLOCKS_DARK && this->gap > 0.f) {
         this->gap = 0.f;
+        restart(this);
+    }
 
     blocks_clear(&this->blocks);
     looks[this->tuning.look](this, sound);
@@ -119,4 +142,5 @@ void show_render(show_t *this, const sound_t *sound, uint32_t *pixels) {
 
 void show_deinit(show_t *this) {
     blocks_deinit(&this->blocks);
+    free(this->flow.history);
 }

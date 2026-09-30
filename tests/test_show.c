@@ -154,6 +154,37 @@ static void test_gap(void) {
     }
 }
 
+// A gap that ends the song (silence past PARTS_GAP_MAX_S, calm after it):
+// nothing the gap hid comes back, every look stays black
+static void test_gap_ends_black(void) {
+    for (int look = 0; look < SHOW_LOOK_COUNT; look++) {
+        show_t show;
+        sound_t quiet;
+        size_t most = 0;
+
+        CHECK(start(&show, (show_look_t)look));
+        for (size_t hop = 0; hop < 200; hop++) {
+            sound_t sound = music(hop, PARTS_HIGH);
+            show_render(&show, &sound, pixels);
+        }
+        // Made after the music, which fills the shared bands
+        quiet = silence();
+        quiet.part = PARTS_GAP;
+        for (size_t hop = 0; (float)hop * HOP_PERIOD_S < 3.1f; hop++)
+            show_render(&show, &quiet, pixels);
+        quiet.part = PARTS_CALM;
+        for (size_t hop = 0; hop < 400; hop++) {
+            show_render(&show, &quiet, pixels);
+            most = lit() > most ? lit() : most;
+        }
+        if (most > 0)
+            printf("look %d: %zu LEDs lit after the gap\n", look, most);
+        CHECK(most == 0);
+
+        show_deinit(&show);
+    }
+}
+
 // A drop or a lift swaps the field and the accent, and a second swaps back
 static void test_swap(void) {
     show_t show;
@@ -244,11 +275,13 @@ static void test_calm_shows(void) {
         }
 }
 
-// The same seed and sound give the same pixels
-static void test_deterministic(void) {
+// The same seed and sound give the same pixels; another look starts clean
+static void test_deterministic_and_clean_switch(void) {
     static uint32_t other[LEDS];
     show_t one, two;
+    show_tuning_t tuning = show_default_tuning();
     size_t differing = 0;
+    bool flow_clean = true;
 
     CHECK(start(&one, SHOW_LOOK_PULSE));
     CHECK(start(&two, SHOW_LOOK_PULSE));
@@ -260,6 +293,34 @@ static void test_deterministic(void) {
         differing += memcmp(pixels, other, sizeof(pixels)) != 0;
     }
     CHECK(differing == 0);
+
+    // A switch starts the new look clean: Flow with music, then Pulse
+    // (bursts and sparks), then Flow again, with nothing of either left
+    tuning.look = SHOW_LOOK_FLOW;
+    show_tune(&one, &tuning);
+    for (size_t hop = 0; hop < 200; hop++) {
+        sound_t sound = music(hop, PARTS_HIGH);
+        show_render(&one, &sound, pixels);
+    }
+    tuning.look = SHOW_LOOK_PULSE;
+    show_tune(&one, &tuning);
+    for (size_t hop = 0; hop < 20; hop++) {
+        sound_t sound = music(hop, PARTS_HIGH);
+        show_render(&one, &sound, pixels);
+    }
+    tuning.look = SHOW_LOOK_FLOW;
+    show_tune(&one, &tuning);
+    for (size_t i = 0; i < one.half_led_count; i++)
+        flow_clean = flow_clean && one.flow.history[i].r == 0.f &&
+                     one.flow.history[i].g == 0.f &&
+                     one.flow.history[i].b == 0.f;
+    for (size_t i = 0; i < LEDS; i++)
+        flow_clean = flow_clean && one.blocks.sparks[i] == 0.f;
+    for (size_t i = 0; i < BLOCKS_MAX_BURSTS; i++)
+        flow_clean = flow_clean && !one.blocks.bursts[i].active;
+    for (size_t i = 0; i < BLOCKS_MAX_BEAMS; i++)
+        flow_clean = flow_clean && !one.blocks.beams[i].active;
+    CHECK(flow_clean);
 
     show_deinit(&one);
     show_deinit(&two);
@@ -294,10 +355,11 @@ int main(void) {
     test_rejects_invalid();
     test_every_look();
     test_gap();
+    test_gap_ends_black();
     test_swap();
     test_flash_guard_for_every_look();
     test_calm_shows();
-    test_deterministic();
+    test_deterministic_and_clean_switch();
     test_tuning();
 
     return CHECK_REPORT();

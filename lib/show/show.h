@@ -26,6 +26,8 @@
 // What the strip shows
 typedef enum {
     SHOW_LOOK_PULSE,
+    SHOW_LOOK_FLOW,
+    SHOW_LOOK_STAGE,
     SHOW_LOOK_COUNT
 } show_look_t;
 
@@ -77,6 +79,38 @@ constexpr float SHOW_PULSE_SPARKS = 3.f;
 constexpr float SHOW_PULSE_SPARKS_STRENGTH = 6.f;
 constexpr float SHOW_PULSE_DROP_FADE_S = 0.25f;
 
+// Flow (first guesses): LEDs per second the stream flows in calm, what a
+// full build adds, in high (at no groove, plus the groove's share); the
+// drop's extra speed and how fast it settles; the stream's level (times the
+// presence, see SHOW_PRESENCE_GROOVE; just above the lowest step, see there)
+// and what full loudness adds; what a low hit injects at strength 0 and 1
+constexpr float SHOW_FLOW_CALM_SPEED = 60.f;
+constexpr float SHOW_FLOW_BUILD_SPEED = 360.f;
+constexpr float SHOW_FLOW_HIGH_SPEED = 120.f;
+constexpr float SHOW_FLOW_GROOVE_SPEED = 180.f;
+constexpr float SHOW_FLOW_DROP_BOOST = 600.f;
+constexpr float SHOW_FLOW_BOOST_S = 1.f;
+constexpr float SHOW_FLOW_LEVEL = 0.22f;
+constexpr float SHOW_FLOW_LOUD_LEVEL = 0.5f;
+constexpr float SHOW_FLOW_HIT = 0.6f;
+constexpr float SHOW_FLOW_HIT_STRENGTH = 0.4f;
+
+// Stage (first guesses): the share of each half the bars leave to the
+// wings (the field wash, and the bends), how much a full build squeezes the
+// bars towards the centre, the bars' level in calm, the wings' wash level
+// at no groove and full groove (halved in calm, with the bars: at full
+// presence, groove 0.2, just above the lowest step, see there), the level a
+// bar needs for a spark on a high hit and how many LEDs of bars get one, and
+// the drop's hit-colour fade
+constexpr float SHOW_STAGE_WING = 0.25f;
+constexpr float SHOW_STAGE_SQUEEZE = 0.5f;
+constexpr float SHOW_STAGE_CALM_LEVEL = 0.5f;
+constexpr float SHOW_STAGE_WING_WASH = 0.42f;
+constexpr float SHOW_STAGE_WING_GROOVE = 0.1f;
+constexpr float SHOW_STAGE_SPARK_LEVEL = 0.5f;
+constexpr float SHOW_STAGE_SPARK_SHARE = 0.1f;
+constexpr float SHOW_STAGE_DROP_FADE_S = 0.2f;
+
 // What can be changed while running
 typedef struct {
     // SHOW_LOOK, SHOW_SCENE: one of the looks and scenes
@@ -106,6 +140,21 @@ typedef struct {
 
     blocks_t blocks;
     rules_t rules;
+
+    // Flow's stream: the colours from the centre outward, half_led_count,
+    // the fraction of an LED it moved, and the drop's extra speed
+    struct {
+        rgb_t *history;
+        float carry;
+        float boost;
+        float boost_keep;
+    } flow;
+
+    // Stage: what is left of the drop's hit colour, and what a hop keeps
+    struct {
+        float flash;
+        float flash_keep;
+    } stage;
 
 } show_t;
 
