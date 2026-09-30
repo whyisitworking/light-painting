@@ -17,9 +17,8 @@ static const settings_range_t ranges[SETTINGS_ID_COUNT] = {
     // VISUALIZER_GAIN. Much above 3, a quiet room's self-noise nears the
     // floor of FEATURES_MIN_CEILING_DB - FEATURES_RANGE_DB
     [SETTINGS_GAIN] = {5, 40, 1, 15, 10, false},
-    // FEATURES_BEAT_THRESHOLD: steady noise reaches 2.6 times its average,
-    // kicks 6.5 times
-    [SETTINGS_BEAT_THRESHOLD] = {15, 60, 1, 28, 10, false},
+    // FEATURES_HIT_THRESHOLD, times the rise's average
+    [SETTINGS_BEAT_THRESHOLD] = {15, 60, 1, 30, 10, false},
     // FEATURES_MIN_CEILING_DB
     [SETTINGS_QUIET_FLOOR] = {-45, -10, 1, -32, 1, false},
     // FEATURES_ATTACK_MS, FEATURES_DECAY_MS. A hop is 5.2 ms
@@ -183,7 +182,7 @@ visualizer_tuning_t settings_tuning(const settings_t *this) {
     tuning.features.attack_ms = settings_value(this, SETTINGS_ATTACK);
     tuning.features.decay_ms = settings_value(this, SETTINGS_DECAY);
     tuning.features.min_ceiling_db = settings_value(this, SETTINGS_QUIET_FLOOR);
-    tuning.features.beat_threshold =
+    tuning.features.hit_threshold =
         settings_value(this, SETTINGS_BEAT_THRESHOLD);
 
     tuning.effects.mode = (effects_mode_t)settings_get(this, SETTINGS_MODE);

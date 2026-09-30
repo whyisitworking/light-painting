@@ -32,8 +32,8 @@ constexpr size_t HOPS = 400;
 constexpr int RECORDED = 6;
 
 static const uint32_t expected[RECORDED] = {
-    0x6c7646b3u, 0x0ecb2cb0u, 0x34795508u,
-    0xddd7ae38u, 0xf5bc6b70u, 0x159028e4u,
+    0xbf4999feu, 0xd6fb6394u, 0xa1887bdcu,
+    0x1144afbbu, 0x0be60e20u, 0x5ac33004u,
 };
 
 static uint32_t fnv1a(uint32_t hash, const void *data, size_t size) {

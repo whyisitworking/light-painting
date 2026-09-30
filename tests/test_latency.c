@@ -1,5 +1,5 @@
 /**
- * Latency bench: how long the whole pipeline (spectrum, features, effects)
+ * Latency bench: how long the whole pipeline (spectrum, features, show)
  * takes to react, and how often it reacts to nothing. Synthetic signals go
  * in as the I2S driver delivers them, and the sound of each hop is read
  * out. An analysis of hop h is complete when its last sample has arrived,
@@ -7,10 +7,10 @@
  *
  * It prints what it measures, so a change of the analysis can be judged by
  * its numbers, and asserts bounds so that a change adding delay or false
- * beats fails. The latency bounds are 1.25 times the worst latency measured
- * with the current analysis, rounded up. The false beat bounds come from the
+ * hits fails. The latency bounds are 1.25 times the worst latency measured
+ * with the current analysis, rounded up. The false hit bounds come from the
  * spread over many noise seeds: one seed is not evidence, the count of
- * false beats depends on the noise drawn.
+ * false hits depends on the noise drawn.
  */
 
 #include "check.h"
@@ -36,15 +36,15 @@ constexpr double QUIET_ROOM = 650.0;
 constexpr double NOISY_ROOM = 20000.0;
 
 // Bounds, see the header. Latencies are quantised to the 5.24 ms hop, so a
-// slip of one hop fails by design: measured worst kick 11.97 ms (bound 15),
-// tone step 8.44 ms (bound 11). False beats in 58 s of noise 20000 over 30
-// seeds at 30 ms smoothing: at most 1 per seed, 8 in total, at most 5 in
-// any 16 consecutive seeds. The bounds are that maximum plus one: 2 for a
-// seed, 6 for the 16 seeds run here
-constexpr double MAX_BEAT_LATENCY_MS = 15.0;
+// slip of one hop fails by design: measured worst kick to low hit 6.4 ms
+// (bound 8; the bass-only beat detector before the hits took 11.97 ms),
+// tone step 8.44 ms (bound 11). False hits of any region in 58 s of noise
+// 20000 over the 16 seeds run here: at most 1 per seed, 5 in total. The
+// bounds are that maximum plus one
+constexpr double MAX_HIT_LATENCY_MS = 8.0;
 constexpr double MAX_BAND_LATENCY_MS = 11.0;
-constexpr size_t MAX_FALSE_BEATS_PER_SEED = 2;
-constexpr size_t MAX_FALSE_BEATS_TOTAL = 6;
+constexpr size_t MAX_FALSE_HITS_PER_SEED = 2;
+constexpr size_t MAX_FALSE_HITS_TOTAL = 6;
 constexpr size_t NOISE_SEEDS = 16;
 
 // A tone of 1 kHz starting mid hop, after 20 quiet hops
@@ -111,7 +111,7 @@ static double steady_noise(size_t index, uint32_t *noise) {
     return noise_amplitude * signal_noise(noise);
 }
 
-// When each beat was reported, in ms
+// When each low hit was reported, in ms
 typedef struct {
     double at_ms[512];
     size_t count;
@@ -120,7 +120,7 @@ typedef struct {
 static void collect_beats(size_t hop, const sound_t *sound, void *context) {
     beats_t *beats = context;
 
-    if (sound->beat && beats->count < 512)
+    if (sound->hits[FEATURES_LOW].fired && beats->count < 512)
         beats->at_ms[beats->count++] = (double)(hop + 1) * HOP_MS;
 }
 
@@ -134,8 +134,8 @@ static void sort(double *values, size_t count) {
         }
 }
 
-// The first beat within 400 ms of each kick after the first 2 s, which the
-// beat detection needs to settle
+// The first low hit within 400 ms of each kick after the first 2 s, which
+// the hit detection needs to settle
 static void test_kicks(double noise) {
     static beats_t beats;
     double latency[32];
@@ -160,13 +160,14 @@ static void test_kicks(double noise) {
     }
 
     sort(latency, found);
-    printf("kicks over noise %6.0f: beat after median %.1f ms, worst %.1f ms, "
+    printf("kicks over noise %6.0f: low hit after median %.1f ms, worst %.1f "
+           "ms, "
            "missed %zu of %zu\n",
            noise, found > 0 ? latency[found / 2] : -1.0,
            found > 0 ? latency[found - 1] : -1.0, missed, found + missed);
 
     CHECK(missed == 0);
-    CHECK(found > 0 && latency[found - 1] <= MAX_BEAT_LATENCY_MS);
+    CHECK(found > 0 && latency[found - 1] <= MAX_HIT_LATENCY_MS);
 }
 
 static float band_history[TONE_HOPS][FEATURES_BAND_COUNT];
@@ -207,12 +208,14 @@ static uint32_t seed_for(size_t k) {
     return 2654435761u * (uint32_t)(k + 1);
 }
 
+// Hits of any region
 static void count_beats(size_t hop, const sound_t *sound, void *context) {
-    if (hop >= hops_for(2.0) && sound->beat)
-        ++*(size_t *)context;
+    if (hop >= hops_for(2.0))
+        for (size_t r = 0; r < FEATURES_REGION_COUNT; r++)
+            *(size_t *)context += sound->hits[r].fired;
 }
 
-// False beats in 58 s of steady noise of one seed
+// False hits in 58 s of steady noise of one seed
 static size_t false_beats(double noise, uint32_t seed) {
     size_t beats = 0;
 
@@ -221,8 +224,8 @@ static size_t false_beats(double noise, uint32_t seed) {
     return beats;
 }
 
-// Steady noise is not a beat, at any level (a louder room than 20000 gives
-// the same counts, the auto-gain normalises it)
+// Steady noise is not a hit, at any level: the hits are measured in dB, so
+// a louder room gives the same counts
 static void test_steady_noise(double noise) {
     size_t total = 0, worst = 0;
 
@@ -233,12 +236,12 @@ static void test_steady_noise(double noise) {
         worst = beats > worst ? beats : worst;
     }
 
-    printf("steady noise %6.0f: %zu false beats in 58 s over %zu seeds, at "
+    printf("steady noise %6.0f: %zu false hits in 58 s over %zu seeds, at "
            "most %zu per seed\n",
            noise, total, (size_t)NOISE_SEEDS, worst);
 
-    CHECK(worst <= MAX_FALSE_BEATS_PER_SEED);
-    CHECK(total <= MAX_FALSE_BEATS_TOTAL);
+    CHECK(worst <= MAX_FALSE_HITS_PER_SEED);
+    CHECK(total <= MAX_FALSE_HITS_TOTAL);
 }
 
 int main(void) {

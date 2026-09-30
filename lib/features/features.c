@@ -4,8 +4,8 @@
 
 /*
  * Per hop: bin power → band power → dB → auto-gain ceiling → 0..1 target
- * level → attack/decay smoothing → loudness and centroid → beat detection
- * on the bass bands. All time constants become per hop factors at init.
+ * level → attack/decay smoothing → loudness and centroid → hits in three
+ * regions. All time constants become per hop factors at init.
  */
 
 // Added to band powers so silence has a finite dB value
@@ -27,7 +27,7 @@ features_tuning_t features_default_tuning(void) {
         .attack_ms = FEATURES_ATTACK_MS,
         .decay_ms = FEATURES_DECAY_MS,
         .min_ceiling_db = FEATURES_MIN_CEILING_DB,
-        .beat_threshold = FEATURES_BEAT_THRESHOLD,
+        .hit_threshold = FEATURES_HIT_THRESHOLD,
     };
 }
 
@@ -38,12 +38,69 @@ void features_tune(features_t *this, const features_tuning_t *tuning) {
         this->tuning.decay_ms = tuning->decay_ms;
     if (isfinite(tuning->min_ceiling_db))
         this->tuning.min_ceiling_db = tuning->min_ceiling_db;
-    if (is_positive(tuning->beat_threshold))
-        this->tuning.beat_threshold = tuning->beat_threshold;
+    if (is_positive(tuning->hit_threshold))
+        this->tuning.hit_threshold = tuning->hit_threshold;
 
     this->attack_k =
         smoothing_factor(this->hop_period_s, this->tuning.attack_ms);
     this->decay_k = smoothing_factor(this->hop_period_s, this->tuning.decay_ms);
+}
+
+// The bands wholly inside [low_hz, high_hz), at least one
+static void region_bands(const features_t *this, float low_hz, float high_hz,
+                         size_t *from, size_t *to) {
+    size_t b = 0;
+
+    while (b + 1 < FEATURES_BAND_COUNT && this->edges[b] < low_hz)
+        b++;
+    *from = b;
+    // A little slack: the top edge is FEATURES_HIGH_HZ up to rounding
+    while (b < FEATURES_BAND_COUNT && this->edges[b + 1] <= high_hz * 1.001f)
+        b++;
+    *to = b > *from ? b : *from + 1;
+}
+
+// Each region's bands and factors, and the hit state as after silence
+static void init_regions(features_t *this) {
+    static const struct {
+        float low_hz;
+        float high_hz;
+        float smooth_ms;
+        float refractory_ms;
+        float min_rise_db;
+    } defs[FEATURES_REGION_COUNT] = {
+        [FEATURES_LOW] = {0.f, FEATURES_LOW_MAX_HZ, FEATURES_LOW_SMOOTH_MS,
+                          FEATURES_LOW_REFRACTORY_MS, FEATURES_LOW_MIN_RISE_DB},
+        [FEATURES_MID] = {FEATURES_LOW_MAX_HZ, FEATURES_MID_MAX_HZ,
+                          FEATURES_MID_SMOOTH_MS, FEATURES_MID_REFRACTORY_MS,
+                          FEATURES_MID_MIN_RISE_DB},
+        [FEATURES_HIGH] = {FEATURES_HIGH_MIN_HZ, FEATURES_HIGH_HZ,
+                           FEATURES_HIGH_SMOOTH_MS,
+                           FEATURES_HIGH_REFRACTORY_MS,
+                           FEATURES_HIGH_MIN_RISE_DB},
+    };
+    float floor_db = this->tuning.min_ceiling_db - FEATURES_RANGE_DB;
+
+    for (size_t r = 0; r < FEATURES_REGION_COUNT; r++) {
+        features_region_state_t *region = &this->regions[r];
+
+        region_bands(this, defs[r].low_hz, defs[r].high_hz, &region->from,
+                     &region->to);
+        region->smooth_k =
+            smoothing_factor(this->hop_period_s, defs[r].smooth_ms);
+        region->refractory_s = defs[r].refractory_ms / 1000.f;
+        region->min_rise_db = defs[r].min_rise_db;
+        region->average = 0.f;
+        region->since_s = region->refractory_s;
+        region->armed = true;
+    }
+
+    for (size_t b = 0; b < FEATURES_BAND_COUNT; b++) {
+        this->hit_power[b] = 0.f;
+        for (size_t l = 0; l < FEATURES_HIT_LAG; l++)
+            this->hit_db[l][b] = floor_db;
+    }
+    this->hit_slot = 0;
 }
 
 // Precomputes the band edges and the per hop factors, starts silent
@@ -60,12 +117,6 @@ bool features_init(features_t *this, size_t bin_count, float bin_hz,
     for (size_t b = 0; b <= FEATURES_BAND_COUNT; b++)
         this->edges[b] = FEATURES_LOW_HZ * powf(ratio, (float)b);
 
-    // Bands counted as bass for beats, at least one
-    this->bass_band_count = 1;
-    while (this->bass_band_count < FEATURES_BAND_COUNT &&
-           this->edges[this->bass_band_count + 1] <= FEATURES_BEAT_MAX_HZ)
-        this->bass_band_count++;
-
     for (size_t b = 0; b < FEATURES_BAND_COUNT; b++)
         this->levels[b] = 0.f;
 
@@ -75,13 +126,13 @@ bool features_init(features_t *this, size_t bin_count, float bin_hz,
     this->tuning = features_default_tuning();
     features_tune(this, &this->tuning);
     this->ceiling_db = this->tuning.min_ceiling_db;
+    this->ceiling_rise_k =
+        smoothing_factor(hop_period_s, FEATURES_CEILING_RISE_MS);
     this->ceiling_fall_db = FEATURES_CEILING_FALL_DB_PER_S * hop_period_s;
-    this->average_k = smoothing_factor(hop_period_s, FEATURES_BEAT_AVERAGE_MS);
-    this->smooth_k = smoothing_factor(hop_period_s, FEATURES_BEAT_SMOOTH_MS);
-    this->bass_smooth = 0.f;
-    this->bass_average = 0.f;
-    this->beat_armed = true;
-    this->since_beat_s = FEATURES_BEAT_REFRACTORY_MS / 1000.f;
+    this->hit_average_k =
+        smoothing_factor(hop_period_s, FEATURES_HIT_AVERAGE_MS);
+    this->groove_k = smoothing_factor(hop_period_s, FEATURES_GROOVE_MS);
+    init_regions(this);
     this->sound = (sound_t){.bands = this->levels};
 
     return true;
@@ -117,43 +168,53 @@ static float band_power(const features_t *this, const float *bins,
     return p0 + (p1 - p0) * fraction;
 }
 
-// Smoothed bass energy well above its moving average, once per onset and
-// refractory time, and only when the bass is audible
-static void detect_beat(features_t *this, const float *power) {
-    float bass = 0.f, level = 0.f, trigger;
+// Spectral flux per region, see FEATURES_HIT_THRESHOLD
+static void detect_hits(features_t *this, const float *power, float floor_db) {
+    for (size_t r = 0; r < FEATURES_REGION_COUNT; r++) {
+        features_region_state_t *region = &this->regions[r];
+        features_hit_t *hit = &this->sound.hits[r];
+        float rise = 0.f, trigger;
 
-    for (size_t b = 0; b < this->bass_band_count; b++) {
-        bass += power[b];
-        level += this->levels[b];
+        for (size_t b = region->from; b < region->to; b++) {
+            float db;
+
+            this->hit_power[b] +=
+                (power[b] - this->hit_power[b]) * region->smooth_k;
+            db = fmaxf(10.f * log10f(this->hit_power[b] + SILENCE_POWER),
+                       floor_db);
+            // Against the earlier dB lifted to today's floor: a floor that
+            // climbs with the auto-gain is no rise
+            rise += fmaxf(db - fmaxf(this->hit_db[this->hit_slot][b], floor_db),
+                          0.f);
+            this->hit_db[this->hit_slot][b] = db;
+        }
+        rise /= (float)(region->to - region->from);
+
+        region->since_s += this->hop_period_s;
+        trigger = region->average * this->tuning.hit_threshold +
+                  region->min_rise_db;
+        *hit = (features_hit_t){};
+
+        if (rise <= trigger) {
+            region->armed = true;
+        } else if (region->armed && region->since_s >= region->refractory_s) {
+            hit->fired = true;
+            hit->strength = clamp01((rise - trigger) / FEATURES_HIT_FULL_DB);
+            region->since_s = 0.f;
+            region->armed = false;
+        }
+
+        // Updated after the comparison, so a hit does not raise its own bar
+        region->average += (rise - region->average) * this->hit_average_k;
     }
-    bass /= (float)this->bass_band_count;
-    level /= (float)this->bass_band_count;
 
-    this->bass_smooth += (bass - this->bass_smooth) * this->smooth_k;
+    this->hit_slot = (this->hit_slot + 1) % FEATURES_HIT_LAG;
 
-    this->since_beat_s += this->hop_period_s;
-    this->sound.beat = false;
-    this->sound.beat_strength = 0.f;
-    trigger = this->bass_average * this->tuning.beat_threshold;
-
-    if (this->bass_smooth <= trigger) {
-        this->beat_armed = true;
-    } else if (this->beat_armed &&
-               this->since_beat_s >= FEATURES_BEAT_REFRACTORY_MS / 1000.f &&
-               level > FEATURES_BEAT_MIN_LEVEL) {
-        this->sound.beat = true;
-        this->sound.beat_strength =
-            trigger > 0.f ? clamp01(this->bass_smooth / trigger - 1.f) : 1.f;
-        this->since_beat_s = 0.f;
-        this->beat_armed = false;
-    }
-
-    // Updated after the comparison, so a kick does not raise its own bar
-    this->bass_average +=
-        (this->bass_smooth - this->bass_average) * this->average_k;
+    this->sound.beat = this->sound.hits[FEATURES_LOW].fired;
+    this->sound.beat_strength = this->sound.hits[FEATURES_LOW].strength;
 }
 
-// Levels first, then beats, which use the fresh bass levels
+// Levels first, then hits, against the fresh floor
 const sound_t *features_update(features_t *this, const float *bins) {
     float power[FEATURES_BAND_COUNT], db[FEATURES_BAND_COUNT];
     float loudest = -1000.f, floor_db, sum = 0.f, weighted = 0.f;
@@ -166,9 +227,12 @@ const sound_t *features_update(features_t *this, const float *bins) {
             loudest = db[b];
     }
 
-    // Auto-gain: up to the loudest band at once, back down slowly, never
-    // below the silence floor
-    this->ceiling_db = fmaxf(this->ceiling_db - this->ceiling_fall_db, loudest);
+    // Auto-gain: up towards the loudest band within the rise time, back down
+    // slowly, never below the silence floor
+    if (loudest > this->ceiling_db)
+        this->ceiling_db += (loudest - this->ceiling_db) * this->ceiling_rise_k;
+    else
+        this->ceiling_db -= this->ceiling_fall_db;
     this->ceiling_db = fmaxf(this->ceiling_db, this->tuning.min_ceiling_db);
     floor_db = this->ceiling_db - FEATURES_RANGE_DB;
 
@@ -184,8 +248,10 @@ const sound_t *features_update(features_t *this, const float *bins) {
     this->sound.loudness = sum / FEATURES_BAND_COUNT;
     this->sound.centroid =
         sum > 1e-6f ? weighted / sum / (FEATURES_BAND_COUNT - 1) : 0.f;
+    this->sound.groove +=
+        (this->sound.loudness - this->sound.groove) * this->groove_k;
 
-    detect_beat(this, power);
+    detect_hits(this, power, floor_db);
 
     return &this->sound;
 }

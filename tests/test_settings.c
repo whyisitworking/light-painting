@@ -32,7 +32,7 @@ static void test_defaults_are_the_constants(void) {
     CHECK(settings_value(&settings, SETTINGS_BRIGHTNESS) == 1.f);
     CHECK(settings_value(&settings, SETTINGS_GAIN) == VISUALIZER_GAIN);
     CHECK(settings_value(&settings, SETTINGS_BEAT_THRESHOLD) ==
-          FEATURES_BEAT_THRESHOLD);
+          FEATURES_HIT_THRESHOLD);
     CHECK(settings_value(&settings, SETTINGS_QUIET_FLOOR) ==
           FEATURES_MIN_CEILING_DB);
     CHECK(settings_value(&settings, SETTINGS_ATTACK) == FEATURES_ATTACK_MS);
@@ -147,7 +147,8 @@ static void test_default_tuning(void) {
     CHECK(tuning.features.attack_ms == defaults.features.attack_ms);
     CHECK(tuning.features.decay_ms == defaults.features.decay_ms);
     CHECK(tuning.features.min_ceiling_db == defaults.features.min_ceiling_db);
-    CHECK(tuning.features.beat_threshold == defaults.features.beat_threshold);
+    CHECK(tuning.features.hit_threshold ==
+          defaults.features.hit_threshold);
     CHECK(tuning.effects.mode == defaults.effects.mode);
     CHECK(tuning.effects.palette == defaults.effects.palette);
     CHECK(tuning.effects.brightness == defaults.effects.brightness);
@@ -509,7 +510,7 @@ static void test_shuffle(void) {
                 settings_get(&settings, SETTINGS_GAIN) == 25 &&
                 settings_get(&settings, SETTINGS_BACKLIGHT) == 60 &&
                 settings_get(&settings, SETTINGS_QUIET_FLOOR) == -32 &&
-                settings_get(&settings, SETTINGS_BEAT_THRESHOLD) == 28 &&
+                settings_get(&settings, SETTINGS_BEAT_THRESHOLD) == 30 &&
                 settings_get(&settings, SETTINGS_ATTACK) == 10 &&
                 settings_get(&settings, SETTINGS_DECAY) == 120;
     }
