@@ -1,4 +1,6 @@
 lp_add_module(show
     SOURCES
         scene.c
-    DEPS color)
+        blocks.c
+    DEPS color
+    MATH)
