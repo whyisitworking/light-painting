@@ -133,6 +133,15 @@ if (BOOT_BUTTON_SHUFFLE)
     target_link_libraries(light-painting PRIVATE boot_button pico_rand)
 endif()
 
+# Opt-in, e.g. -DTEST_SIGNAL=ON: the synthetic song (lib/song) replaces the
+# microphones, for timing the lights' loop on a board without them. It is
+# made before each hop's work is timed, so its cost is not counted
+option(TEST_SIGNAL "The synthetic song instead of the microphones" OFF)
+if (TEST_SIGNAL)
+    target_compile_definitions(light-painting PRIVATE TEST_SIGNAL)
+    target_link_libraries(light-painting PRIVATE song)
+endif()
+
 # Copied from flash into RAM at boot, code and read-only data alike
 pico_set_binary_type(light-painting copy_to_ram)
 target_link_options(light-painting PRIVATE -Wl,--print-memory-usage)

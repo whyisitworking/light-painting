@@ -14,6 +14,10 @@
 #include "visualizer.h"
 #include "ws2812.h"
 
+#ifdef TEST_SIGNAL
+#include "song.h"
+#endif
+
 #include <pico/stdlib.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,6 +36,11 @@ int main(void) {
     visualizer_t visualizer;
     visualizer_tuning_t tuning;
     settings_t settings;
+#ifdef TEST_SIGNAL
+    // The song's hop, in place of the microphones'
+    static int32_t song_frames[AUDIO_HOP_SIZE * AUDIO_WORDS_PER_FRAME];
+    song_t song;
+#endif
 
     // First: its unused stack is filled, for the diagnostics to see how
     // much of it gets used
@@ -45,6 +54,11 @@ int main(void) {
         return EXIT_FAILURE;
 
     printf("Sample rate %.3f Hz\n", i2s_sample_rate());
+
+#ifdef TEST_SIGNAL
+    if (!init_step(song_init(&song, i2s_sample_rate(), 1), "Test signal"))
+        return EXIT_FAILURE;
+#endif
 
     if (!init_step(ws2812_init(LED_COUNT, LED_DATA_PIN), "WS2812 driver"))
         return EXIT_FAILURE;
@@ -91,6 +105,11 @@ int main(void) {
 
         // Wait for audio we have not processed yet
         frames = i2s_wait_buffer();
+#ifdef TEST_SIGNAL
+        // Made before the work is timed: its cost is not counted
+        song_fill(&song, song_frames, AUDIO_HOP_SIZE);
+        frames = song_frames;
+#endif
         diagnostics_start_work();
 
         // What the menu changed since the last hop, if anything

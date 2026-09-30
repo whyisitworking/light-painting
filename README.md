@@ -255,6 +255,7 @@ The latency bench, `cmake --build build-tests --target test_latency && ./build-t
 | `-DPRINT_DIAGNOSTICS=ON` | off | Core 1 prints the [diagnostics](#diagnostics) over USB every 0.5 s, even without the LCD |
 | `-DWAIT_FOR_USB_HOST=ON` | off | Waits up to 2 s at startup for a USB serial host |
 | `-DBOOT_BUTTON_SHUFFLE=ON` | off | For demos: each press of the board's BOOT button shows a random look (mode, palette and effect layers; brightness and sound response untouched), applied and saved like a menu change |
+| `-DTEST_SIGNAL=ON` | off | For timing without microphones: a synthetic song ([`lib/song`](lib/song)) replaces them, made before each hop's work is timed so its cost is not counted. Read the work per hop on the Diagnostics page or with `-DPRINT_DIAGNOSTICS=ON` |
 | `-DPICO_BOARD=…` | `waveshare_rp2350_lcd_1.47` | Target board |
 
 ## How it works
