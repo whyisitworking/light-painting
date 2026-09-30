@@ -206,12 +206,31 @@ static void test_default_tuning_changes_nothing(void) {
     }
 }
 
+// The Gain reaches the features, so the song parts take their level before
+// it: at init and on every tuning
+static void test_gain_reaches_the_parts(void) {
+    visualizer_config_t settings = config();
+    visualizer_tuning_t tuning = visualizer_default_tuning();
+    visualizer_t visualizer;
+
+    CHECK(visualizer_init(&visualizer, &settings));
+    CHECK(fabsf(visualizer.features.gain_db -
+                20.f * log10f(VISUALIZER_GAIN)) < 1e-4f);
+
+    tuning.gain = 3.f;
+    visualizer_tune(&visualizer, &tuning);
+    CHECK(fabsf(visualizer.features.gain_db - 20.f * log10f(3.f)) < 1e-4f);
+
+    visualizer_deinit(&visualizer);
+}
+
 int main(void) {
     test_rejects_invalid();
     test_silence_is_dark();
     test_tone_lights_its_position();
     test_kicks_give_beats();
     test_default_tuning_changes_nothing();
+    test_gain_reaches_the_parts();
 
     return CHECK_REPORT();
 }

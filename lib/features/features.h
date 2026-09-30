@@ -6,6 +6,8 @@
  * the sound, once per hop
  */
 
+#include "parts.h"
+
 #include <stddef.h>
 
 // Log-spaced bands between FEATURES_LOW_HZ and FEATURES_HIGH_HZ
@@ -101,6 +103,8 @@ typedef struct {
     float min_ceiling_db;
     // FEATURES_HIT_THRESHOLD: positive
     float hit_threshold;
+    // Song parts on (the default) or off, see parts.h
+    bool song_parts;
 } features_tuning_t;
 
 // A hit of one region: whether one started this hop, and how strong, 0..1
@@ -122,6 +126,13 @@ typedef struct {
     float groove;
     // The hits of this hop, by features_region_t
     features_hit_t hits[FEATURES_REGION_COUNT];
+    // Where in the song, see parts.h: the part, how long it has lasted, how
+    // far a build has come (0..1, 0 outside one), and a drop or a lift on
+    // the one hop it happens
+    parts_part_t part;
+    float part_time_s;
+    float build_progress;
+    parts_event_t event;
     // The low hit, until the effects move to the hits: the same values
     bool beat;
     float beat_strength;
@@ -181,6 +192,10 @@ typedef struct {
     // What the groove keeps moving towards the loudness per hop
     float groove_k;
 
+    // The Gain before the FFT in dB, taken off the parts' level
+    float gain_db;
+    parts_t parts;
+
     sound_t sound;
 } features_t;
 
@@ -206,6 +221,13 @@ void features_tune(features_t *this, const features_tuning_t *tuning);
  * call
  */
 const sound_t *features_update(features_t *this, const float *bins);
+
+/**
+ * The gain the samples got before the FFT (the visualizer's Gain), positive:
+ * the song parts take their level before it, so a Gain change moves no part.
+ * 1 until set
+ */
+void features_set_gain(features_t *this, float gain);
 
 // Nothing is allocated today, kept for symmetry with the other modules
 void features_deinit(features_t *this);

@@ -28,6 +28,7 @@ features_tuning_t features_default_tuning(void) {
         .decay_ms = FEATURES_DECAY_MS,
         .min_ceiling_db = FEATURES_MIN_CEILING_DB,
         .hit_threshold = FEATURES_HIT_THRESHOLD,
+        .song_parts = true,
     };
 }
 
@@ -40,6 +41,8 @@ void features_tune(features_t *this, const features_tuning_t *tuning) {
         this->tuning.min_ceiling_db = tuning->min_ceiling_db;
     if (is_positive(tuning->hit_threshold))
         this->tuning.hit_threshold = tuning->hit_threshold;
+    this->tuning.song_parts = tuning->song_parts;
+    parts_enable(&this->parts, tuning->song_parts);
 
     this->attack_k =
         smoothing_factor(this->hop_period_s, this->tuning.attack_ms);
@@ -123,6 +126,8 @@ bool features_init(features_t *this, size_t bin_count, float bin_hz,
     this->bin_count = bin_count;
     this->bin_hz = bin_hz;
     this->hop_period_s = hop_period_s;
+    parts_init(&this->parts, hop_period_s);
+    this->gain_db = 0.f;
     this->tuning = features_default_tuning();
     features_tune(this, &this->tuning);
     this->ceiling_db = this->tuning.min_ceiling_db;
@@ -218,10 +223,12 @@ static void detect_hits(features_t *this, const float *power, float floor_db) {
 const sound_t *features_update(features_t *this, const float *bins) {
     float power[FEATURES_BAND_COUNT], db[FEATURES_BAND_COUNT];
     float loudest = -1000.f, floor_db, sum = 0.f, weighted = 0.f;
+    float total_db = 0.f;
 
     for (size_t b = 0; b < FEATURES_BAND_COUNT; b++) {
         power[b] = band_power(this, bins, b);
         db[b] = 10.f * log10f(power[b] + SILENCE_POWER);
+        total_db += db[b];
 
         if (db[b] > loudest)
             loudest = db[b];
@@ -253,7 +260,22 @@ const sound_t *features_update(features_t *this, const float *bins) {
 
     detect_hits(this, power, floor_db);
 
+    parts_update(&this->parts, total_db / FEATURES_BAND_COUNT - this->gain_db,
+                 this->sound.loudness, this->sound.centroid,
+                 this->sound.hits[FEATURES_LOW].fired,
+                 this->sound.hits[FEATURES_MID].fired ||
+                     this->sound.hits[FEATURES_HIGH].fired);
+    this->sound.part = this->parts.part;
+    this->sound.part_time_s = this->parts.part_time_s;
+    this->sound.build_progress = this->parts.build_progress;
+    this->sound.event = this->parts.event;
+
     return &this->sound;
+}
+
+void features_set_gain(features_t *this, float gain) {
+    if (is_positive(gain))
+        this->gain_db = 20.f * log10f(gain);
 }
 
 void features_deinit([[maybe_unused]] features_t *this) {}

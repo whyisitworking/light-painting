@@ -26,6 +26,7 @@ bool visualizer_init(visualizer_t *this, const visualizer_config_t *config) {
     }
 
     this->gain = VISUALIZER_GAIN;
+    features_set_gain(&this->features, this->gain);
 
     return true;
 }
@@ -41,6 +42,7 @@ visualizer_tuning_t visualizer_default_tuning(void) {
 void visualizer_tune(visualizer_t *this, const visualizer_tuning_t *tuning) {
     if (tuning->gain > 0.f && isfinite(tuning->gain))
         this->gain = tuning->gain;
+    features_set_gain(&this->features, this->gain);
 
     features_tune(&this->features, &tuning->features);
     effects_tune(&this->effects, &tuning->effects);
