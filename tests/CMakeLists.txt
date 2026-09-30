@@ -52,6 +52,7 @@ lp_add_test(stats stats)
 lp_add_test(settings settings)
 lp_add_test(song song)
 lp_add_test(parts spectrum features song)
+lp_add_test(scene show)
 
 # The preview tool's engine (tools/preview): the pipeline for every mode at
 # once, also compiled to WebAssembly by tools/preview/build.sh
