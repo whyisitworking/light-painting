@@ -1,0 +1,88 @@
+; Rotary encoder with a push button, e.g. a KY-040: A (CLK) and B (DT) in
+; quadrature, both pulled up, each pulled to ground by its contact.
+;
+; Counts on A's edges only, reading B at each: an A edge comes while B is
+; steady, a quarter of a cycle away from B's own edges. Turning one way
+; (A leading B):
+;
+;   A rising  with B low  +1      A falling with B high +1
+;   A rising  with B high -1      A falling with B low  -1
+;
+; so a full cycle is 2 counts. A bouncing contact on A gives rises and
+; falls in pairs with B steady, one +1 and one -1: bounce cancels out. B's
+; own bounce is never read, B is only looked at on an A edge.
+;
+; The position, X, goes to RX FIFO entry 0 after every change, and the
+; processor reads it there whenever it likes (RP2350: FIFO "put" mode, the
+; newest value always there, none queued or dropped). The program runs from
+; any offset.
+;
+; IN base: A. JMP pin: B.
+
+.program encoder
+.pio_version 1
+.fifo txput
+
+    ; Publish the start, then wait for the edge that comes next: a rise if A
+    ; is low now, a fall if it is high. Waiting for a rise with A already
+    ; high would count one at once that never happened
+    mov isr, x
+    mov rxfifo[0], isr
+    mov osr, pins
+    out y, 1
+    jmp !y, rise
+    jmp fall
+
+.wrap_target
+rise:
+    wait 1 pin 0
+    jmp pin, rise_down
+    mov x, ~x                       ; x + 1 is ~(~x - 1)
+    jmp x--, rise_up
+rise_up:
+    mov x, ~x
+    jmp rise_publish
+rise_down:
+    jmp x--, rise_publish
+rise_publish:
+    mov isr, x
+    mov rxfifo[0], isr
+
+fall:
+    wait 0 pin 0
+    jmp pin, fall_up
+    jmp x--, fall_publish           ; B low: -1
+fall_publish:
+    mov isr, x
+    mov rxfifo[0], isr
+.wrap
+fall_up:                            ; B high: +1
+    mov x, ~x
+    jmp x--, fall_up_done
+fall_up_done:
+    mov x, ~x
+    jmp fall_publish
+
+% c-sdk {
+/**
+ * Configures the pins and the state machine, sets the position to 0 and
+ * starts it. Every clock cycle samples (through the input synchronizers):
+ * the contacts are slow, nothing needs dividing
+ */
+static inline void encoder_program_init(PIO pio, uint sm, uint offset,
+                                        uint a_pin, uint b_pin) {
+    pio_sm_config cfg = encoder_program_get_default_config(offset);
+
+    pio_sm_set_consecutive_pindirs(pio, sm, a_pin, 1, false);
+    pio_sm_set_consecutive_pindirs(pio, sm, b_pin, 1, false);
+
+    sm_config_set_in_pins(&cfg, a_pin);
+    sm_config_set_jmp_pin(&cfg, b_pin);
+    // out y, 1 takes A from bit 0
+    sm_config_set_out_shift(&cfg, true, false, 32);
+
+    pio_sm_init(pio, sm, offset, &cfg);
+    pio_sm_exec(pio, sm, pio_encode_set(pio_x, 0));
+    pio_sm_set_enabled(pio, sm, true);
+}
+%}
