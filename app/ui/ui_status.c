@@ -17,8 +17,15 @@ constexpr int32_t INNER_GAP = 6;
 constexpr int32_t STRIP_HEIGHT = 10;
 constexpr int32_t STRIP_RADIUS = LV_RADIUS_CIRCLE;
 
+// The padlock: a shackle, an arch of LOCK_LINE, over a body, in the accent
+constexpr int32_t LOCK_WIDTH = 12;
+constexpr int32_t LOCK_SHACKLE = 7;
+constexpr int32_t LOCK_BODY = 7;
+constexpr int32_t LOCK_LINE = 2;
+
 static struct {
     lv_obj_t *note;
+    lv_obj_t *lock;
     lv_obj_t *look;
     lv_obj_t *scene;
     lv_obj_t *swatch[SWATCH_CELLS];
@@ -80,8 +87,36 @@ static lv_obj_t *swatch_create(lv_obj_t *parent) {
     return swatch;
 }
 
+// A padlock drawn with two shapes: LVGL's symbols have none
+static lv_obj_t *lock_create(lv_obj_t *parent) {
+    lv_obj_t *lock = lv_obj_create(parent), *shackle, *body;
+
+    lv_obj_remove_style_all(lock);
+    lv_obj_set_size(lock, LOCK_WIDTH, LOCK_SHACKLE + LOCK_BODY - LOCK_LINE);
+    // The shackle's hidden lower half reaches past it
+    lv_obj_set_scrollable(lock, false);
+
+    // An arch: a rounded outline whose bottom the body covers
+    shackle = lv_obj_create(lock);
+    lv_obj_remove_style_all(shackle);
+    lv_obj_set_size(shackle, LOCK_WIDTH - 2 * LOCK_LINE, 2 * LOCK_SHACKLE);
+    lv_obj_align(shackle, LV_ALIGN_TOP_MID, 0, 0);
+    lv_obj_set_style_radius(shackle, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_border_width(shackle, LOCK_LINE, 0);
+    lv_obj_add_style(shackle, ui_theme_outline(), 0);
+
+    body = lv_obj_create(lock);
+    lv_obj_remove_style_all(body);
+    lv_obj_set_size(body, LOCK_WIDTH, LOCK_BODY);
+    lv_obj_align(body, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_set_style_radius(body, 2, 0);
+    lv_obj_add_style(body, ui_theme_fill(), 0);
+
+    return lock;
+}
+
 lv_obj_t *ui_status_create(void) {
-    lv_obj_t *screen = lv_obj_create(nullptr), *block, *row;
+    lv_obj_t *screen = lv_obj_create(nullptr), *block, *row, *corner;
 
     lv_obj_add_style(screen, ui_theme_screen(), 0);
 
@@ -93,7 +128,15 @@ lv_obj_t *ui_status_create(void) {
     // What this is, and what it shows
     block = block_create(screen);
     row = row_create(block, "Light Painting");
-    view.note = lv_label_create(row);
+    corner = lv_obj_create(row);
+    lv_obj_remove_style_all(corner);
+    lv_obj_set_size(corner, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(corner, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(corner, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER,
+                          LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(corner, 6, 0);
+    view.lock = lock_create(corner);
+    view.note = lv_label_create(corner);
     lv_obj_add_style(view.note, ui_theme_muted(), 0);
     view.look = lv_label_create(block);
     lv_obj_set_style_text_font(view.look, &lv_font_montserrat_28, 0);
@@ -117,6 +160,7 @@ void ui_status_note(const char *note) {
 
 void ui_status_show(const ui_status_t *status) {
     ui_status_note(status->note);
+    lv_obj_set_hidden(view.lock, !status->locked);
     lv_label_set_text(view.look, ui_names_look(status->look));
     lv_label_set_text(view.scene, ui_names_scene(status->scene));
 

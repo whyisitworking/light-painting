@@ -37,15 +37,19 @@ constexpr size_t LED_COUNT = 300;
 // counted
 constexpr size_t LED_BEND_COUNT = 0;
 
-// Header pins, SCK and WS must be consecutive
-constexpr unsigned MIC_SCK_PIN = 26;
-constexpr unsigned MIC_WS_PIN = 27;
-constexpr unsigned MIC_DATA_PIN = 28;
+// Header pins, SCK and WS consecutive in that order, as Raspberry Pi's own
+// I2S driver has them (pico-extras audio_i2s: BCLK at the base, LRCLK next).
+// Both microphones drive DATA in turn; the pin's bus keeper holds it between
+// them, so it needs no pull-down (see i2s.pio)
+constexpr unsigned MIC_SCK_PIN = 0;
+constexpr unsigned MIC_WS_PIN = 1;
+constexpr unsigned MIC_DATA_PIN = 2;
 
 static_assert(MIC_WS_PIN == MIC_SCK_PIN + 1,
               "MIC_WS_PIN must follow MIC_SCK_PIN, one side-set drives both");
 
-constexpr unsigned LED_DATA_PIN = 8;
+// Through the board's 74HCT125, 3.3 V to 5 V
+constexpr unsigned LED_DATA_PIN = 9;
 
 // The LCD on the board, wired as boards/waveshare_rp2350_lcd_1.47.h says
 constexpr unsigned LCD_SPI_INDEX = WAVESHARE_LCD_SPI;
@@ -71,13 +75,28 @@ constexpr uint8_t LCD_MADCTL = 0x70;
 // it runs at 37.5 MHz
 constexpr uint32_t LCD_SPI_HZ = 62'500'000;
 
-// The 5-way switch on the header, its common pin to ground (header pin 11,
-// next to GP0-GP4). Swap these to match how it is mounted
-constexpr unsigned JOYSTICK_UP_PIN = 0;
-constexpr unsigned JOYSTICK_DOWN_PIN = 1;
-constexpr unsigned JOYSTICK_LEFT_PIN = 2;
-constexpr unsigned JOYSTICK_RIGHT_PIN = 3;
-constexpr unsigned JOYSTICK_CENTRE_PIN = 4;
+// The rotary encoder with its push button (a KY-040): CLK (A), DT (B) and
+// SW, each pulled up on the board and to ground by its contact. It counts
+// on the third PIO, left to it: I2S and the LEDs take the first free ones
+constexpr unsigned ENCODER_A_PIN = 6;
+constexpr unsigned ENCODER_B_PIN = 7;
+constexpr unsigned ENCODER_SWITCH_PIN = 8;
+constexpr unsigned ENCODER_PIO_INDEX = 2;
+
+static_assert(ENCODER_PIO_INDEX < NUM_PIOS, "ENCODER_PIO_INDEX: no such PIO");
+
+// First guesses, to check on the module once it arrives: counts per click
+// (the program counts 2 per quadrature cycle, and a KY-040 clicks once a
+// cycle), and whether turning clockwise counts down, not up
+constexpr int32_t ENCODER_COUNTS_PER_CLICK = 2;
+constexpr bool ENCODER_REVERSED = false;
+
+// Held this long, the button is a long press: back a level in the menu,
+// lock or unlock on the status screen. First guess
+constexpr uint32_t UI_LONG_PRESS_MS = 1'000;
+
+static_assert(UI_LONG_PRESS_MS <= UINT16_MAX,
+              "UI_LONG_PRESS_MS: LVGL takes at most 65535 ms");
 
 // Without input for this long, the menu goes back to the status screen
 constexpr uint32_t UI_IDLE_TIMEOUT_MS = 30'000;

@@ -44,6 +44,9 @@ const lv_style_t *ui_theme_focus(void);
 const lv_style_t *ui_theme_track(void);
 const lv_style_t *ui_theme_fill(void);
 
+// Outlines in the accent, e.g. the padlock's shackle: set their width
+const lv_style_t *ui_theme_outline(void);
+
 // Values that need a look, e.g. audio lost: the accent as their colour
 const lv_style_t *ui_theme_warning(void);
 

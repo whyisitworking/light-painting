@@ -9,7 +9,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
-constexpr int32_t ROW_HEIGHT = 28;
+// A page's rows: its title, "‹ Back" and at most four more fit the 172 lines
+constexpr int32_t ROW_HEIGHT = 26;
 
 // The screen's edge to a row, and a row's edge to its text: text starts
 // 12 px in, as on the status screen
@@ -160,6 +161,9 @@ static struct {
     lv_timer_t *reset_timer;
     // The newest diagnostics, nullptr before the first
     const stats_report_t *report;
+    // Locked on the status screen: the controls change nothing until
+    // unlocked there
+    bool locked;
 } menu;
 
 static void show(page_t page);
@@ -196,8 +200,8 @@ static void format(char *text, size_t size, const row_t *row) {
     }
 }
 
-// A setting row's value, with arrows while it is the one left and right
-// change
+// A setting row's value, with arrows while it is being edited: turning
+// changes it then
 static void show_value(lv_obj_t *row_obj) {
     const row_t *row = lv_obj_get_user_data(row_obj);
     lv_obj_t *label = lv_obj_get_child(row_obj, 1);
@@ -205,7 +209,7 @@ static void show_value(lv_obj_t *row_obj) {
 
     format(value, sizeof(value), row);
 
-    if (lv_obj_has_state(row_obj, LV_STATE_FOCUSED))
+    if (lv_obj_has_state(row_obj, LV_STATE_EDITED))
         lv_label_set_text_fmt(label, LV_SYMBOL_LEFT " %s " LV_SYMBOL_RIGHT,
                               value);
     else
@@ -215,15 +219,15 @@ static void show_value(lv_obj_t *row_obj) {
 static void open_async(void *page) { show((page_t)(uintptr_t)page); }
 
 /**
- * Screens change after the key's events are done with the current one. The
- * key is ignored until released: held on, it would go on repeating into the
- * next screen, and right held on a page's row change its first setting
+ * Screens change after the button's events are done with the current one.
+ * The button is ignored until released: a long press going back would
+ * otherwise go on into the next screen
  */
 static void open(page_t page) {
-    lv_indev_t *keypad = lv_indev_active();
+    lv_indev_t *encoder = lv_indev_active();
 
-    if (keypad != nullptr)
-        lv_indev_wait_release(keypad);
+    if (encoder != nullptr)
+        lv_indev_wait_release(encoder);
 
     lv_async_call(open_async, (void *)(uintptr_t)page);
 }
@@ -292,6 +296,14 @@ static void change(lv_obj_t *row_obj, const row_t *row, int steps) {
     menu.changed(menu.settings, row->id);
 }
 
+// A press on a setting starts editing it, the next ends it; turning in
+// between changes it
+static void edit_toggle(lv_obj_t *row_obj) {
+    lv_group_t *group = lv_obj_get_group(row_obj);
+
+    lv_group_set_editing(group, !lv_group_get_editing(group));
+}
+
 static void row_event(lv_event_t *event) {
     lv_obj_t *row_obj = lv_event_get_target(event);
     const row_t *row = lv_event_get_user_data(event);
@@ -299,18 +311,17 @@ static void row_event(lv_event_t *event) {
 
     switch (lv_event_get_code(event)) {
     case LV_EVENT_KEY:
+        // Turning, while this row is edited
         key = lv_event_get_key(event);
         if (row->kind == ROW_SETTING && key == LV_KEY_LEFT)
             change(row_obj, row, -1);
         else if (row->kind == ROW_SETTING && key == LV_KEY_RIGHT)
             change(row_obj, row, 1);
-        else if (row->kind == ROW_BACK && key == LV_KEY_LEFT)
-            back();
-        else if (row->kind == ROW_PAGE && key == LV_KEY_RIGHT)
-            open(row->page);
         break;
     case LV_EVENT_SHORT_CLICKED:
-        if (row->kind == ROW_BACK)
+        if (row->kind == ROW_SETTING)
+            edit_toggle(row_obj);
+        else if (row->kind == ROW_BACK)
             back();
         else if (row->kind == ROW_PAGE)
             open(row->page);
@@ -318,6 +329,7 @@ static void row_event(lv_event_t *event) {
             reset(row_obj);
         break;
     case LV_EVENT_LONG_PRESSED:
+        // A shortcut: the "‹ Back" row does the same
         back();
         break;
     case LV_EVENT_FOCUSED:
@@ -379,12 +391,16 @@ static lv_obj_t *page_row(lv_obj_t *screen, const row_t *row) {
     return row_obj;
 }
 
-// A page's screen, focused on the row leading back to from, if it has one,
-// otherwise on its first row
+// The "‹ Back" row, first on every page
+static lv_obj_t *back_create(lv_obj_t *screen) {
+    return row_create(screen, &back_row, LV_SYMBOL_LEFT "  Back");
+}
+
+// A page's screen: its title, "‹ Back", then its rows. Focused on the row
+// leading back to from, if it has one, otherwise on its first row
 static lv_obj_t *page_create(page_t page, page_t from) {
     const page_def_t *def = &pages[page];
-    lv_obj_t *screen = lv_obj_create(nullptr), *row_obj, *focus;
-    char title[32];
+    lv_obj_t *screen = lv_obj_create(nullptr), *row_obj, *focus, *title;
 
     lv_obj_add_style(screen, ui_theme_screen(), 0);
 
@@ -394,9 +410,13 @@ static lv_obj_t *page_create(page_t page, page_t from) {
     lv_obj_set_style_pad_row(screen, 2, 0);
     lv_obj_set_scrollbar_mode(screen, LV_SCROLLBAR_MODE_OFF);
 
-    snprintf(title, sizeof(title), LV_SYMBOL_LEFT "  %s", def->title);
-    focus = row_create(screen, &back_row, title);
-    lv_obj_add_style(focus, ui_theme_muted(), 0);
+    // Aligned with the rows' text
+    title = lv_label_create(screen);
+    lv_label_set_text(title, def->title);
+    lv_obj_add_style(title, ui_theme_muted(), 0);
+    lv_obj_set_style_pad_hor(title, ROW_INSET, 0);
+
+    focus = back_create(screen);
 
     for (size_t i = 0; i < def->row_count; i++) {
         const row_t *row = &def->rows[i];
@@ -412,55 +432,82 @@ static lv_obj_t *page_create(page_t page, page_t from) {
     return screen;
 }
 
-// The centre on the status screen opens the menu
-static void status_event(lv_event_t *event) {
-    if (lv_event_get_code(event) == LV_EVENT_SHORT_CLICKED)
-        open(PAGE_MENU);
-}
-
-static lv_obj_t *status_create(void) {
-    lv_obj_t *screen = ui_status_create(), *opener;
-
+static void status_show(void) {
     ui_status_show(&(ui_status_t){
         .look = (show_look_t)settings_get(menu.settings, SETTINGS_LOOK),
         .scene = (scene_t)settings_get(menu.settings, SETTINGS_SCENE),
         .brightness_percent =
             settings_get(menu.settings, SETTINGS_BRIGHTNESS),
         .note = menu.note,
+        .locked = menu.locked,
     });
+}
 
-    // Nothing to see, it takes the keys
-    opener = lv_obj_create(screen);
-    lv_obj_remove_style_all(opener);
-    lv_obj_add_event_cb(opener, status_event, LV_EVENT_SHORT_CLICKED,
-                        nullptr);
-    lv_group_add_obj(lv_group_get_default(), opener);
-    lv_group_focus_obj(opener);
+/**
+ * The status screen is edited all along (see show()): turning steps through
+ * the looks, a press opens the menu, a long press locks or unlocks. Locked,
+ * nothing but the long press does anything
+ */
+static void status_event(lv_event_t *event) {
+    uint32_t key;
+
+    switch (lv_event_get_code(event)) {
+    case LV_EVENT_KEY:
+        key = lv_event_get_key(event);
+        if (menu.locked || (key != LV_KEY_LEFT && key != LV_KEY_RIGHT))
+            break;
+        if (settings_step(menu.settings, SETTINGS_LOOK,
+                          key == LV_KEY_RIGHT ? 1 : -1)) {
+            status_show();
+            menu.changed(menu.settings, SETTINGS_LOOK);
+        }
+        break;
+    case LV_EVENT_SHORT_CLICKED:
+        if (!menu.locked)
+            open(PAGE_MENU);
+        break;
+    case LV_EVENT_LONG_PRESSED:
+        menu.locked = !menu.locked;
+        status_show();
+        break;
+    default:
+        break;
+    }
+}
+
+static lv_obj_t *status_create(void) {
+    lv_obj_t *screen = ui_status_create(), *controls;
+
+    status_show();
+
+    // Nothing to see, it takes the encoder. Not scrollable: LVGL would take
+    // a press on it for scrolling
+    controls = lv_obj_create(screen);
+    lv_obj_remove_style_all(controls);
+    lv_obj_set_scrollable(controls, false);
+    lv_obj_set_ignore_layout(controls, true);
+    lv_obj_add_event_cb(controls, status_event, LV_EVENT_ALL, nullptr);
+    lv_group_add_obj(lv_group_get_default(), controls);
+    lv_group_focus_obj(controls);
 
     return screen;
 }
 
-// Left, or the centre held, goes back: the page has nothing else to do
-static void diagnostics_event(lv_event_t *event) {
-    lv_event_code_t code = lv_event_get_code(event);
-
-    if ((code == LV_EVENT_KEY && lv_event_get_key(event) == LV_KEY_LEFT) ||
-        code == LV_EVENT_LONG_PRESSED)
-        back();
-}
-
+// "‹ Back" under the page's title, the only row: the page has nothing else
+// to do. A long press goes back too, as on every page
 static lv_obj_t *diagnostics_create(void) {
-    lv_obj_t *screen = ui_diagnostics_create(), *keys;
+    lv_obj_t *screen = ui_diagnostics_create(), *back_obj;
 
     ui_diagnostics_show(menu.report);
 
-    // Nothing to see, it takes the keys, outside the screen's layout
-    keys = lv_obj_create(screen);
-    lv_obj_remove_style_all(keys);
-    lv_obj_set_ignore_layout(keys, true);
-    lv_obj_add_event_cb(keys, diagnostics_event, LV_EVENT_ALL, nullptr);
-    lv_group_add_obj(lv_group_get_default(), keys);
-    lv_group_focus_obj(keys);
+    // One text line high, not a row's 26 px: the page is not scrollable, and
+    // its lines add up to 171 of 172 (see ui_diagnostics.c)
+    back_obj = back_create(screen);
+    lv_obj_move_to_index(back_obj, 1);
+    lv_obj_set_size(back_obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    // Its text under the title's, the highlight around it
+    lv_obj_set_style_translate_x(back_obj, -ROW_INSET, 0);
+    lv_group_focus_obj(back_obj);
 
     return screen;
 }
@@ -478,6 +525,10 @@ static void show(page_t page) {
 
     menu.page = page;
     lv_screen_load_anim(screen, LV_SCREEN_LOAD_ANIM_NONE, 0, 0, true);
+
+    // Focusing ended any editing; the status screen is always edited, so
+    // that turning there goes to it rather than moving the focus
+    lv_group_set_editing(lv_group_get_default(), page == PAGE_STATUS);
 }
 
 static void idle_check([[maybe_unused]] lv_timer_t *timer) {
@@ -500,6 +551,8 @@ void ui_menu_report(const stats_report_t *report) {
     if (menu.page == PAGE_DIAGNOSTICS)
         ui_diagnostics_show(report);
 }
+
+bool ui_menu_locked(void) { return menu.locked; }
 
 void ui_menu_refresh(void) {
     ui_theme_set_scene((scene_t)settings_get(menu.settings, SETTINGS_SCENE));

@@ -1,7 +1,8 @@
 #include "ui_port.h"
 
 #include "config.h"
-#include "joystick.h"
+#include "encoder.h"
+#include "knob.h"
 #include "st7789.h"
 
 #include <hardware/sync.h>
@@ -42,57 +43,26 @@ static void flush_wait([[maybe_unused]] lv_display_t *display) {
     restore_interrupts(saved_irq);
 }
 
-// The key of one switch direction
-static uint32_t key_of(unsigned direction) {
-    switch (direction) {
-    case JOYSTICK_UP:
-        return LV_KEY_PREV;
-    case JOYSTICK_DOWN:
-        return LV_KEY_NEXT;
-    case JOYSTICK_LEFT:
-        return LV_KEY_LEFT;
-    case JOYSTICK_RIGHT:
-        return LV_KEY_RIGHT;
-    default:
-        return LV_KEY_ENTER;
-    }
-}
+// The knob's clicks from the encoder's counts
+static knob_t knob;
 
-/**
- * One key at a time. LVGL takes a new key while another is held for the same
- * press, so a switch rolled from one direction to the next is reported as
- * released first. Two directions at once (a diagonal) are ignored until one
- * is left
- */
-static void keypad_read([[maybe_unused]] lv_indev_t *keypad,
-                        lv_indev_data_t *data) {
-    // The direction reported pressed, 0 while none is
-    static unsigned held = 0;
-    unsigned pressed = joystick_read();
+// The clicks turned since the last read, and the button. LVGL moves the focus
+// or, while a row is edited, changes it; it tells presses from long presses
+static void encoder_read([[maybe_unused]] lv_indev_t *indev,
+                         lv_indev_data_t *data) {
+    int steps = knob_steps(&knob, encoder_position());
 
-    if (held != 0) {
-        data->key = key_of(held);
-        data->state =
-            pressed & held ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
-        if (!(pressed & held))
-            held = 0;
-        return;
-    }
-
-    // Exactly one direction
-    if (pressed != 0 && (pressed & (pressed - 1)) == 0) {
-        held = pressed;
-        data->key = key_of(held);
-        data->state = LV_INDEV_STATE_PRESSED;
-        return;
-    }
-
-    data->state = LV_INDEV_STATE_RELEASED;
+    data->enc_diff = (int16_t)(steps > INT16_MAX   ? INT16_MAX
+                               : steps < INT16_MIN ? INT16_MIN
+                                                   : steps);
+    data->key = LV_KEY_ENTER;
+    data->state = encoder_pressed() ? LV_INDEV_STATE_PRESSED
+                                    : LV_INDEV_STATE_RELEASED;
 }
 
 lv_display_t *ui_port_init(void) {
     lv_display_t *display;
-    lv_indev_t *keypad;
+    lv_indev_t *encoder;
     lv_group_t *group;
 
     lv_init();
@@ -109,14 +79,17 @@ lv_display_t *ui_port_init(void) {
     lv_display_set_flush_cb(display, flush);
     lv_display_set_flush_wait_cb(display, flush_wait);
 
-    if ((keypad = lv_indev_create()) == nullptr ||
+    if ((encoder = lv_indev_create()) == nullptr ||
         (group = lv_group_create()) == nullptr)
         return nullptr;
 
-    lv_indev_set_type(keypad, LV_INDEV_TYPE_KEYPAD);
-    lv_indev_set_read_cb(keypad, keypad_read);
+    knob_init(&knob, encoder_position(), ENCODER_COUNTS_PER_CLICK,
+              ENCODER_REVERSED);
+    lv_indev_set_type(encoder, LV_INDEV_TYPE_ENCODER);
+    lv_indev_set_read_cb(encoder, encoder_read);
+    lv_indev_set_long_press_time(encoder, UI_LONG_PRESS_MS);
     lv_group_set_default(group);
-    lv_indev_set_group(keypad, group);
+    lv_indev_set_group(encoder, group);
 
     return display;
 }

@@ -6,7 +6,8 @@
  * analysis, the lights' work and losses, and both cores' stack peaks, from
  * the newest report (app/diagnostics.h)
  *
- *   <  Diagnostics
+ *   Diagnostics
+ *   ‹ Back
  *   L  ======----------------   -62 dBFS
  *   R  ======----------------   -61 dBFS
  *   Ceiling -24 dB    Loud 0.42     Hits 2.0/s
@@ -15,7 +16,7 @@
  *   Menu 5.1 / 16 KB           Lights 1.2 / 8 KB
  *
  * The meters span -90 to 0 dBFS. Audio lost above 0 and a load above 80 %
- * wear the accent
+ * wear the accent. "‹ Back" is the menu's, inserted under the title
  */
 
 #include "stats.h"

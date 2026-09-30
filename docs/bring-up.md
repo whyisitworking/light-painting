@@ -9,12 +9,12 @@ Nothing connected but USB.
 - **See:** the startup messages, ending in `LCD init!`. The status screen upright, colours as named (Synthwave's swatch runs indigo, violet, pink, orange, cyan), no noise along an edge. Screen, under System, changes the backlight.
 - **If not:** see Troubleshooting in the README: "The LCD stays dark", "upside down or mirrored".
 
-## 2. The switch
+## 2. The encoder
 
-Wired to GP0-GP4 and ground.
+A KY-040: CLK, DT and SW on GP6, GP7 and GP8, each pulled up to 3.3 V, + to 3.3 V, GND to ground.
 
-- **See:** centre opens the menu; up and down move the highlight; right opens a page; left goes back only on the "‹ title" row and on Diagnostics, centre held goes back from anywhere. On a setting row, left and right change the value instead; hold to repeat.
-- **If not:** swap the `JOYSTICK_*_PIN` numbers in `app/config.h`.
+- **See:** on the status screen, one look further per click, each way; a press opens the menu. On a page, one row per click; a press on a setting shows arrows round its value, turning changes it, a press ends it; "‹ Back" and a 1 s hold go back. On the status screen a 1 s hold shows a padlock, and then turning, pressing and BOOT do nothing until another 1 s hold.
+- **If not:** the wrong way round: `ENCODER_REVERSED` in `app/config.h`. Two rows per click, or one every other click: `ENCODER_COUNTS_PER_CLICK` (2 for a full quadrature cycle per click, 1 for half). Nothing at all: the contacts must pull to ground, and the board's pull-ups be fitted.
 
 ## 3. Diagnostics, without microphones
 

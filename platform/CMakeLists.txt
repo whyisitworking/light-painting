@@ -1,7 +1,6 @@
 add_subdirectory(boot_button)
 add_subdirectory(encoder)
 add_subdirectory(i2s)
-add_subdirectory(joystick)
 add_subdirectory(st7789)
 add_subdirectory(storage)
 add_subdirectory(ws2812)

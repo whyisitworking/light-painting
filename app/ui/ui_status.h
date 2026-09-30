@@ -3,10 +3,10 @@
 
 /**
  * The status screen, shown while nobody uses the menu: the look, the scene
- * with a swatch of its three colours, the LED brightness, and a note on
- * saving.
+ * with a swatch of its three colours, the LED brightness, a note on saving,
+ * and a padlock while the controls are locked.
  *
- *   Light Painting                  Saved
+ *   Light Painting               🔒 Saved
  *   Pulse
  *
  *   Scene                       Neon Noir
@@ -30,6 +30,8 @@ typedef struct {
     int brightness_percent;
     // In the corner, e.g. how saving went. nullptr or "" for none
     const char *note;
+    // The controls are locked: a padlock in the corner
+    bool locked;
 } ui_status_t;
 
 // Creates the screen, without loading it. nullptr if memory runs out

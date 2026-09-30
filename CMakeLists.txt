@@ -108,7 +108,8 @@ target_link_libraries(light-painting
     PRIVATE
         i2s
         ws2812
-        joystick
+        encoder
+        knob
         settings
         stats
         st7789

@@ -2,7 +2,7 @@
 
 #include "config.h"
 #include "diagnostics.h"
-#include "joystick.h"
+#include "encoder.h"
 #include "persist.h"
 #include "settings.h"
 #include "st7789.h"
@@ -87,13 +87,13 @@ static void save_check([[maybe_unused]] lv_timer_t *timer) {
 
 #ifdef BOOT_BUTTON_SHUFFLE
 // Each press of BOOT: a random look, shown, applied and saved like a change
-// made in the menu
+// made in the menu. Not while the controls are locked
 static void boot_check([[maybe_unused]] lv_timer_t *timer) {
     static bool was_pressed = false;
     static uint32_t random = 0;
     bool pressed = boot_button_read();
 
-    if (pressed && !was_pressed) {
+    if (pressed && !was_pressed && !ui_menu_locked()) {
         while (random == 0)
             random = get_rand_32();
 
@@ -132,7 +132,7 @@ static void print_forever(void) {
 }
 #endif
 
-// The LCD, the switch and LVGL. nullptr if any fails, which it reports
+// The LCD, the encoder and LVGL. nullptr if any fails, which it reports
 static lv_display_t *setup(void) {
     lv_display_t *display;
 
@@ -156,14 +156,14 @@ static lv_display_t *setup(void) {
         return nullptr;
     }
 
-    if (!joystick_init(&(joystick_pins_t){
-            .up_pin = JOYSTICK_UP_PIN,
-            .down_pin = JOYSTICK_DOWN_PIN,
-            .left_pin = JOYSTICK_LEFT_PIN,
-            .right_pin = JOYSTICK_RIGHT_PIN,
-            .centre_pin = JOYSTICK_CENTRE_PIN,
-        })) {
-        printf("Could not initialize the joystick\n");
+    // Here too: read by the menu, on this core
+    if (!encoder_init(PIO_INSTANCE(ENCODER_PIO_INDEX),
+                      &(encoder_pins_t){
+                          .a_pin = ENCODER_A_PIN,
+                          .b_pin = ENCODER_B_PIN,
+                          .switch_pin = ENCODER_SWITCH_PIN,
+                      })) {
+        printf("Could not initialize the encoder\n");
         return nullptr;
     }
 

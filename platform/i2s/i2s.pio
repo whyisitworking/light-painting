@@ -92,11 +92,16 @@ static inline void i2s_program_init(PIO pio, uint sm, uint offset,
     sm_config_set_in_shift(&cfg, false, true, i2s_bits_in_per_word);
     sm_config_set_fifo_join(&cfg, PIO_FIFO_JOIN_RX);
 
-    // Each microphone tri-states the data line outside its own channel, so
-    // with one missing or dead its half would float and read as noise. Both
-    // pulls make a bus keeper that holds the last level instead (a mode of
-    // its own, only one resistor is ever on: RP2350 datasheet 9.6.1). Not a
-    // plain pull-down: RP2350-E9 input leakage can overpower the internal one
+    // Each microphone tri-states the data line outside its own channel, and
+    // the bits it leaves are ignored. With one missing or dead, though, its
+    // whole half would float and read as noise into the mono sum. Both pulls
+    // make a bus keeper that holds the last level driven instead (a mode of
+    // its own, only one resistor is ever on: RP2350 datasheet 9.6.1), so a
+    // missing microphone reads as silence. It does what the INMP441
+    // datasheet's 100 kΩ pull-down does, with no part and next to no
+    // current: it never holds against a driven line. Not a plain pull-down:
+    // RP2350-E9 input leakage can overpower the internal one; with E9 the
+    // keeper still settles to a steady level
     gpio_set_pulls(data_pin, true, true);
 
     pio_sm_init(pio, sm, offset, &cfg);

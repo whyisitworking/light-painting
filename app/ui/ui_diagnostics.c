@@ -12,10 +12,10 @@ constexpr int32_t METER_HEIGHT = 8;
 // Above this share of a hop, the worst work wears the accent
 constexpr float LOAD_WARNING_PERCENT = 80.f;
 
-// Text starts 12 px in, as on the other screens. 8 + 16 + 6 * 16 +
-// 6 * 5 + 8 = 158 of the 172 lines
+// Text starts 12 px in, as on the other screens. The title, the menu's
+// "‹ Back" and six rows: 4 + 8 * 16 + 7 * 5 + 4 = 171 of the 172 lines
 constexpr int32_t MARGIN = 12;
-constexpr int32_t EDGE = 8;
+constexpr int32_t EDGE = 4;
 constexpr int32_t ROW_GAP = 5;
 
 // What stands for a value before the first report
@@ -97,7 +97,7 @@ lv_obj_t *ui_diagnostics_create(void) {
     lv_obj_set_scrollable(screen, false);
 
     title = lv_label_create(screen);
-    lv_label_set_text(title, LV_SYMBOL_LEFT "  Diagnostics");
+    lv_label_set_text(title, "Diagnostics");
     lv_obj_add_style(title, ui_theme_muted(), 0);
 
     meter_create(screen, 0, "L");

@@ -28,7 +28,7 @@
 - **Musical, not just loud.** 32 log-spaced bands from 60 Hz to 12 kHz; a volume control set once per song, not every second, so a verse stays smaller than the chorus; the starts of sounds found in three regions (low, mid, high); and the song's parts: calm, build, the gap before a drop, the drop.
 - **Five looks, five scenes.** Pulse, Flow, Stage, Sweep and Storm, each with one idea of its own and a behaviour for every part of a song, in scenes of three colours: a field, an accent and a hit.
 - **Dark when it's quiet, and never too much.** Silence and microphone self-noise stay black. At most three flashes a second (WCAG 2.3.1, measured in light as WCAG measures it), whatever a look draws.
-- **Tuned on the device.** A menu on the board's 1.47" LCD, driven by a 5-way switch: look, scene, brightness, song parts and the sound response, saved to flash. It runs on the second core, and the lights never wait for it.
+- **Tuned on the device.** A menu on the board's 1.47" LCD, driven by a rotary encoder with a push button: look, scene, brightness, song parts and the sound response, saved to flash. It runs on the second core, and the lights never wait for it.
 - **Tested off the board.** Everything that isn't hardware is plain C23 with unit tests on your computer, including a synthetic song whose parts the analysis must find, a timeline tool that shows what it hears in your own songs, and a golden snapshot of the whole pipeline (recorded after the looks' tuning pass).
 
 ## Hardware
@@ -38,30 +38,32 @@
 | Waveshare RP2350-LCD-1.47-A | 1 | the RP2350A of a Pico 2 with 16 MB of flash and a 1.47" LCD, header in [`boards/`](boards) |
 | INMP441 I²S MEMS microphone | 2 | a left and a right one on the same bus, summed to mono |
 | WS2812B LED strip | 300 LEDs | GRB order, 5 V |
-| 3.3 → 5 V level shifter | 1 | on the LED data line, e.g. a 74AHCT125 or 74HCT245 |
+| 3.3 → 5 V level shifter | 1 | on the LED data line, e.g. a 74AHCT125 or 74HCT125 |
 | 5 V power supply | 1 | sized for the strip: 300 LEDs at full white draw about 18 A, and the firmware does not limit it |
-| 5-way navigation switch | 1 | up, down, left, right and a centre press to a common pin, e.g. a module labelled COM, UP, DWN, LFT, RHT, MID (SET and RST unused) |
+| Rotary encoder with push button | 1 | a KY-040 module: CLK, DT, SW, + and GND |
 
 ### Wiring
 
 | Signal | Board pin | INMP441 (both) | WS2812B |
 |---|---|---|---|
-| SCK (bit clock) | **GP26** | SCK | |
-| WS (word select) | **GP27** | WS | |
-| SD (data) | **GP28** | SD | |
-| LED data | **GP8** → level shifter | | DIN (from the shifter's 5 V output) |
+| SCK (bit clock) | **GP0** | SCK | |
+| WS (word select) | **GP1** | WS | |
+| SD (data) | **GP2** | SD | |
+| LED data | **GP9** → level shifter | | DIN (from the shifter's 5 V output) |
 | 3.3 V | 3V3 | VDD | |
 | Ground | GND | GND | GND |
 | Channel select | | L/R: **GND** on one, **3.3 V** on the other | |
 
-| Switch | Board pin |
+| KY-040 encoder | Board pin |
 |---|---|
-| COM | GND |
-| UP, DOWN, LEFT, RIGHT, MID | **GP0**, **GP1**, **GP2**, **GP3**, **GP4** |
+| CLK (A), DT (B), SW | **GP6**, **GP7**, **GP8**, each with a pull-up to 3.3 V |
+| + | 3V3 |
+| GND | GND |
 
-The LCD is on the board (SPI0, GP16–GP21). The switch's directions use internal pull-ups; which one is on which pin is set in [`app/config.h`](app/config.h), to match how it is mounted.
+The LCD is on the board (SPI0, GP16–GP21). The encoder's contacts pull to ground; the board's pull-ups hold them high (the internal ones are on too, in parallel). Its turns are counted by the third PIO, left to it.
 
-- SCK and WS must be on **consecutive** pins, in that order (one PIO side-set drives both). All pins are set in [`app/config.h`](app/config.h).
+- SCK and WS must be on **consecutive** pins, in that order (one PIO side-set drives both, as in Raspberry Pi's own I2S driver). All pins are set in [`app/config.h`](app/config.h).
+- Each microphone lets go of SD outside its own channel. The pin's bus keeper holds the last level then, doing the job of the pull-down the INMP441 datasheet suggests with no part: fit none, and a missing microphone reads as silence.
 - Power the strip from the 5 V supply, not from the board, and connect all grounds.
 - The strip expects 5 V logic (WS2812B: high above 0.7 × VDD, 3.5 V), so the board's 3.3 V data goes through a level shifter powered from the strip's 5 V. Place it close to the board: the pin keeps its default drive, and the shifter drives the lead to the strip. A buffer like the 74AHCT125 suits the 0.3 µs pulses better than the slow, pull-up based bidirectional shifters (BSS138 modules).
 
@@ -160,16 +162,15 @@ The song parts come from a few running averages of the sound (`lib/features/part
 
 ## The menu
 
-The LCD shows the status screen: the look, the scene with a swatch of its three colours, the brightness, and how the last save went. Press the switch's centre to open the menu.
+The LCD shows the status screen: the look, the scene with a swatch of its three colours, the brightness, and how the last save went.
 
-| Key | On a page |
-|---|---|
-| Up, down | Move between rows |
-| Left, right | Change the focused setting at once; hold to repeat |
-| Centre | Open the page a row leads to |
-| Left on the "‹ title" row, or centre held | Back a level |
+| Control | On the status screen | On a page |
+|---|---|---|
+| Turn | Step through the looks | Move between rows; while a setting is edited, change it at once |
+| Press | Open the menu | Open the page a row leads to, go back on "‹ Back", or start and end editing a setting (its value shows arrows while edited) |
+| Hold 1 s | Lock or unlock the controls (a padlock shows) | Back a level |
 
-After 30 s without a key, the status screen comes back, except from Diagnostics. Changes apply to the lights on the next hop, and are saved to flash 3 s after the last one ("Saved" on the status screen): the menu pauses while the flash is busy, up to about 400 ms, the lights do not.
+Every page starts with a "‹ Back" row under its title. Locked, the controls (the BOOT shuffle too) change nothing until unlocked with another long press; a restart unlocks. After 30 s without input, the status screen comes back, except from Diagnostics. Changes apply to the lights on the next hop, and are saved to flash 3 s after the last one ("Saved" on the status screen): the menu pauses while the flash is busy, up to about 400 ms, the lights do not.
 
 | Page | Setting | Range, step | Default | Replaces |
 |---|---|---|---|---|
@@ -193,15 +194,18 @@ Brightness is perceptual: each step looks equally brighter. Below about 20 % the
 | Setting | Default | Meaning |
 |---|---|---|
 | `LED_COUNT` | `300` | LEDs on the strip |
-| `MIC_SCK_PIN`, `MIC_WS_PIN`, `MIC_DATA_PIN` | `26`, `27`, `28` | Microphone bus |
-| `LED_DATA_PIN` | `8` | Strip data |
+| `MIC_SCK_PIN`, `MIC_WS_PIN`, `MIC_DATA_PIN` | `0`, `1`, `2` | Microphone bus |
+| `LED_DATA_PIN` | `9` | Strip data |
+| `ENCODER_A_PIN`, `ENCODER_B_PIN`, `ENCODER_SWITCH_PIN` | `6`, `7`, `8` | The encoder's CLK, DT and SW |
+| `ENCODER_PIO_INDEX` | `2` | The PIO counting its turns |
+| `ENCODER_COUNTS_PER_CLICK`, `ENCODER_REVERSED` | `2`, `false` | Counts per click, and whether it turns the other way: first guesses, checked on the module |
+| `UI_LONG_PRESS_MS` | `1000` | A long press: back, or lock and unlock |
 | `AUDIO_FFT_SIZE` | `512` | Samples per analysis. Larger resolves lower notes, smaller reacts faster |
 | `AUDIO_HOP_SIZE` | `256` | New samples per analysis |
 | `LED_BEND_COUNT` | `0` | LEDs at each end that bend onto a side wall: Sweep's beams turn the corner there. Count them once the strip is mounted |
 | `VISUALIZER_SEED` | `1` | The looks' random choices: where sparks and bolts land |
 | `LCD_*` | from the board header | The LCD's SPI and pins, 320 × 172 landscape, `LCD_MADCTL` `0x70` (`0xB0` turns it 180°) |
-| `JOYSTICK_*_PIN` | `0`–`4` | The switch's up, down, left, right and centre |
-| `UI_IDLE_TIMEOUT_MS` | `30'000` | Back to the status screen after this long without a key |
+| `UI_IDLE_TIMEOUT_MS` | `30'000` | Back to the status screen after this long without input |
 | `UI_SAVE_DELAY_MS`, `UI_SAVE_RETRY_MS` | `3'000`, `30'000` | Save this long after the last change; retry after a failed save |
 
 The default look and scene (`SHOW_LOOK`, `SHOW_SCENE`: Pulse, Neon Noir) are in [`lib/show/show.h`](lib/show/show.h), the input gain (`VISUALIZER_GAIN`: 1.5 on top of the microphone's ×8) in [`lib/visualizer/visualizer.h`](lib/visualizer/visualizer.h).
@@ -254,7 +258,7 @@ flowchart TB
 
 All of that runs on core 0. The menu runs on core 1, with its own stack:
 
-6. **Menu.** [LVGL](https://lvgl.io) draws the screens into two 20-line buffers in turn, while DMA sends the other one to the ST7789 LCD over SPI at 37.5 MHz. The switch is read every 33 ms as LVGL's keypad.
+6. **Menu.** [LVGL](https://lvgl.io) draws the screens into two 20-line buffers in turn, while DMA sends the other one to the ST7789 LCD over SPI at 37.5 MHz. The encoder is read every 33 ms as LVGL's encoder: the third PIO counts its turns in hardware (`platform/encoder/encoder.pio`, on the RP2350's FIFO put register, so the newest position is always there and none is lost), `lib/knob` turns the counts into clicks, and the button is a plain GPIO.
 7. **Tuning link.** Each change becomes a `visualizer_tuning_t`, handed to core 0 through a lock-free triple buffer: a single atomic exchange per side, so neither core ever waits. Core 0 takes the newest, if any, once per hop.
 8. **Saving.** The settings are records of 256 bytes in the last 8 KB of the flash, two erase blocks of 16 records: each save programs the next erased record, and a block is erased once per 16 saves, never the one holding the newest record. The firmware runs from RAM (`copy_to_ram`), so core 0 never reads the flash and carries on while core 1 writes it.
 
@@ -276,7 +280,7 @@ All memory is allocated once at startup, and neither loop allocates. The firmwar
 │   ├── i2s/             INMP441 input
 │   ├── ws2812/          WS2812 output
 │   ├── st7789/          the LCD, SPI with DMA
-│   ├── joystick/        the 5-way switch
+│   ├── encoder/         the rotary encoder, its turns counted by a PIO
 │   └── storage/         a flash region, written from core 1
 ├── lib/                 portable C23, no Pico SDK, unit tested on the host
 │   ├── settings/        the menu's settings, their records and log in flash
@@ -309,7 +313,7 @@ flowchart TB
         i2s
         ws2812
         st7789
-        joystick
+        encoder
         storage
     end
     subgraph lib ["lib/ (portable)"]
@@ -320,9 +324,10 @@ flowchart TB
         song
         swapchain
         stats
+        knob
     end
     main --> i2s & ws2812 & visualizer & link & persist & ui & diagnostics
-    ui --> st7789 & joystick & settings & link & persist & diagnostics
+    ui --> st7789 & encoder & knob & settings & link & persist & diagnostics
     persist --> storage & settings
     link --> swapchain
     i2s & ws2812 --> swapchain
@@ -365,6 +370,7 @@ ctest --test-dir build-tests --output-on-failure
 |---|---|
 | `fft` | Every size against a naive DFT, the real FFT, tones |
 | `swapchain` | Ordering, newest wins, and two threads at full speed: never torn, never older |
+| `knob` | Whole clicks each way and reversed, half a click and back is none, many between reads, across the counter's wrap |
 | `color` | The WS2812 word layout, saturation, gamma |
 | `spectrum` | Scaling, the stereo sum, the sliding window, tones in their bin, the I2S word decode |
 | `features` | Bands, silence, self-noise, the slow auto-gain, hits of each region on its own sounds and none on noise, kicks over a bass line, the groove, and each tuning |
@@ -461,7 +467,7 @@ Add a value to `scene_t` in [`lib/show/scene.h`](lib/show/scene.h), before `SCEN
 
 - In a quiet room that is by design. Play some music.
 - Check the startup messages over USB serial (`-DWAIT_FOR_USB_HOST=ON`). An init failure names the part that failed.
-- Check the strip's power, the shared ground and the data pin (GP8).
+- Check the strip's power, the shared ground and the data pin (GP9).
 
 </details>
 
@@ -519,9 +525,9 @@ Change the hit sensitivity in the menu (Sound, higher is more hits), or a region
 </details>
 
 <details>
-<summary><b>The switch moves the wrong way</b></summary>
+<summary><b>The encoder turns the wrong way, or skips</b></summary>
 
-Swap the `JOYSTICK_*_PIN` numbers in `app/config.h` to match how the switch is mounted. Its common pin must go to ground.
+Turning the wrong way: set `ENCODER_REVERSED` in `app/config.h`, or swap CLK and DT (`ENCODER_A_PIN`, `ENCODER_B_PIN`). One step every other click, or two per click: `ENCODER_COUNTS_PER_CLICK` is 2 for an encoder with a full cycle per click (most KY-040s), 1 for one with half a cycle. Its contacts must pull to ground, with pull-ups on the board.
 
 </details>
 
