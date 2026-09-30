@@ -46,21 +46,23 @@
 
 | Signal | Board pin | INMP441 (both) | WS2812B |
 |---|---|---|---|
-| SCK (bit clock) | **GP0** | SCK | |
-| WS (word select) | **GP1** | WS | |
-| SD (data) | **GP2** | SD | |
-| LED data | **GP9** → level shifter | | DIN (from the shifter's 5 V output) |
+| SCK (bit clock) | **GP1** | SCK | |
+| WS (word select) | **GP2** | WS | |
+| SD (data) | **GP3** | SD | |
+| LED data | **GP6** → level shifter | | DIN (from the shifter's 5 V output) |
 | 3.3 V | 3V3 | VDD | |
 | Ground | GND | GND | GND |
 | Channel select | | L/R: **GND** on one, **3.3 V** on the other | |
 
 | KY-040 encoder | Board pin |
 |---|---|
-| CLK (A), DT (B), SW | **GP6**, **GP7**, **GP8**, each with a pull-up to 3.3 V |
+| CLK (A), DT (B), SW | **GP9**, **GP25**, **GP26** |
 | + | 3V3 |
 | GND | GND |
 
-The LCD is on the board (SPI0, GP16–GP21). The encoder's contacts pull to ground; the board's pull-ups hold them high (the internal ones are on too, in parallel). Its turns are counted by the third PIO, left to it.
+The LCD is on the board (SPI0, GP16–GP21). The encoder's contacts pull to ground; the KY-040's own pull-ups and the pins' internal ones hold them high, so the board needs none. Its turns are counted by the third PIO, left to it.
+
+The perfboard itself, parts, wires and assembly, is drawn in [`docs/hardware/wiring.pdf`](docs/hardware/wiring.pdf), generated and checked by [`tools/board`](tools/board): the pins above are chosen so its wires run straight (the encoder's three GPIOs sit right above its header).
 
 - SCK and WS must be on **consecutive** pins, in that order (one PIO side-set drives both, as in Raspberry Pi's own I2S driver). All pins are set in [`app/config.h`](app/config.h).
 - Each microphone lets go of SD outside its own channel. The pin's bus keeper holds the last level then, doing the job of the pull-down the INMP441 datasheet suggests with no part: fit none, and a missing microphone reads as silence.
@@ -194,9 +196,9 @@ Brightness is perceptual: each step looks equally brighter. Below about 20 % the
 | Setting | Default | Meaning |
 |---|---|---|
 | `LED_COUNT` | `300` | LEDs on the strip |
-| `MIC_SCK_PIN`, `MIC_WS_PIN`, `MIC_DATA_PIN` | `0`, `1`, `2` | Microphone bus |
-| `LED_DATA_PIN` | `9` | Strip data |
-| `ENCODER_A_PIN`, `ENCODER_B_PIN`, `ENCODER_SWITCH_PIN` | `6`, `7`, `8` | The encoder's CLK, DT and SW |
+| `MIC_SCK_PIN`, `MIC_WS_PIN`, `MIC_DATA_PIN` | `1`, `2`, `3` | Microphone bus |
+| `LED_DATA_PIN` | `6` | Strip data |
+| `ENCODER_A_PIN`, `ENCODER_B_PIN`, `ENCODER_SWITCH_PIN` | `9`, `25`, `26` | The encoder's CLK, DT and SW |
 | `ENCODER_PIO_INDEX` | `2` | The PIO counting its turns |
 | `ENCODER_COUNTS_PER_CLICK`, `ENCODER_REVERSED` | `2`, `false` | Counts per click, and whether it turns the other way: first guesses, checked on the module |
 | `UI_LONG_PRESS_MS` | `1000` | A long press: back, or lock and unlock |
@@ -467,7 +469,7 @@ Add a value to `scene_t` in [`lib/show/scene.h`](lib/show/scene.h), before `SCEN
 
 - In a quiet room that is by design. Play some music.
 - Check the startup messages over USB serial (`-DWAIT_FOR_USB_HOST=ON`). An init failure names the part that failed.
-- Check the strip's power, the shared ground and the data pin (GP9).
+- Check the strip's power, the shared ground and the data pin (GP6).
 
 </details>
 
@@ -527,7 +529,7 @@ Change the hit sensitivity in the menu (Sound, higher is more hits), or a region
 <details>
 <summary><b>The encoder turns the wrong way, or skips</b></summary>
 
-Turning the wrong way: set `ENCODER_REVERSED` in `app/config.h`, or swap CLK and DT (`ENCODER_A_PIN`, `ENCODER_B_PIN`). One step every other click, or two per click: `ENCODER_COUNTS_PER_CLICK` is 2 for an encoder with a full cycle per click (most KY-040s), 1 for one with half a cycle. Its contacts must pull to ground, with pull-ups on the board.
+Turning the wrong way: set `ENCODER_REVERSED` in `app/config.h`, or swap CLK and DT (`ENCODER_A_PIN`, `ENCODER_B_PIN`). One step every other click, or two per click: `ENCODER_COUNTS_PER_CLICK` is 2 for an encoder with a full cycle per click (most KY-040s), 1 for one with half a cycle. Its contacts must pull to ground; the module's and the pins' pull-ups hold them high.
 
 </details>
 

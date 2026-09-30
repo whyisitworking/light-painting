@@ -11,10 +11,10 @@ Nothing connected but USB.
 
 ## 2. The encoder
 
-A KY-040: CLK, DT and SW on GP6, GP7 and GP8, each pulled up to 3.3 V, + to 3.3 V, GND to ground.
+A KY-040: CLK, DT and SW on GP9, GP25 and GP26, + to 3.3 V, GND to ground (see `docs/hardware/wiring.pdf`).
 
 - **See:** on the status screen, one look further per click, each way; a press opens the menu. On a page, one row per click; a press on a setting shows arrows round its value, turning changes it, a press ends it; "‹ Back" and a 1 s hold go back. On the status screen a 1 s hold shows a padlock, and then turning, pressing and BOOT do nothing until another 1 s hold.
-- **If not:** the wrong way round: `ENCODER_REVERSED` in `app/config.h`. Two rows per click, or one every other click: `ENCODER_COUNTS_PER_CLICK` (2 for a full quadrature cycle per click, 1 for half). Nothing at all: the contacts must pull to ground, and the board's pull-ups be fitted.
+- **If not:** the wrong way round: `ENCODER_REVERSED` in `app/config.h`. Two rows per click, or one every other click: `ENCODER_COUNTS_PER_CLICK` (2 for a full quadrature cycle per click, 1 for half). Nothing at all: the contacts must pull to ground; check the header's order against the drawing (GND, +, SW, DT, CLK from the left).
 
 ## 3. Diagnostics, without microphones
 
