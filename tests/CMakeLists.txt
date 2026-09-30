@@ -55,6 +55,7 @@ lp_add_test(parts spectrum features song)
 lp_add_test(scene show)
 lp_add_test(blocks show)
 lp_add_test(rules show)
+lp_add_test(show show)
 
 # The preview tool's engine (tools/preview): the pipeline for every mode at
 # once, also compiled to WebAssembly by tools/preview/build.sh
