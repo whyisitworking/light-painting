@@ -23,19 +23,18 @@ static visualizer_config_t config(void) {
     };
 }
 
-// The defaults in a mode, on the rainbow
-static visualizer_tuning_t tuning_for(effects_mode_t mode) {
+// The defaults in a look
+static visualizer_tuning_t tuning_for(show_look_t look) {
     visualizer_tuning_t tuning = visualizer_default_tuning();
 
-    tuning.effects.mode = mode;
-    tuning.effects.palette = PALETTE_RAINBOW;
+    tuning.show.look = look;
 
     return tuning;
 }
 
-static bool start(visualizer_t *visualizer, effects_mode_t mode) {
+static bool start(visualizer_t *visualizer, show_look_t look) {
     visualizer_config_t settings = config();
-    visualizer_tuning_t tuning = tuning_for(mode);
+    visualizer_tuning_t tuning = tuning_for(look);
 
     if (!visualizer_init(visualizer, &settings))
         return false;
@@ -84,7 +83,7 @@ static void test_rejects_invalid(void) {
     bad.hop_size = FFT_SIZE + 1;
     CHECK(!visualizer_init(&visualizer, &bad));
 
-    // Fails late, in the effects, after the spectrum and features are set up
+    // Fails late, in the show, after the spectrum and features are set up
     bad = config();
     bad.led_count = 1;
     CHECK(!visualizer_init(&visualizer, &bad));
@@ -94,7 +93,7 @@ static void test_silence_is_dark(void) {
     visualizer_t visualizer;
     bool dark = true;
 
-    CHECK(start(&visualizer, EFFECTS_MODE_SPECTRUM));
+    CHECK(start(&visualizer, SHOW_LOOK_STAGE));
 
     for (size_t hop = 0; hop < 200; hop++) {
         tone_hop(hop, 1000.0, 0.0);
@@ -109,12 +108,13 @@ static void test_silence_is_dark(void) {
     visualizer_deinit(&visualizer);
 }
 
-// A 1 kHz tone lights the spectrum where its band is, not the ends
+// On Stage a 1 kHz tone lights the bars where its band is, on both sides of
+// the centre, brighter than the bars of silent bands next to the centre
 static void test_tone_lights_its_position(void) {
     visualizer_t visualizer;
-    size_t band = 0, led;
+    size_t band = 0, distance, span;
 
-    CHECK(start(&visualizer, EFFECTS_MODE_SPECTRUM));
+    CHECK(start(&visualizer, SHOW_LOOK_STAGE));
 
     for (size_t hop = 0; hop < 200; hop++) {
         tone_hop(hop, 1000.0, 200000.0);
@@ -125,27 +125,32 @@ static void test_tone_lights_its_position(void) {
     while (band + 1 < FEATURES_BAND_COUNT &&
            visualizer.features.edges[band + 1] <= 1000.f)
         band++;
-    led = band * (LEDS - 1) / (FEATURES_BAND_COUNT - 1);
+    // As look_stage.c places the bands: over the inner part of each half
+    span = (size_t)((1.f - SHOW_STAGE_WING) * (float)(LEDS / 2));
+    distance = band * span / (FEATURES_BAND_COUNT - 1);
 
-    CHECK(brightness(pixels[led]) > 0);
-    CHECK(pixels[0] == 0);
-    CHECK(pixels[LEDS - 1] == 0);
+    CHECK(brightness(pixels[LEDS / 2 + distance]) > 0);
+    CHECK(brightness(pixels[(LEDS - 1) / 2 - distance]) > 0);
+    CHECK(brightness(pixels[LEDS / 2 + distance]) >
+          brightness(pixels[LEDS / 2]));
 
     visualizer_deinit(&visualizer);
 }
 
-// 120 BPM kicks, from I2S words on: one beat per kick
-static void test_kicks_give_beats(void) {
+// 120 BPM kicks, from I2S words on: one low hit per kick
+static void test_kicks_give_low_hits(void) {
     visualizer_t visualizer;
     const size_t hops = (size_t)(4.0 * FS / HOP_SIZE);
     unsigned beats = 0;
 
-    CHECK(start(&visualizer, EFFECTS_MODE_RIPPLES));
+    CHECK(start(&visualizer, SHOW_LOOK_PULSE));
 
     for (size_t hop = 0; hop < hops; hop++) {
         kick_hop(hop, 0.5);
         visualizer_analyze(&visualizer, frames);
-        beats += visualizer_render(&visualizer, pixels)->beat;
+        beats += visualizer_render(&visualizer, pixels)
+                     ->hits[FEATURES_LOW]
+                     .fired;
     }
 
     // Kicks at 0, 0.5 .. 3.5 s
@@ -157,12 +162,12 @@ static void test_kicks_give_beats(void) {
 /**
  * The same tuning again changes nothing, as the menu may publish it on any
  * hop: tuned on every hop, a visualizer draws exactly what it draws tuned
- * once, in every mode. For the default look, tuned once is not tuned at
+ * once, in every look. For the default look, tuned once is not tuned at
  * all: with nothing saved, the lights are what they were before the menu.
  * Kicks and a tone over noise, as test_golden
  */
 static void test_default_tuning_changes_nothing(void) {
-    for (int mode = 0; mode < EFFECTS_MODE_COUNT; mode++) {
+    for (int look = 0; look < SHOW_LOOK_COUNT; look++) {
         visualizer_t plain, tuned;
         visualizer_config_t settings = config();
         visualizer_tuning_t tuning = visualizer_default_tuning();
@@ -170,13 +175,13 @@ static void test_default_tuning_changes_nothing(void) {
         uint32_t noise = 12345;
         size_t different = 0;
 
-        tuning.effects.mode = (effects_mode_t)mode;
+        tuning.show.look = (show_look_t)look;
 
         CHECK(visualizer_init(&plain, &settings));
         // The auto-gain would hide a wrong gain in these loud signals
         CHECK(plain.gain == tuning.gain);
         CHECK(visualizer_init(&tuned, &settings));
-        if (mode != EFFECTS_MODE)
+        if (look != SHOW_LOOK)
             visualizer_tune(&plain, &tuning);
 
         for (size_t hop = 0; hop < 400; hop++) {
@@ -228,7 +233,7 @@ int main(void) {
     test_rejects_invalid();
     test_silence_is_dark();
     test_tone_lights_its_position();
-    test_kicks_give_beats();
+    test_kicks_give_low_hits();
     test_default_tuning_changes_nothing();
     test_gain_reaches_the_parts();
 

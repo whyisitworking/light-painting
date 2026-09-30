@@ -57,7 +57,7 @@ lp_add_test(blocks show)
 lp_add_test(rules show)
 lp_add_test(show show)
 
-# The preview tool's engine (tools/preview): the pipeline for every mode at
+# The preview tool's engine (tools/preview): the pipeline for every look at
 # once, also compiled to WebAssembly by tools/preview/build.sh
 set(PREVIEW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/../tools/preview/preview_api.c
@@ -69,4 +69,4 @@ target_compile_options(preview_api PUBLIC
     -iquote${CMAKE_CURRENT_SOURCE_DIR}/../tools/preview
     -iquote${CMAKE_CURRENT_SOURCE_DIR}/../app/ui)
 target_link_libraries(preview_api PUBLIC settings visualizer)
-lp_add_test(preview preview_api)
+lp_add_test(preview preview_api song)

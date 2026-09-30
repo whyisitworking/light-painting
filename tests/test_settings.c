@@ -2,6 +2,7 @@
 #include "settings.h"
 #include "visualizer.h"
 
+#include <math.h>
 #include <string.h>
 
 // Every default and every end of a range sits on its grid
@@ -27,31 +28,17 @@ static void test_defaults_are_the_constants(void) {
 
     settings_reset(&settings);
 
-    CHECK(settings_get(&settings, SETTINGS_MODE) == (int)EFFECTS_MODE);
-    CHECK(settings_get(&settings, SETTINGS_PALETTE) == (int)EFFECTS_PALETTE);
+    CHECK(settings_get(&settings, SETTINGS_LOOK) == (int)SHOW_LOOK);
+    CHECK(settings_get(&settings, SETTINGS_SCENE) == (int)SHOW_SCENE);
     CHECK(settings_value(&settings, SETTINGS_BRIGHTNESS) == 1.f);
+    CHECK(settings_get(&settings, SETTINGS_SONG_PARTS) == 1);
     CHECK(settings_value(&settings, SETTINGS_GAIN) == VISUALIZER_GAIN);
-    CHECK(settings_value(&settings, SETTINGS_BEAT_THRESHOLD) ==
+    // Sensitivity 3.0 stands for the threshold 9 / 3.0, the constant
+    CHECK(settings_value(&settings, SETTINGS_HIT_SENSITIVITY) == 3.f);
+    CHECK(settings_tuning(&settings).features.hit_threshold ==
           FEATURES_HIT_THRESHOLD);
     CHECK(settings_value(&settings, SETTINGS_QUIET_FLOOR) ==
           FEATURES_MIN_CEILING_DB);
-    CHECK(settings_value(&settings, SETTINGS_ATTACK) == FEATURES_ATTACK_MS);
-    CHECK(settings_value(&settings, SETTINGS_DECAY) == FEATURES_DECAY_MS);
-    CHECK(settings_value(&settings, SETTINGS_DRIFT) == EFFECTS_DRIFT_PERIOD_S);
-    CHECK(settings_value(&settings, SETTINGS_WARMTH) == EFFECTS_WARMTH);
-    CHECK(settings_value(&settings, SETTINGS_FLASH) == EFFECTS_FLASH_LEVEL);
-    CHECK(settings_value(&settings, SETTINGS_SPARKLES) == EFFECTS_SPARKLE_RATE);
-    CHECK(settings_value(&settings, SETTINGS_RIVER_SPEED) ==
-          (float)EFFECTS_RIVER_SPEED);
-    CHECK(settings_value(&settings, SETTINGS_RIPPLE_SPEED) ==
-          EFFECTS_RIPPLE_SPEED);
-    CHECK(settings_value(&settings, SETTINGS_PEAK_HOLD) ==
-          EFFECTS_PEAK_HOLD_MS);
-    CHECK(settings_value(&settings, SETTINGS_TRAILS) == EFFECTS_TRAILS_MS);
-    CHECK(settings_value(&settings, SETTINGS_DIFFUSE) == EFFECTS_DIFFUSE);
-    CHECK(settings_get(&settings, SETTINGS_SYMMETRY) == (int)EFFECTS_SYMMETRY);
-    CHECK(settings_value(&settings, SETTINGS_CHASE) ==
-          EFFECTS_CHASE_LEDS_PER_S);
 }
 
 static void test_set_snaps_and_clamps(void) {
@@ -66,12 +53,12 @@ static void test_set_snaps_and_clamps(void) {
     CHECK(settings_get(&settings, SETTINGS_GAIN) == 5);
 
     // Between two steps: the nearest, halves up
-    CHECK(settings_set(&settings, SETTINGS_ATTACK, 13));
-    CHECK(settings_get(&settings, SETTINGS_ATTACK) == 14);
-    CHECK(settings_set(&settings, SETTINGS_DECAY, 126));
-    CHECK(settings_get(&settings, SETTINGS_DECAY) == 130);
-    CHECK(settings_set(&settings, SETTINGS_DECAY, 124));
-    CHECK(settings_get(&settings, SETTINGS_DECAY) == 120);
+    CHECK(settings_set(&settings, SETTINGS_BRIGHTNESS, 47));
+    CHECK(settings_get(&settings, SETTINGS_BRIGHTNESS) == 45);
+    CHECK(settings_set(&settings, SETTINGS_BRIGHTNESS, 48));
+    CHECK(settings_get(&settings, SETTINGS_BRIGHTNESS) == 50);
+    CHECK(settings_set(&settings, SETTINGS_BACKLIGHT, 64));
+    CHECK(settings_get(&settings, SETTINGS_BACKLIGHT) == 60);
 
     // Negative ranges
     CHECK(settings_set(&settings, SETTINGS_QUIET_FLOOR, -50));
@@ -100,23 +87,29 @@ static void test_step_stops_at_the_ends(void) {
     CHECK(settings_get(&settings, SETTINGS_BRIGHTNESS) == 10);
 }
 
-static void test_step_wraps_modes_and_palettes(void) {
+static void test_step_wraps_looks_scenes_and_song_parts(void) {
     settings_t settings;
 
     settings_reset(&settings);
-    settings_set(&settings, SETTINGS_MODE, EFFECTS_MODE_COUNT - 1);
+    settings_set(&settings, SETTINGS_LOOK, SHOW_LOOK_COUNT - 1);
 
-    CHECK(settings_step(&settings, SETTINGS_MODE, 1));
-    CHECK(settings_get(&settings, SETTINGS_MODE) == 0);
-    CHECK(settings_step(&settings, SETTINGS_MODE, -1));
-    CHECK(settings_get(&settings, SETTINGS_MODE) == EFFECTS_MODE_COUNT - 1);
+    CHECK(settings_step(&settings, SETTINGS_LOOK, 1));
+    CHECK(settings_get(&settings, SETTINGS_LOOK) == 0);
+    CHECK(settings_step(&settings, SETTINGS_LOOK, -1));
+    CHECK(settings_get(&settings, SETTINGS_LOOK) == SHOW_LOOK_COUNT - 1);
 
-    settings_set(&settings, SETTINGS_PALETTE, 0);
-    CHECK(settings_step(&settings, SETTINGS_PALETTE, -1));
-    CHECK(settings_get(&settings, SETTINGS_PALETTE) == PALETTE_COUNT - 1);
-    // A whole round comes back to the same palette
-    CHECK(!settings_step(&settings, SETTINGS_PALETTE, PALETTE_COUNT));
-    CHECK(settings_get(&settings, SETTINGS_PALETTE) == PALETTE_COUNT - 1);
+    settings_set(&settings, SETTINGS_SCENE, 0);
+    CHECK(settings_step(&settings, SETTINGS_SCENE, -1));
+    CHECK(settings_get(&settings, SETTINGS_SCENE) == SCENE_COUNT - 1);
+    // A whole round comes back to the same scene
+    CHECK(!settings_step(&settings, SETTINGS_SCENE, SCENE_COUNT));
+    CHECK(settings_get(&settings, SETTINGS_SCENE) == SCENE_COUNT - 1);
+
+    // On and off toggle both ways
+    CHECK(settings_step(&settings, SETTINGS_SONG_PARTS, 1));
+    CHECK(settings_get(&settings, SETTINGS_SONG_PARTS) == 0);
+    CHECK(settings_step(&settings, SETTINGS_SONG_PARTS, -1));
+    CHECK(settings_get(&settings, SETTINGS_SONG_PARTS) == 1);
 }
 
 // Values read back from somewhere else land on the grid
@@ -124,15 +117,15 @@ static void test_clamp(void) {
     settings_t settings;
 
     settings_reset(&settings);
-    settings.values[SETTINGS_PEAK_HOLD] = 5000;
-    settings.values[SETTINGS_ATTACK] = 3;
-    settings.values[SETTINGS_MODE] = -7;
+    settings.values[SETTINGS_QUIET_FLOOR] = 5000;
+    settings.values[SETTINGS_BRIGHTNESS] = 3;
+    settings.values[SETTINGS_LOOK] = -7;
 
     settings_clamp(&settings);
 
-    CHECK(settings_get(&settings, SETTINGS_PEAK_HOLD) == 2000);
-    CHECK(settings_get(&settings, SETTINGS_ATTACK) == 4);
-    CHECK(settings_get(&settings, SETTINGS_MODE) == 0);
+    CHECK(settings_get(&settings, SETTINGS_QUIET_FLOOR) == -10);
+    CHECK(settings_get(&settings, SETTINGS_BRIGHTNESS) == 10);
+    CHECK(settings_get(&settings, SETTINGS_LOOK) == 0);
 }
 
 // The defaults make the visualizer's default tuning, field for field
@@ -144,26 +137,13 @@ static void test_default_tuning(void) {
     tuning = settings_tuning(&settings);
 
     CHECK(tuning.gain == defaults.gain);
-    CHECK(tuning.features.attack_ms == defaults.features.attack_ms);
-    CHECK(tuning.features.decay_ms == defaults.features.decay_ms);
     CHECK(tuning.features.min_ceiling_db == defaults.features.min_ceiling_db);
     CHECK(tuning.features.hit_threshold ==
           defaults.features.hit_threshold);
-    CHECK(tuning.effects.mode == defaults.effects.mode);
-    CHECK(tuning.effects.palette == defaults.effects.palette);
-    CHECK(tuning.effects.brightness == defaults.effects.brightness);
-    CHECK(tuning.effects.river_speed == defaults.effects.river_speed);
-    CHECK(tuning.effects.ripple_speed == defaults.effects.ripple_speed);
-    CHECK(tuning.effects.peak_hold_ms == defaults.effects.peak_hold_ms);
-    CHECK(tuning.effects.drift_period_s == defaults.effects.drift_period_s);
-    CHECK(tuning.effects.warmth == defaults.effects.warmth);
-    CHECK(tuning.effects.flash_level == defaults.effects.flash_level);
-    CHECK(tuning.effects.sparkle_rate == defaults.effects.sparkle_rate);
-    CHECK(tuning.effects.trails_ms == defaults.effects.trails_ms);
-    CHECK(tuning.effects.diffuse == defaults.effects.diffuse);
-    CHECK(tuning.effects.symmetry == defaults.effects.symmetry);
-    CHECK(tuning.effects.chase_leds_per_s ==
-          defaults.effects.chase_leds_per_s);
+    CHECK(tuning.features.song_parts == defaults.features.song_parts);
+    CHECK(tuning.show.look == defaults.show.look);
+    CHECK(tuning.show.scene == defaults.show.scene);
+    CHECK(tuning.show.brightness == defaults.show.brightness);
 }
 
 // Each setting lands in its field, divided by its divisor
@@ -172,28 +152,44 @@ static void test_tuning_follows_the_settings(void) {
     visualizer_tuning_t tuning;
 
     settings_reset(&settings);
-    settings_set(&settings, SETTINGS_MODE, EFFECTS_MODE_GLOW);
+    settings_set(&settings, SETTINGS_LOOK, SHOW_LOOK_STORM);
+    settings_set(&settings, SETTINGS_SCENE, SCENE_ICE);
     settings_set(&settings, SETTINGS_BRIGHTNESS, 50);
+    settings_set(&settings, SETTINGS_SONG_PARTS, 0);
     settings_set(&settings, SETTINGS_GAIN, 25);
-    settings_set(&settings, SETTINGS_DRIFT, 0);
-    settings_set(&settings, SETTINGS_RIVER_SPEED, 3);
-    settings_set(&settings, SETTINGS_SPARKLES, 55);
-    settings_set(&settings, SETTINGS_TRAILS, 300);
-    settings_set(&settings, SETTINGS_DIFFUSE, 45);
-    settings_set(&settings, SETTINGS_SYMMETRY, 3);
-    settings_set(&settings, SETTINGS_CHASE, -80);
+    settings_set(&settings, SETTINGS_HIT_SENSITIVITY, 45);
+    settings_set(&settings, SETTINGS_QUIET_FLOOR, -40);
     tuning = settings_tuning(&settings);
 
-    CHECK(tuning.effects.mode == EFFECTS_MODE_GLOW);
-    CHECK(tuning.effects.brightness == 0.5f);
+    CHECK(tuning.show.look == SHOW_LOOK_STORM);
+    CHECK(tuning.show.scene == SCENE_ICE);
+    CHECK(tuning.show.brightness == 0.5f);
+    CHECK(!tuning.features.song_parts);
     CHECK(tuning.gain == 2.5f);
-    CHECK(tuning.effects.drift_period_s == 0.f);
-    CHECK(tuning.effects.river_speed == 3);
-    CHECK(tuning.effects.sparkle_rate == 0.055f);
-    CHECK(tuning.effects.trails_ms == 300.f);
-    CHECK(tuning.effects.diffuse == 0.45f);
-    CHECK(tuning.effects.symmetry == 3);
-    CHECK(tuning.effects.chase_leds_per_s == -80.f);
+    CHECK(tuning.features.hit_threshold == 2.f);
+    CHECK(tuning.features.min_ceiling_db == -40.f);
+}
+
+// Hit sensitivity turns the threshold around: higher, a lower threshold and
+// more hits, from 6.0 at the lowest to 1.5 at the highest
+static void test_hit_sensitivity_is_inverse(void) {
+    const settings_range_t *range = settings_range(SETTINGS_HIT_SENSITIVITY);
+    settings_t settings;
+    float previous = INFINITY;
+
+    settings_reset(&settings);
+    for (int value = range->min; value <= range->max; value += range->step) {
+        float threshold;
+
+        settings_set(&settings, SETTINGS_HIT_SENSITIVITY, value);
+        threshold = settings_tuning(&settings).features.hit_threshold;
+        CHECK(threshold < previous);
+        previous = threshold;
+    }
+    settings_set(&settings, SETTINGS_HIT_SENSITIVITY, range->min);
+    CHECK(settings_tuning(&settings).features.hit_threshold == 6.f);
+    settings_set(&settings, SETTINGS_HIT_SENSITIVITY, range->max);
+    CHECK(settings_tuning(&settings).features.hit_threshold == 1.5f);
 }
 
 static void test_record_round_trip(void) {
@@ -202,9 +198,9 @@ static void test_record_round_trip(void) {
     uint32_t sequence = 0;
 
     settings_reset(&saved);
-    settings_set(&saved, SETTINGS_MODE, EFFECTS_MODE_VU);
+    settings_set(&saved, SETTINGS_LOOK, SHOW_LOOK_SWEEP);
     settings_set(&saved, SETTINGS_QUIET_FLOOR, -40);
-    settings_set(&saved, SETTINGS_PEAK_HOLD, 1250);
+    settings_set(&saved, SETTINGS_SONG_PARTS, 0);
 
     settings_encode(&saved, 42, record);
     CHECK(settings_decode(&loaded, &sequence, record));
@@ -285,41 +281,32 @@ static void test_record_from_older_firmware(void) {
     CHECK(settings_get(&loaded, SETTINGS_GAIN) == 15);
 }
 
-// The record of the firmware before the layers: the layers come up off
-static void test_record_before_the_layers(void) {
-    settings_t settings, loaded;
-    uint8_t record[SETTINGS_RECORD_SIZE];
-    uint32_t sequence;
-
-    settings_reset(&settings);
-    settings_set(&settings, SETTINGS_MODE, EFFECTS_MODE_VU);
-    settings_set(&settings, SETTINGS_BACKLIGHT, 60);
-    settings_set(&settings, SETTINGS_TRAILS, 500);
-    settings_set(&settings, SETTINGS_SYMMETRY, 4);
-    settings_encode(&settings, 9, record);
-    cut_record(record, SETTINGS_BACKLIGHT + 1);
-
-    CHECK(settings_decode(&loaded, &sequence, record));
-    CHECK(settings_get(&loaded, SETTINGS_MODE) == EFFECTS_MODE_VU);
-    CHECK(settings_get(&loaded, SETTINGS_BACKLIGHT) == 60);
-    CHECK(settings_get(&loaded, SETTINGS_TRAILS) == 0);
-    CHECK(settings_get(&loaded, SETTINGS_DIFFUSE) == 0);
-    CHECK(settings_get(&loaded, SETTINGS_SYMMETRY) == 1);
-    CHECK(settings_get(&loaded, SETTINGS_CHASE) == 0);
-}
-
-// Negative values survive a record
-static void test_record_keeps_negative_chase(void) {
+// The quiet floor is negative: it survives a record
+static void test_record_keeps_negative_values(void) {
     settings_t saved, loaded;
     uint8_t record[SETTINGS_RECORD_SIZE];
     uint32_t sequence;
 
     settings_reset(&saved);
-    settings_set(&saved, SETTINGS_CHASE, -120);
+    settings_set(&saved, SETTINGS_QUIET_FLOOR, -44);
     settings_encode(&saved, 3, record);
 
     CHECK(settings_decode(&loaded, &sequence, record));
-    CHECK(settings_get(&loaded, SETTINGS_CHASE) == -120);
+    CHECK(settings_get(&loaded, SETTINGS_QUIET_FLOOR) == -44);
+}
+
+// A record of the firmware before the show engine (version 1): ignored, the
+// defaults load
+static void test_record_of_version_1_ignored(void) {
+    settings_t settings;
+    uint8_t record[SETTINGS_RECORD_SIZE];
+    uint32_t sequence;
+
+    settings_reset(&settings);
+    settings_encode(&settings, 5, record);
+    record[4] = 1;
+    record[5] = 0;
+    CHECK(!settings_decode(&settings, &sequence, record));
 }
 
 // NOR flash as the log sees it: erasing sets a block to 0xFF, programming
@@ -376,8 +363,8 @@ static void test_log_saves_and_loads(void) {
     settings_reset(&settings);
 
     for (int i = 0; i < 100; i++) {
-        settings_set(&settings, SETTINGS_PEAK_HOLD, (i % 40) * 50);
-        settings_set(&settings, SETTINGS_MODE, i % EFFECTS_MODE_COUNT);
+        settings_set(&settings, SETTINGS_QUIET_FLOOR, -45 + i % 36);
+        settings_set(&settings, SETTINGS_LOOK, i % SHOW_LOOK_COUNT);
         save(&settings);
 
         settings_log_scan(&log, &loaded, flash);
@@ -452,7 +439,7 @@ static void test_log_power_lost_after_erase(void) {
 
     // Both blocks full: records 1 to 16 in block 0, 17 to 32 in block 1
     for (int i = 0; i < 32; i++) {
-        settings_set(&settings, SETTINGS_WARMTH, (i % 20) * 5);
+        settings_set(&settings, SETTINGS_BRIGHTNESS, 10 + (i % 19) * 5);
         save(&settings);
     }
 
@@ -468,16 +455,15 @@ static void test_log_power_lost_after_erase(void) {
     CHECK(memcmp(&settings, &loaded, sizeof(settings)) == 0);
 }
 
-// Shuffles change the look on its grids, never the brightness, the sound
-// response or the backlight, and always show a new mode or palette
+// A shuffle changes the look or the scene, always, and nothing else
 static void test_shuffle(void) {
     settings_t settings, before;
     uint32_t random = 12345;
-    int changed_drift = 0, same_look = 0, off_grid = 0, kept = 0;
-    int shuffled_trails = 0, shuffled_diffuse = 0, kept_layers = 0;
+    int same_look = 0, off_grid = 0, kept = 0, changed_look = 0;
 
     settings_reset(&settings);
     settings_set(&settings, SETTINGS_BRIGHTNESS, 40);
+    settings_set(&settings, SETTINGS_SONG_PARTS, 0);
     settings_set(&settings, SETTINGS_GAIN, 25);
     settings_set(&settings, SETTINGS_BACKLIGHT, 60);
 
@@ -485,18 +471,12 @@ static void test_shuffle(void) {
         before = settings;
         settings_shuffle(&settings, &random);
 
-        same_look += settings_get(&settings, SETTINGS_MODE) ==
-                         settings_get(&before, SETTINGS_MODE) &&
-                     settings_get(&settings, SETTINGS_PALETTE) ==
-                         settings_get(&before, SETTINGS_PALETTE);
-        changed_drift += settings_get(&settings, SETTINGS_DRIFT) !=
-                         settings_get(&before, SETTINGS_DRIFT);
-        shuffled_trails += settings_get(&settings, SETTINGS_TRAILS) !=
-                           settings_get(&before, SETTINGS_TRAILS);
-        shuffled_diffuse += settings_get(&settings, SETTINGS_DIFFUSE) !=
-                            settings_get(&before, SETTINGS_DIFFUSE);
-        kept_layers += settings_get(&settings, SETTINGS_SYMMETRY) == 1 &&
-                       settings_get(&settings, SETTINGS_CHASE) == 0;
+        same_look += settings_get(&settings, SETTINGS_LOOK) ==
+                         settings_get(&before, SETTINGS_LOOK) &&
+                     settings_get(&settings, SETTINGS_SCENE) ==
+                         settings_get(&before, SETTINGS_SCENE);
+        changed_look += settings_get(&settings, SETTINGS_LOOK) !=
+                        settings_get(&before, SETTINGS_LOOK);
 
         for (int id = 0; id < SETTINGS_ID_COUNT; id++) {
             const settings_range_t *range = settings_range(id);
@@ -507,74 +487,18 @@ static void test_shuffle(void) {
         }
 
         kept += settings_get(&settings, SETTINGS_BRIGHTNESS) == 40 &&
+                settings_get(&settings, SETTINGS_SONG_PARTS) == 0 &&
                 settings_get(&settings, SETTINGS_GAIN) == 25 &&
                 settings_get(&settings, SETTINGS_BACKLIGHT) == 60 &&
                 settings_get(&settings, SETTINGS_QUIET_FLOOR) == -32 &&
-                settings_get(&settings, SETTINGS_BEAT_THRESHOLD) == 30 &&
-                settings_get(&settings, SETTINGS_ATTACK) == 10 &&
-                settings_get(&settings, SETTINGS_DECAY) == 120;
+                settings_get(&settings, SETTINGS_HIT_SENSITIVITY) == 30;
     }
 
     CHECK(same_look == 0);
     CHECK(off_grid == 0);
     CHECK(kept == 1000);
-    // The layers vary too: drift has 31 values
-    CHECK(changed_drift > 900);
-    // The trails and the blur are shuffled, the folding and the sliding not
-    CHECK(shuffled_trails > 900);
-    CHECK(shuffled_diffuse > 900);
-    CHECK(kept_layers == 1000);
-}
-
-// Every setting is global or in exactly one mode's list, and no mode has more
-// than two rows: nothing is unreachable in the menu, the Look page stays short
-static void test_mode_ids(void) {
-    static const settings_id_t global[] = {
-        SETTINGS_MODE,    SETTINGS_PALETTE,        SETTINGS_BRIGHTNESS,
-        SETTINGS_GAIN,    SETTINGS_BEAT_THRESHOLD, SETTINGS_QUIET_FLOOR,
-        SETTINGS_ATTACK,  SETTINGS_DECAY,          SETTINGS_DRIFT,
-        SETTINGS_WARMTH,  SETTINGS_FLASH,          SETTINGS_SPARKLES,
-        SETTINGS_BACKLIGHT, SETTINGS_TRAILS,       SETTINGS_DIFFUSE,
-        SETTINGS_SYMMETRY, SETTINGS_CHASE,
-    };
-    int owners[SETTINGS_ID_COUNT] = {0};
-    size_t river_count, ripples_count, vu_count;
-    const settings_id_t *river, *ripples, *vu;
-
-    // The 17 that apply to every mode never grow
-    CHECK(sizeof(global) / sizeof(global[0]) == 17);
-
-    for (int mode = 0; mode < EFFECTS_MODE_COUNT; mode++) {
-        size_t count = 99;
-        const settings_id_t *ids =
-            settings_mode_ids((effects_mode_t)mode, &count);
-
-        CHECK(count <= SETTINGS_MODE_IDS_MAX);
-        CHECK(count == 0 || ids != nullptr);
-        for (size_t k = 0; k < count; k++)
-            owners[ids[k]]++;
-    }
-
-    for (int id = 0; id < SETTINGS_ID_COUNT; id++) {
-        bool is_global = false;
-
-        for (size_t k = 0; k < sizeof(global) / sizeof(global[0]); k++)
-            is_global = is_global || global[k] == (settings_id_t)id;
-
-        CHECK(owners[id] == (is_global ? 0 : 1));
-    }
-
-    // The three that moved off the Effects page
-    river = settings_mode_ids(EFFECTS_MODE_RIVER, &river_count);
-    ripples = settings_mode_ids(EFFECTS_MODE_RIPPLES, &ripples_count);
-    vu = settings_mode_ids(EFFECTS_MODE_VU, &vu_count);
-    CHECK(river_count == 1 && river[0] == SETTINGS_RIVER_SPEED);
-    CHECK(ripples_count == 1 && ripples[0] == SETTINGS_RIPPLE_SPEED);
-    CHECK(vu_count == 1 && vu[0] == SETTINGS_PEAK_HOLD);
-
-    // Out of range: none
-    CHECK(settings_mode_ids(EFFECTS_MODE_COUNT, &river_count) == nullptr);
-    CHECK(river_count == 0);
+    // Five looks: most shuffles bring another
+    CHECK(changed_look > 700);
 }
 
 int main(void) {
@@ -582,23 +506,23 @@ int main(void) {
     test_defaults_are_the_constants();
     test_set_snaps_and_clamps();
     test_step_stops_at_the_ends();
-    test_step_wraps_modes_and_palettes();
+    test_step_wraps_looks_scenes_and_song_parts();
     test_clamp();
     test_default_tuning();
     test_tuning_follows_the_settings();
+    test_hit_sensitivity_is_inverse();
     test_record_round_trip();
     test_record_damage_detected();
     test_record_rejects_erased_and_other_versions();
     test_record_from_older_firmware();
-    test_record_before_the_layers();
-    test_record_keeps_negative_chase();
+    test_record_keeps_negative_values();
+    test_record_of_version_1_ignored();
     test_log_empty();
     test_log_saves_and_loads();
     test_log_torn_record();
     test_log_garbage();
     test_log_power_lost_after_erase();
     test_shuffle();
-    test_mode_ids();
 
     return CHECK_REPORT();
 }

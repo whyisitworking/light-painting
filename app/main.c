@@ -70,6 +70,7 @@ int main(void) {
                                        .fft_size = AUDIO_FFT_SIZE,
                                        .hop_size = AUDIO_HOP_SIZE,
                                        .led_count = LED_COUNT,
+                                       .bend_count = LED_BEND_COUNT,
                                        .seed = VISUALIZER_SEED,
                                    }),
                    "Visualizer"))

@@ -11,30 +11,18 @@ const BAND_COUNT = 32;
 // The menu's settings in settings_id_t order (lib/settings/settings.h). A
 // setting the engine has beyond this table still gets a slider
 const SETTINGS = [
-  { name: 'Mode', kind: 'mode' },
-  { name: 'Palette', kind: 'palette' },
+  { name: 'Look', kind: 'look' },
+  { name: 'Scene', kind: 'scene' },
   { name: 'Brightness', group: 'Look', show: (raw) => `${raw} %` },
+  { name: 'Song parts', group: 'Look', show: (raw) => (raw ? 'On' : 'Off') },
   { name: 'Gain', group: 'Sound', show: (raw, real) => `${real.toFixed(1)}x` },
-  { name: 'Beat threshold', group: 'Sound', show: (raw, real) => `${real.toFixed(1)}x` },
+  { name: 'Hit sensitivity', group: 'Sound', show: (raw, real) => real.toFixed(1) },
   { name: 'Quiet floor', group: 'Sound', show: (raw) => `${raw} dB` },
-  { name: 'Attack', group: 'Sound', show: (raw) => `${raw} ms` },
-  { name: 'Decay', group: 'Sound', show: (raw) => `${raw} ms` },
-  { name: 'Palette drift', group: 'Effects', show: (raw) => (raw === 0 ? 'Off' : `${raw} s`) },
-  { name: 'Warmth', group: 'Effects', show: (raw) => `${raw} %` },
-  { name: 'Beat flash', group: 'Effects', show: (raw) => `${raw} %` },
-  { name: 'Sparkles', group: 'Effects', show: (raw, real) => `${(real * 100).toFixed(1)} %` },
-  { name: 'River speed', group: 'Mode', show: (raw) => `${raw}` },
-  { name: 'Ripple speed', group: 'Mode', show: (raw, real) => real.toFixed(1) },
-  { name: 'VU peak hold', group: 'Mode', show: (raw) => `${raw} ms` },
   { name: 'Screen', hidden: true }, // the LCD backlight: nothing to see here
-  { name: 'Trails', group: 'Layers', show: (raw) => (raw === 0 ? 'Off' : `${raw} ms`) },
-  { name: 'Diffuse', group: 'Layers', show: (raw) => (raw === 0 ? 'Off' : `${raw} %`) },
-  { name: 'Symmetry', group: 'Layers', show: (raw) => (raw <= 1 ? 'Off' : `${raw}`) },
-  { name: 'Chase', group: 'Layers', show: (raw) => (raw === 0 ? 'Off' : `${raw > 0 ? '+' : ''}${raw} /s`) },
 ];
-const SETTING_MODE = 0;
-const SETTING_PALETTE = 1;
-const GROUP_ORDER = ['Look', 'Sound', 'Effects', 'Layers', 'Other'];
+const SETTING_LOOK = 0;
+const SETTING_SCENE = 1;
+const GROUP_ORDER = ['Look', 'Sound', 'Other'];
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -52,8 +40,8 @@ async function main() {
   const engine = await createEngine();
   const inputAt = () => engine._preview_input() >> 2;
   const names = (count, name) => Array.from({ length: count() }, (_, i) => engine.UTF8ToString(name(i)));
-  const modeNames = names(() => engine._preview_mode_count(), (i) => engine._preview_mode_name(i));
-  const paletteNames = names(() => engine._preview_palette_count(), (i) => engine._preview_palette_name(i));
+  const lookNames = names(() => engine._preview_look_count(), (i) => engine._preview_look_name(i));
+  const sceneNames = names(() => engine._preview_scene_count(), (i) => engine._preview_scene_name(i));
   const settingCount = engine._preview_setting_count();
 
   // What the page has set, replayed when the engine starts over at another
@@ -76,7 +64,7 @@ async function main() {
     state.values.set(id, stored);
     return stored;
   };
-  const selectedMode = () => engine._preview_get(SETTING_MODE);
+  const selectedLook = () => engine._preview_get(SETTING_LOOK);
 
   // ---- Settings controls, from the engine's own ranges
   const refreshers = [];
@@ -125,7 +113,7 @@ async function main() {
   }
 
   function buildControls() {
-    const groups = new Map([...GROUP_ORDER, 'Mode'].map((group) => [group, []]));
+    const groups = new Map(GROUP_ORDER.map((group) => [group, []]));
     for (let id = 0; id < settingCount; id++) {
       const info = SETTINGS[id] ?? { name: `Setting ${id}`, group: 'Other' };
       if (info.hidden || info.kind) continue;
@@ -134,26 +122,9 @@ async function main() {
     const controls = $('#controls');
     const look = document.createElement('div');
     look.append(Object.assign(document.createElement('h3'), { textContent: 'Look' }));
-    addSelect(look, SETTING_MODE, 'Mode', modeNames);
-    addSelect(look, SETTING_PALETTE, 'Palette', paletteNames);
+    addSelect(look, SETTING_LOOK, 'Look', lookNames);
+    addSelect(look, SETTING_SCENE, 'Scene', sceneNames);
     for (const [id, info] of groups.get('Look')) addSlider(look, id, info);
-    // The selected mode's own rows, as the LCD menu shows them under Mode
-    const modeRows = new Map();
-    for (const [id, info] of groups.get('Mode')) {
-      addSlider(look, id, info);
-      modeRows.set(id, look.lastElementChild);
-    }
-    const showModeRows = () => {
-      const mode = selectedMode();
-      const ids = new Set();
-      for (let i = 0; i < engine._preview_mode_setting_count(mode); i++)
-        ids.add(engine._preview_mode_setting_id(mode, i));
-      for (const [id, row] of modeRows) row.hidden = !ids.has(id);
-    };
-    refreshers.push(showModeRows);
-    showModeRows();
-    // The mode select changes the mode without going through the refreshers
-    look.querySelector(`#setting-${SETTING_MODE}`).addEventListener('change', showModeRows);
     controls.append(look);
     for (const group of GROUP_ORDER.slice(1)) {
       if (!groups.get(group).length) continue;
@@ -181,8 +152,8 @@ async function main() {
   const bigStrip = stripContext($('#strip'));
   const glow = stripContext($('#glow'));
 
-  function paint(target, mode) {
-    const words = new Uint32Array(engine.HEAPU8.buffer, engine._preview_pixels(mode), LED_COUNT);
+  function paint(target, look) {
+    const words = new Uint32Array(engine.HEAPU8.buffer, engine._preview_pixels(look), LED_COUNT);
     const data = target.image.data;
     for (let i = 0; i < LED_COUNT; i++) {
       const word = words[i];
@@ -195,7 +166,7 @@ async function main() {
   }
 
   const gallery = $('#gallery');
-  modeNames.forEach((name, mode) => {
+  lookNames.forEach((name, look) => {
     const tile = document.createElement('div');
     tile.className = 'tile';
     tile.tabIndex = 0;
@@ -207,7 +178,7 @@ async function main() {
     canvas.height = 1;
     tile.append(label, canvas);
     const choose = () => {
-      setSetting(SETTING_MODE, mode);
+      setSetting(SETTING_LOOK, look);
       refreshers.forEach((refresh) => refresh());
       markSelected();
     };
@@ -223,13 +194,13 @@ async function main() {
   });
 
   function markSelected() {
-    const mode = selectedMode();
-    strips.forEach((entry, i) => entry.tile.setAttribute('aria-current', i === mode ? 'true' : 'false'));
-    $('#mode-name').textContent = modeNames[mode];
+    const look = selectedLook();
+    strips.forEach((entry, i) => entry.tile.setAttribute('aria-current', i === look ? 'true' : 'false'));
+    $('#look-name').textContent = lookNames[look];
   }
-  $('#mode-name').textContent = modeNames[selectedMode()];
+  $('#look-name').textContent = lookNames[selectedLook()];
   markSelected();
-  // The mode select changes the selected mode too
+  // The look select changes the selected look too
   $('#setting-0').addEventListener('change', markSelected);
 
   $('#gallery-toggle').addEventListener('change', (event) => {
@@ -245,27 +216,28 @@ async function main() {
   });
 
   const bandsContext = $('#bands').getContext('2d');
-  let lastBeats = 0;
-  let beatAt = 0;
+  let lastHits = 0;
+  let hitAt = 0;
   let lastHud = 0;
 
   function frame(now) {
-    const mode = selectedMode();
-    paint(bigStrip, mode);
-    paint(glow, mode);
+    const look = selectedLook();
+    paint(bigStrip, look);
+    paint(glow, look);
     if (state.gallery) strips.forEach((entry, i) => paint(entry, i));
 
-    const beats = engine._preview_beats();
-    if (beats !== lastBeats) {
-      lastBeats = beats;
-      beatAt = now;
+    const hits = engine._preview_hits();
+    if (hits !== lastHits) {
+      lastHits = hits;
+      hitAt = now;
     }
-    $('#beat').classList.toggle('on', now - beatAt < 120);
+    $('#hit').classList.toggle('on', now - hitAt < 120);
 
     if (now - lastHud > 50) {
       lastHud = now;
       $('#loudness i').style.width = `${Math.min(1, engine._preview_loudness()) * 100}%`;
       $('#hops').textContent = `${engine._preview_hops()} hops`;
+      $('#part').textContent = engine.UTF8ToString(engine._preview_part_name(engine._preview_part()));
       const at = engine._preview_bands() >> 2;
       const bands = engine.HEAPF32.subarray(at, at + BAND_COUNT);
       bandsContext.clearRect(0, 0, BAND_COUNT, 24);
@@ -285,7 +257,7 @@ async function main() {
       process(inputs) {
         const input = inputs[0];
         // With no source connected the input is empty: post silence, so the
-        // engine keeps advancing and the modes fall off
+        // engine keeps advancing and the looks fall off
         const mono = new Float32Array(input.length ? input[0].length : 128);
         for (const channel of input) for (let i = 0; i < mono.length; i++) mono[i] += channel[i];
         if (input.length > 1) for (let i = 0; i < mono.length; i++) mono[i] /= input.length;
@@ -398,7 +370,7 @@ async function main() {
 
   // A demo signal with the spread of real music, not a lone tone: 10 s of a
   // 120 BPM kick, a snare on the backbeat, hi-hats, a bass line, a chord pad
-  // and a lead, all with harmonics, then 2 s of silence to watch the modes
+  // and a lead, all with harmonics, then 2 s of silence to watch the looks
   // fall off. Looped. A thin signal (one tone) lights a few bands and looks
   // dim on the board too
   function demoBuffer(ctx) {

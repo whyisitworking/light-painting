@@ -17,42 +17,23 @@
 #include <stdint.h>
 
 // Saved records store the values by position: append new settings before
-// SETTINGS_ID_COUNT, never reorder or remove one
+// SETTINGS_ID_COUNT, never reorder or remove one without raising
+// SETTINGS_VERSION
 typedef enum {
     // Look
-    SETTINGS_MODE,
-    SETTINGS_PALETTE,
+    SETTINGS_LOOK,
+    SETTINGS_SCENE,
     // Percent, perceptual
     SETTINGS_BRIGHTNESS,
+    // 1 on, 0 off
+    SETTINGS_SONG_PARTS,
     // Sound
     SETTINGS_GAIN,
-    SETTINGS_BEAT_THRESHOLD,
+    SETTINGS_HIT_SENSITIVITY,
     // dB, the auto-gain ceiling's lowest
     SETTINGS_QUIET_FLOOR,
-    // ms
-    SETTINGS_ATTACK,
-    SETTINGS_DECAY,
-    // Effects. Seconds, 0 disables
-    SETTINGS_DRIFT,
-    // Fractions
-    SETTINGS_WARMTH,
-    SETTINGS_FLASH,
-    SETTINGS_SPARKLES,
-    // LEDs per frame
-    SETTINGS_RIVER_SPEED,
-    SETTINGS_RIPPLE_SPEED,
-    // ms
-    SETTINGS_PEAK_HOLD,
     // System. Percent
     SETTINGS_BACKLIGHT,
-    // Layers. ms, 0 disables
-    SETTINGS_TRAILS,
-    // Fraction
-    SETTINGS_DIFFUSE,
-    // Segments, 1 disables
-    SETTINGS_SYMMETRY,
-    // LEDs per second, negative slides the other way, 0 disables
-    SETTINGS_CHASE,
     SETTINGS_ID_COUNT
 } settings_id_t;
 
@@ -68,7 +49,8 @@ typedef struct {
     int16_t initial;
     // What a value is divided by to give the real one
     int16_t divisor;
-    // Cycles past its ends (the modes and palettes) instead of stopping
+    // Cycles past its ends (the looks, scenes and on/off) instead of
+    // stopping
     bool wraps;
 } settings_range_t;
 
@@ -104,22 +86,10 @@ void settings_clamp(settings_t *this);
 // What the settings make of the visualizer. The backlight is not in it
 visualizer_tuning_t settings_tuning(const settings_t *this);
 
-// Most rows of the menu's Look page a mode adds below Brightness
-constexpr size_t SETTINGS_MODE_IDS_MAX = 2;
-
 /**
- * The settings only one mode uses, in the order the menu shows them: at most
- * SETTINGS_MODE_IDS_MAX. Every setting is either in exactly one mode's list
- * or applies to every mode (test_settings checks it). nullptr and 0 for a
- * mode without any, or out of range
- */
-const settings_id_t *settings_mode_ids(effects_mode_t mode, size_t *count);
-
-/**
- * A random look: the mode, the palette and every effect layer at random on
- * their grids, the mode and palette together always different from before.
- * The brightness, the sound response and the backlight are left alone.
- * random is xorshift32 state, not 0
+ * A random look: the look and the scene at random, together always
+ * different from before. The brightness, the song parts, the sound response
+ * and the backlight are left alone. random is xorshift32 state, not 0
  */
 void settings_shuffle(settings_t *this, uint32_t *random);
 
@@ -139,9 +109,11 @@ void settings_shuffle(settings_t *this, uint32_t *random);
 // A flash page
 constexpr size_t SETTINGS_RECORD_SIZE = 256;
 
-// Changes when a stored value's meaning does (e.g. reordered modes): older
-// records are ignored then. New settings appended do not need it
-constexpr uint16_t SETTINGS_VERSION = 1;
+// Changes when a stored value's meaning does (e.g. reordered looks): older
+// records are ignored then, and the defaults load. New settings appended do
+// not need it. 2: the show engine's looks and scenes replaced the modes,
+// palettes and layers
+constexpr uint16_t SETTINGS_VERSION = 2;
 
 // Writes the settings as a record numbered sequence
 void settings_encode(const settings_t *this, uint32_t sequence,

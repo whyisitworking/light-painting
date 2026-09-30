@@ -32,6 +32,11 @@ static_assert((AUDIO_HOP_SIZE & (AUDIO_HOP_SIZE - 1)) == 0 &&
 
 constexpr size_t LED_COUNT = 300;
 
+// LEDs at each end of the strip that bend onto a side wall: beams heading
+// there fade as they turn the corner. 0 until the strip is mounted and
+// counted
+constexpr size_t LED_BEND_COUNT = 0;
+
 // Header pins, SCK and WS must be consecutive
 constexpr unsigned MIC_SCK_PIN = 26;
 constexpr unsigned MIC_WS_PIN = 27;

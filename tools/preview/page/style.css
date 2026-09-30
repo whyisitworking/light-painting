@@ -27,8 +27,8 @@ section { margin-bottom: 8px; }
 #strip-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
 #glow { filter: blur(12px); opacity: 0.85; image-rendering: auto !important; }
 #hud { display: flex; gap: 14px; align-items: center; margin-top: 8px; min-height: 28px; }
-#beat { color: var(--line); transition: color 0.25s; }
-#beat.on { color: #fff; transition: none; }
+#hit { color: var(--line); transition: color 0.25s; }
+#hit.on { color: #fff; transition: none; }
 #loudness { flex: 1; max-width: 240px; height: 8px; background: var(--panel); border-radius: 4px; overflow: hidden; }
 #loudness i { display: block; height: 100%; width: 0; background: var(--accent); }
 #bands { width: 96px; height: 24px; image-rendering: pixelated; }

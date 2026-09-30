@@ -80,8 +80,7 @@ show_tuning_t show_default_tuning(void) {
     };
 }
 
-// The look starts clean: no blocks, no state of its own
-static void restart(show_t *this) {
+void show_restart(show_t *this) {
     blocks_reset(&this->blocks);
     if (resets[this->tuning.look] != nullptr)
         resets[this->tuning.look](this);
@@ -90,7 +89,7 @@ static void restart(show_t *this) {
 void show_tune(show_t *this, const show_tuning_t *tuning) {
     if (tuning->look < SHOW_LOOK_COUNT && tuning->look != this->tuning.look) {
         this->tuning.look = tuning->look;
-        restart(this);
+        show_restart(this);
     }
     if (tuning->scene < SCENE_COUNT)
         this->tuning.scene = tuning->scene;
@@ -132,7 +131,7 @@ void show_render(show_t *this, const sound_t *sound, uint32_t *pixels) {
     this->gap = sound->part == PARTS_GAP ? this->gap * this->gap_keep : 1.f;
     if (this->gap < BLOCKS_DARK && this->gap > 0.f) {
         this->gap = 0.f;
-        restart(this);
+        show_restart(this);
     }
 
     blocks_clear(&this->blocks);

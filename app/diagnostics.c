@@ -103,7 +103,7 @@ void diagnostics_end_hop(const visualizer_t *visualizer,
 
     // The producer buffer is core 0's alone until the swap publishes it
     *(stats_report_t *)swapchain_producer_buffer(&link) = stats_report(
-        &stats, period_s, visualizer->effects.hop_period_s,
+        &stats, period_s, visualizer->show.hop_period_s,
         visualizer->features.ceiling_db, audio_lost,
         (uint32_t)leds.frames_latched);
     swapchain_producer_swap(&link);
@@ -136,9 +136,9 @@ static void print_level(const char *name, float dbfs) {
 void diagnostics_print(const stats_report_t *report) {
     print_level("Mic L", report->left_dbfs);
     print_level(", R", report->right_dbfs);
-    printf("\nCeiling %.1f dB, loudness %.3f, beats %.1f/s\n",
+    printf("\nCeiling %.1f dB, loudness %.3f, low hits %.1f/s\n",
            (double)report->ceiling_db, (double)report->loudness,
-           (double)report->beats_per_s);
+           (double)report->hits_per_s);
     printf("Work avg %.0f us, max %.0f us (%.0f %% of a hop)\n",
            (double)report->work_avg_us, (double)report->work_max_us,
            (double)report->work_max_percent);

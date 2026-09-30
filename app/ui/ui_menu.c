@@ -24,27 +24,17 @@ constexpr uint32_t CONFIRM_MS = 3000;
 
 // How a setting's stored value reads
 typedef enum {
-    FORMAT_MODE,
-    FORMAT_PALETTE,
+    FORMAT_LOOK,
+    FORMAT_SCENE,
     FORMAT_NUMBER,
-    // Tenths: 20 reads 2.0
-    FORMAT_TENTHS,
     // A factor in tenths: 15 reads 1.5x
     FORMAT_TIMES,
+    // A number in tenths: 30 reads 3.0
+    FORMAT_TENTHS,
     FORMAT_PERCENT,
-    // Per mille, read as a percentage: 30 reads 3.0 %
-    FORMAT_PER_MILLE,
     FORMAT_DB,
-    FORMAT_MS,
-    // 0 reads Off
-    FORMAT_SECONDS,
-    // 0 reads Off
-    FORMAT_MS_OFF,
-    FORMAT_PERCENT_OFF,
-    // 1 reads Off, otherwise the number
-    FORMAT_SEGMENTS,
-    // LEDs per second: 0 reads Off, otherwise signed
-    FORMAT_SPEED,
+    // 1 reads On, 0 Off
+    FORMAT_ON_OFF,
 } format_t;
 
 typedef enum {
@@ -52,8 +42,6 @@ typedef enum {
     PAGE_MENU,
     PAGE_LOOK,
     PAGE_SOUND,
-    PAGE_EFFECTS,
-    PAGE_LAYERS,
     PAGE_SYSTEM,
     PAGE_DIAGNOSTICS,
     PAGE_COUNT
@@ -83,24 +71,26 @@ typedef struct {
 static const row_t menu_rows[] = {
     {.kind = ROW_PAGE, .name = "Look", .page = PAGE_LOOK},
     {.kind = ROW_PAGE, .name = "Sound", .page = PAGE_SOUND},
-    {.kind = ROW_PAGE, .name = "Effects", .page = PAGE_EFFECTS},
-    {.kind = ROW_PAGE, .name = "Layers", .page = PAGE_LAYERS},
     {.kind = ROW_PAGE, .name = "System", .page = PAGE_SYSTEM},
 };
 
 static const row_t look_rows[] = {
     {.kind = ROW_SETTING,
-     .name = "Mode",
-     .id = SETTINGS_MODE,
-     .format = FORMAT_MODE},
+     .name = "Look",
+     .id = SETTINGS_LOOK,
+     .format = FORMAT_LOOK},
     {.kind = ROW_SETTING,
-     .name = "Palette",
-     .id = SETTINGS_PALETTE,
-     .format = FORMAT_PALETTE},
+     .name = "Scene",
+     .id = SETTINGS_SCENE,
+     .format = FORMAT_SCENE},
     {.kind = ROW_SETTING,
      .name = "Brightness",
      .id = SETTINGS_BRIGHTNESS,
      .format = FORMAT_PERCENT},
+    {.kind = ROW_SETTING,
+     .name = "Song parts",
+     .id = SETTINGS_SONG_PARTS,
+     .format = FORMAT_ON_OFF},
 };
 
 static const row_t sound_rows[] = {
@@ -109,85 +99,14 @@ static const row_t sound_rows[] = {
      .id = SETTINGS_GAIN,
      .format = FORMAT_TIMES},
     {.kind = ROW_SETTING,
-     .name = "Beat threshold",
-     .id = SETTINGS_BEAT_THRESHOLD,
-     .format = FORMAT_TIMES},
+     .name = "Hit sensitivity",
+     .id = SETTINGS_HIT_SENSITIVITY,
+     .format = FORMAT_TENTHS},
     {.kind = ROW_SETTING,
      .name = "Quiet floor",
      .id = SETTINGS_QUIET_FLOOR,
      .format = FORMAT_DB},
-    {.kind = ROW_SETTING,
-     .name = "Attack",
-     .id = SETTINGS_ATTACK,
-     .format = FORMAT_MS},
-    {.kind = ROW_SETTING,
-     .name = "Decay",
-     .id = SETTINGS_DECAY,
-     .format = FORMAT_MS},
 };
-
-static const row_t effects_rows[] = {
-    {.kind = ROW_SETTING,
-     .name = "Palette drift",
-     .id = SETTINGS_DRIFT,
-     .format = FORMAT_SECONDS},
-    {.kind = ROW_SETTING,
-     .name = "Warmth",
-     .id = SETTINGS_WARMTH,
-     .format = FORMAT_PERCENT},
-    {.kind = ROW_SETTING,
-     .name = "Beat flash",
-     .id = SETTINGS_FLASH,
-     .format = FORMAT_PERCENT},
-    {.kind = ROW_SETTING,
-     .name = "Sparkles",
-     .id = SETTINGS_SPARKLES,
-     .format = FORMAT_PER_MILLE},
-};
-
-static const row_t layers_rows[] = {
-    {.kind = ROW_SETTING,
-     .name = "Trails",
-     .id = SETTINGS_TRAILS,
-     .format = FORMAT_MS_OFF},
-    {.kind = ROW_SETTING,
-     .name = "Diffuse",
-     .id = SETTINGS_DIFFUSE,
-     .format = FORMAT_PERCENT_OFF},
-    {.kind = ROW_SETTING,
-     .name = "Symmetry",
-     .id = SETTINGS_SYMMETRY,
-     .format = FORMAT_SEGMENTS},
-    {.kind = ROW_SETTING,
-     .name = "Chase",
-     .id = SETTINGS_CHASE,
-     .format = FORMAT_SPEED},
-};
-
-// The rows of the settings only one mode uses, see settings_mode_ids(). They
-// follow Brightness on the Look page
-static const row_t mode_rows[] = {
-    {.kind = ROW_SETTING,
-     .name = "River speed",
-     .id = SETTINGS_RIVER_SPEED,
-     .format = FORMAT_NUMBER},
-    {.kind = ROW_SETTING,
-     .name = "Ripple speed",
-     .id = SETTINGS_RIPPLE_SPEED,
-     .format = FORMAT_TENTHS},
-    {.kind = ROW_SETTING,
-     .name = "VU peak hold",
-     .id = SETTINGS_PEAK_HOLD,
-     .format = FORMAT_MS},
-};
-
-static const row_t *mode_row(settings_id_t id) {
-    for (size_t i = 0; i < sizeof(mode_rows) / sizeof(mode_rows[0]); i++)
-        if (mode_rows[i].id == id)
-            return &mode_rows[i];
-
-    return nullptr;
-}
 
 static const row_t system_rows[] = {
     {.kind = ROW_SETTING,
@@ -216,18 +135,6 @@ static const page_def_t pages[PAGE_COUNT] = {
         .parent = PAGE_MENU,
         .rows = sound_rows,
         .row_count = sizeof(sound_rows) / sizeof(sound_rows[0]),
-    },
-    [PAGE_EFFECTS] = {
-        .title = "Effects",
-        .parent = PAGE_MENU,
-        .rows = effects_rows,
-        .row_count = sizeof(effects_rows) / sizeof(effects_rows[0]),
-    },
-    [PAGE_LAYERS] = {
-        .title = "Layers",
-        .parent = PAGE_MENU,
-        .rows = layers_rows,
-        .row_count = sizeof(layers_rows) / sizeof(layers_rows[0]),
     },
     [PAGE_SYSTEM] = {
         .title = "System",
@@ -261,59 +168,26 @@ static void format(char *text, size_t size, const row_t *row) {
     int value = settings_get(menu.settings, row->id);
 
     switch (row->format) {
-    case FORMAT_MODE:
-        snprintf(text, size, "%s", ui_names_mode((effects_mode_t)value));
+    case FORMAT_LOOK:
+        snprintf(text, size, "%s", ui_names_look((show_look_t)value));
         break;
-    case FORMAT_PALETTE:
-        snprintf(text, size, "%s", ui_names_palette((palette_t)value));
-        break;
-    case FORMAT_TENTHS:
-        snprintf(text, size, "%d.%d", value / 10, value % 10);
+    case FORMAT_SCENE:
+        snprintf(text, size, "%s", ui_names_scene((scene_t)value));
         break;
     case FORMAT_TIMES:
         snprintf(text, size, "%d.%dx", value / 10, value % 10);
         break;
+    case FORMAT_TENTHS:
+        snprintf(text, size, "%d.%d", value / 10, value % 10);
+        break;
     case FORMAT_PERCENT:
         snprintf(text, size, "%d %%", value);
-        break;
-    case FORMAT_PER_MILLE:
-        snprintf(text, size, "%d.%d %%", value / 10, value % 10);
         break;
     case FORMAT_DB:
         snprintf(text, size, "%d dB", value);
         break;
-    case FORMAT_MS:
-        snprintf(text, size, "%d ms", value);
-        break;
-    case FORMAT_SECONDS:
-        if (value == 0)
-            snprintf(text, size, "Off");
-        else
-            snprintf(text, size, "%d s", value);
-        break;
-    case FORMAT_MS_OFF:
-        if (value == 0)
-            snprintf(text, size, "Off");
-        else
-            snprintf(text, size, "%d ms", value);
-        break;
-    case FORMAT_PERCENT_OFF:
-        if (value == 0)
-            snprintf(text, size, "Off");
-        else
-            snprintf(text, size, "%d %%", value);
-        break;
-    case FORMAT_SEGMENTS:
-        if (value <= 1)
-            snprintf(text, size, "Off");
-        else
-            snprintf(text, size, "%d", value);
-        break;
-    case FORMAT_SPEED:
-        if (value == 0)
-            snprintf(text, size, "Off");
-        else
-            snprintf(text, size, "%+d /s", value);
+    case FORMAT_ON_OFF:
+        snprintf(text, size, "%s", value != 0 ? "On" : "Off");
         break;
     case FORMAT_NUMBER:
     default:
@@ -398,29 +272,22 @@ static void reset(lv_obj_t *row_obj) {
 
     reset_cancel(nullptr);
     settings_reset(menu.settings);
-    ui_theme_set_palette(
-        (palette_t)settings_get(menu.settings, SETTINGS_PALETTE));
+    ui_theme_set_scene((scene_t)settings_get(menu.settings, SETTINGS_SCENE));
     menu.changed(menu.settings, SETTINGS_ALL);
     show_values(lv_obj_get_parent(row_obj));
     lv_label_set_text(label, "Done");
 }
 
-static void mode_rows_rebuild(lv_obj_t *screen);
-
 static void change(lv_obj_t *row_obj, const row_t *row, int steps) {
     if (!settings_step(menu.settings, row->id, steps))
         return;
 
-    // The accent follows the palette at once, on this row too
-    if (row->id == SETTINGS_PALETTE)
-        ui_theme_set_palette(
-            (palette_t)settings_get(menu.settings, SETTINGS_PALETTE));
+    // The accent follows the scene at once, on this row too
+    if (row->id == SETTINGS_SCENE)
+        ui_theme_set_scene(
+            (scene_t)settings_get(menu.settings, SETTINGS_SCENE));
 
     show_value(row_obj);
-
-    // The rows below Brightness belong to the mode
-    if (row->id == SETTINGS_MODE)
-        mode_rows_rebuild(lv_obj_get_parent(row_obj));
 
     menu.changed(menu.settings, row->id);
 }
@@ -512,35 +379,6 @@ static lv_obj_t *page_row(lv_obj_t *screen, const row_t *row) {
     return row_obj;
 }
 
-// Adds the selected mode's rows to the Look page's screen
-static void mode_rows_add(lv_obj_t *screen) {
-    size_t count;
-    const settings_id_t *ids = settings_mode_ids(
-        (effects_mode_t)settings_get(menu.settings, SETTINGS_MODE), &count);
-
-    for (size_t i = 0; i < count; i++) {
-        const row_t *row = mode_row(ids[i]);
-
-        if (row != nullptr)
-            page_row(screen, row);
-    }
-}
-
-/**
- * Replaces the mode rows after Mode changed. In place, not by loading the
- * screen again: that makes the menu ignore the key until released, and the
- * Mode row must go on repeating while it is held. The focus stays on Mode,
- * which is not touched. The back row and the fixed rows come first
- */
-static void mode_rows_rebuild(lv_obj_t *screen) {
-    uint32_t fixed = pages[PAGE_LOOK].row_count + 1;
-
-    while (lv_obj_get_child_count(screen) > fixed)
-        lv_obj_delete(lv_obj_get_child(screen, -1));
-
-    mode_rows_add(screen);
-}
-
 // A page's screen, focused on the row leading back to from, if it has one,
 // otherwise on its first row
 static lv_obj_t *page_create(page_t page, page_t from) {
@@ -569,9 +407,6 @@ static lv_obj_t *page_create(page_t page, page_t from) {
             focus = row_obj;
     }
 
-    if (page == PAGE_LOOK)
-        mode_rows_add(screen);
-
     lv_group_focus_obj(focus);
 
     return screen;
@@ -587,8 +422,8 @@ static lv_obj_t *status_create(void) {
     lv_obj_t *screen = ui_status_create(), *opener;
 
     ui_status_show(&(ui_status_t){
-        .mode = (effects_mode_t)settings_get(menu.settings, SETTINGS_MODE),
-        .palette = (palette_t)settings_get(menu.settings, SETTINGS_PALETTE),
+        .look = (show_look_t)settings_get(menu.settings, SETTINGS_LOOK),
+        .scene = (scene_t)settings_get(menu.settings, SETTINGS_SCENE),
         .brightness_percent =
             settings_get(menu.settings, SETTINGS_BRIGHTNESS),
         .note = menu.note,
@@ -667,19 +502,13 @@ void ui_menu_report(const stats_report_t *report) {
 }
 
 void ui_menu_refresh(void) {
-    ui_theme_set_palette(
-        (palette_t)settings_get(menu.settings, SETTINGS_PALETTE));
+    ui_theme_set_scene((scene_t)settings_get(menu.settings, SETTINGS_SCENE));
 
     // The status screen is rebuilt, a page shows its values again
     if (menu.page == PAGE_STATUS)
         show(PAGE_STATUS);
-    else {
-        // Shuffling on boot can change the mode
-        if (menu.page == PAGE_LOOK)
-            mode_rows_rebuild(lv_screen_active());
-
+    else
         show_values(lv_screen_active());
-    }
 
     lv_display_trigger_activity(nullptr);
 }
@@ -688,7 +517,7 @@ void ui_menu_start(settings_t *settings, ui_menu_changed_t *changed) {
     menu.settings = settings;
     menu.changed = changed;
 
-    ui_theme_init((palette_t)settings_get(settings, SETTINGS_PALETTE));
+    ui_theme_init((scene_t)settings_get(settings, SETTINGS_SCENE));
 
     show(PAGE_STATUS);
     lv_timer_create(idle_check, IDLE_CHECK_MS, nullptr);

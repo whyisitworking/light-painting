@@ -23,8 +23,10 @@ static void fill(double amplitude, double offset, int32_t right) {
     }
 }
 
-static sound_t sound_of(float loudness, bool beat) {
-    return (sound_t){.bands = bands, .loudness = loudness, .beat = beat};
+static sound_t sound_of(float loudness, bool low_hit) {
+    return (sound_t){.bands = bands,
+                     .loudness = loudness,
+                     .hits[FEATURES_LOW] = {.fired = low_hit}};
 }
 
 static stats_report_t hops_of(stats_t *stats, size_t count) {
@@ -99,7 +101,7 @@ static void test_window(void) {
     stats_reset(&stats);
     fill(0.0, 0.0, 0);
 
-    // Loudness 0.2 then 0.6, a beat on hops 0 and 5, work 1000..1900 us
+    // Loudness 0.2 then 0.6, a low hit on hops 0 and 5, work 1000..1900 us
     for (uint32_t hop = 0; hop < 10; hop++) {
         sound_t sound = sound_of(hop < 5 ? 0.2f : 0.6f, hop % 5 == 0);
 
@@ -109,7 +111,7 @@ static void test_window(void) {
 
     CHECK(report.period_s == PERIOD_S);
     CHECK_NEAR(report.loudness, 0.4, 1e-6);
-    CHECK_NEAR(report.beats_per_s, 4.0, 1e-6);
+    CHECK_NEAR(report.hits_per_s, 4.0, 1e-6);
     CHECK_NEAR(report.work_avg_us, 1450.0, 1e-3);
     CHECK_NEAR(report.work_max_us, 1900.0, 1e-3);
     CHECK_NEAR(report.work_max_percent,
@@ -133,7 +135,7 @@ static void test_report_starts_anew(void) {
 
     CHECK(isinf(report.left_dbfs) && report.left_dbfs < 0.f);
     CHECK(report.loudness == 0.f);
-    CHECK(report.beats_per_s == 0.f);
+    CHECK(report.hits_per_s == 0.f);
     CHECK(report.work_avg_us == 0.f && report.work_max_us == 0.f);
 }
 

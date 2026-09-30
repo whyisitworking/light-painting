@@ -3,8 +3,8 @@
 #include "ui_names.h"
 #include "ui_theme.h"
 
-// Cells of the palette swatch
-constexpr size_t SWATCH_CELLS = 32;
+// Cells of the scene swatch: field, accent, hit
+constexpr size_t SWATCH_CELLS = SCENE_ROLE_COUNT;
 
 // Around the screen, between its blocks, and within a block. The blocks
 // are 52, 32 and 32 lines high (Montserrat 14 lines are 16, 28 lines 30),
@@ -19,8 +19,8 @@ constexpr int32_t STRIP_RADIUS = LV_RADIUS_CIRCLE;
 
 static struct {
     lv_obj_t *note;
-    lv_obj_t *mode;
-    lv_obj_t *palette;
+    lv_obj_t *look;
+    lv_obj_t *scene;
     lv_obj_t *swatch[SWATCH_CELLS];
     lv_obj_t *brightness_bar;
     lv_obj_t *brightness;
@@ -95,12 +95,12 @@ lv_obj_t *ui_status_create(void) {
     row = row_create(block, "Light Painting");
     view.note = lv_label_create(row);
     lv_obj_add_style(view.note, ui_theme_muted(), 0);
-    view.mode = lv_label_create(block);
-    lv_obj_set_style_text_font(view.mode, &lv_font_montserrat_28, 0);
+    view.look = lv_label_create(block);
+    lv_obj_set_style_text_font(view.look, &lv_font_montserrat_28, 0);
 
     block = block_create(screen);
-    row = row_create(block, "Palette");
-    view.palette = lv_label_create(row);
+    row = row_create(block, "Scene");
+    view.scene = lv_label_create(row);
     swatch_create(block);
 
     block = block_create(screen);
@@ -117,16 +117,14 @@ void ui_status_note(const char *note) {
 
 void ui_status_show(const ui_status_t *status) {
     ui_status_note(status->note);
-    lv_label_set_text(view.mode, ui_names_mode(status->mode));
-    lv_label_set_text(view.palette, ui_names_palette(status->palette));
+    lv_label_set_text(view.look, ui_names_look(status->look));
+    lv_label_set_text(view.scene, ui_names_scene(status->scene));
 
-    // The palette from end to end, as the effects place colours on it
+    // The scene's three colours, field to hit
     for (size_t i = 0; i < SWATCH_CELLS; i++)
         lv_obj_set_style_bg_color(
             view.swatch[i],
-            ui_theme_palette_color(status->palette,
-                                   (float)i / (float)(SWATCH_CELLS - 1)),
-            0);
+            ui_theme_scene_color(status->scene, (scene_role_t)i), 0);
 
     lv_bar_set_value(view.brightness_bar, status->brightness_percent,
                      LV_ANIM_OFF);

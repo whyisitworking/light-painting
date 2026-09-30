@@ -18,8 +18,8 @@ bool visualizer_init(visualizer_t *this, const visualizer_config_t *config) {
         return false;
     }
 
-    if (!effects_init(&this->effects, config->led_count, FEATURES_BAND_COUNT,
-                      hop_period_s, config->seed)) {
+    if (!show_init(&this->show, config->led_count, FEATURES_BAND_COUNT,
+                   hop_period_s, config->bend_count, config->seed)) {
         features_deinit(&this->features);
         spectrum_deinit(&this->spectrum);
         return false;
@@ -35,7 +35,7 @@ visualizer_tuning_t visualizer_default_tuning(void) {
     return (visualizer_tuning_t){
         .gain = VISUALIZER_GAIN,
         .features = features_default_tuning(),
-        .effects = effects_default_tuning(),
+        .show = show_default_tuning(),
     };
 }
 
@@ -45,7 +45,7 @@ void visualizer_tune(visualizer_t *this, const visualizer_tuning_t *tuning) {
     features_set_gain(&this->features, this->gain);
 
     features_tune(&this->features, &tuning->features);
-    effects_tune(&this->effects, &tuning->effects);
+    show_tune(&this->show, &tuning->show);
 }
 
 void visualizer_analyze(visualizer_t *this, const int32_t *frames) {
@@ -56,13 +56,13 @@ const sound_t *visualizer_render(visualizer_t *this, uint32_t *pixels) {
     const sound_t *sound =
         features_update(&this->features, spectrum_bins(&this->spectrum));
 
-    effects_render(&this->effects, sound, pixels);
+    show_render(&this->show, sound, pixels);
 
     return sound;
 }
 
 void visualizer_deinit(visualizer_t *this) {
-    effects_deinit(&this->effects);
+    show_deinit(&this->show);
     features_deinit(&this->features);
     spectrum_deinit(&this->spectrum);
 }

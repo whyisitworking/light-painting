@@ -1,39 +1,43 @@
 #include "ui_names.h"
 
-static const char *const modes[] = {
-    [EFFECTS_MODE_SPECTRUM] = "Spectrum",
-    [EFFECTS_MODE_SPECTRUM_MIRRORED] = "Mirrored",
-    [EFFECTS_MODE_RIVER] = "River",
-    [EFFECTS_MODE_RIPPLES] = "Ripples",
-    [EFFECTS_MODE_VU] = "VU meters",
-    [EFFECTS_MODE_GLOW] = "Glow",
-    [EFFECTS_MODE_POND] = "Pond",
-    [EFFECTS_MODE_CYMATICS] = "Cymatics",
-    [EFFECTS_MODE_FIRE] = "Fire",
-    [EFFECTS_MODE_STORM] = "Storm",
-    [EFFECTS_MODE_PINGPONG] = "Ping-pong",
-    [EFFECTS_MODE_SWARM] = "Swarm",
-    [EFFECTS_MODE_PLASMA] = "Plasma",
-    [EFFECTS_MODE_AURORA] = "Aurora",
-    [EFFECTS_MODE_BLOOM] = "Bloom",
+static const char *const looks[] = {
+    [SHOW_LOOK_PULSE] = "Pulse",
+    [SHOW_LOOK_FLOW] = "Flow",
+    [SHOW_LOOK_STAGE] = "Stage",
+    [SHOW_LOOK_SWEEP] = "Sweep",
+    [SHOW_LOOK_STORM] = "Storm",
 };
 
-static const char *const palettes[] = {
-    [PALETTE_RAINBOW] = "Rainbow",
-    [PALETTE_SYNTHWAVE] = "Synthwave",
-    [PALETTE_FIRE] = "Fire",
-    [PALETTE_OCEAN] = "Ocean",
+static const char *const scenes[] = {
+    [SCENE_NEON_NOIR] = "Neon Noir",
+    [SCENE_EMBER] = "Ember",
+    [SCENE_DUSK] = "Dusk",
+    [SCENE_ACID] = "Acid",
+    [SCENE_ICE] = "Ice",
 };
 
-static_assert(sizeof(modes) / sizeof(modes[0]) == EFFECTS_MODE_COUNT,
-              "every mode needs a name");
-static_assert(sizeof(palettes) / sizeof(palettes[0]) == PALETTE_COUNT,
-              "every palette needs a name");
+static const char *const parts[] = {
+    [PARTS_CALM] = "Calm",
+    [PARTS_BUILD] = "Build",
+    [PARTS_GAP] = "Gap",
+    [PARTS_HIGH] = "High",
+};
 
-const char *ui_names_mode(effects_mode_t mode) {
-    return mode < EFFECTS_MODE_COUNT ? modes[mode] : "?";
+static_assert(sizeof(looks) / sizeof(looks[0]) == SHOW_LOOK_COUNT,
+              "every look needs a name");
+static_assert(sizeof(scenes) / sizeof(scenes[0]) == SCENE_COUNT,
+              "every scene needs a name");
+static_assert(sizeof(parts) / sizeof(parts[0]) == PARTS_COUNT,
+              "every song part needs a name");
+
+const char *ui_names_look(show_look_t look) {
+    return look < SHOW_LOOK_COUNT ? looks[look] : "?";
 }
 
-const char *ui_names_palette(palette_t palette) {
-    return palette < PALETTE_COUNT ? palettes[palette] : "?";
+const char *ui_names_scene(scene_t scene) {
+    return scene < SCENE_COUNT ? scenes[scene] : "?";
+}
+
+const char *ui_names_part(parts_part_t part) {
+    return part < PARTS_COUNT ? parts[part] : "?";
 }

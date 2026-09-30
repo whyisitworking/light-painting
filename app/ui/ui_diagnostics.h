@@ -9,7 +9,7 @@
  *   <  Diagnostics
  *   L  ======----------------   -62 dBFS
  *   R  ======----------------   -61 dBFS
- *   Ceiling -24 dB    Loud 0.42    Beats 2.0/s
+ *   Ceiling -24 dB    Loud 0.42     Hits 2.0/s
  *   Work 1.9, max 2.6 ms               Load 50 %
  *   Audio lost 0                   LEDs 150 fps
  *   Menu 5.1 / 16 KB           Lights 1.2 / 8 KB

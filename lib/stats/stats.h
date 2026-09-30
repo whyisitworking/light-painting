@@ -31,7 +31,7 @@ typedef struct {
     uint32_t hop_count;
     uint64_t work_total_us;
     uint32_t work_max_us;
-    uint32_t beat_count;
+    uint32_t hit_count;
     float loudness_total;
 } stats_t;
 
@@ -48,7 +48,8 @@ typedef struct {
     float ceiling_db;
     // Mean loudness, 0..1
     float loudness;
-    float beats_per_s;
+    // Low hits per second
+    float hits_per_s;
     // Per hop, from the audio taken to the frame handed to the LEDs
     float work_avg_us;
     float work_max_us;

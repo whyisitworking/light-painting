@@ -26,7 +26,7 @@ static struct {
     lv_obj_t *levels[2];
     lv_obj_t *ceiling;
     lv_obj_t *loudness;
-    lv_obj_t *beats;
+    lv_obj_t *hits;
     lv_obj_t *work;
     lv_obj_t *load;
     lv_obj_t *lost;
@@ -106,7 +106,7 @@ lv_obj_t *ui_diagnostics_create(void) {
     row = row_create(screen);
     view.ceiling = cell_create(row, "Ceiling");
     view.loudness = cell_create(row, "Loud");
-    view.beats = cell_create(row, "Beats");
+    view.hits = cell_create(row, "Hits");
 
     row = row_create(screen);
     view.work = cell_create(row, "Work");
@@ -162,7 +162,7 @@ static void show_stack(lv_obj_t *label, size_t peak, size_t size) {
 static void show_nothing(void) {
     lv_obj_t *values[] = {
         view.levels[0], view.levels[1], view.ceiling, view.loudness,
-        view.beats,     view.work,      view.load,    view.lost,
+        view.hits,      view.work,      view.load,    view.lost,
         view.leds,      view.stacks[0], view.stacks[1],
     };
 
@@ -189,7 +189,7 @@ void ui_diagnostics_show(const stats_report_t *report) {
 
     show_text(view.ceiling, "%.0f dB", (double)report->ceiling_db);
     show_text(view.loudness, "%.2f", (double)report->loudness);
-    show_text(view.beats, "%.1f/s", (double)report->beats_per_s);
+    show_text(view.hits, "%.1f/s", (double)report->hits_per_s);
 
     snprintf(text, sizeof(text), "%.1f, max %.1f ms",
              (double)report->work_avg_us / 1000.0,

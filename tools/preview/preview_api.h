@@ -2,14 +2,14 @@
 #define PREVIEW_API_H
 
 /**
- * The preview tool's engine: the firmware's analysis and effects driven by
- * samples from a browser, for every mode at once. Compiled natively for the
+ * The preview tool's engine: the firmware's analysis and show driven by
+ * samples from a browser, for every look at once. Compiled natively for the
  * host tests and to WebAssembly for the page (tools/preview/build.sh).
  *
- *   samples ─► hops of 256 ─► spectrum ─► features ─► effects, one per mode
+ *   samples ─► hops of 256 ─► spectrum ─► features ─► show, one per look
  *
  * It repeats the few lines of visualizer.c that chain the stages, because a
- * visualizer_t holds a single effects instance; test_preview checks that the
+ * visualizer_t holds a single show instance; test_preview checks that the
  * pixels are the visualizer's. Settings go through settings_set() and
  * settings_tuning(), so a menu state looks here as it does on the board.
  *
@@ -17,8 +17,8 @@
  * functions marked PREVIEW_EXPORT are the WebAssembly exports.
  */
 
-#include "effects.h"
 #include "settings.h"
+#include "show.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -67,10 +67,9 @@ PREVIEW_EXPORT int preview_push(int count);
  */
 PREVIEW_EXPORT void preview_set_input_trim_db(float db);
 
-// On: every mode renders each hop (the gallery). Off: only the selected mode.
-// A mode's pixels are then stale, and each mode keeps its own effects state:
-// one selected after being idle resumes its old trails, unlike the board,
-// where one effects instance carries the previous mode's trails over
+// On: every look renders each hop (the gallery). Off: only the selected
+// look; the others' pixels are then stale. Selecting a look starts it clean,
+// as on the board
 PREVIEW_EXPORT void preview_set_gallery(int on);
 
 // The menu's settings: a stored value, its grid, the defaults
@@ -84,27 +83,27 @@ PREVIEW_EXPORT int preview_set(int id, int value);
 // Every setting to its default
 PREVIEW_EXPORT void preview_reset(void);
 
-// The rows the menu shows under Mode for a mode: how many, and the setting id
-// of each (-1 out of range). From the settings library, as the menu reads it
-PREVIEW_EXPORT int preview_mode_setting_count(int mode);
-PREVIEW_EXPORT int preview_mode_setting_id(int mode, int index);
-
 // The menu's names
-PREVIEW_EXPORT int preview_mode_count(void);
-PREVIEW_EXPORT const char *preview_mode_name(int mode);
-PREVIEW_EXPORT int preview_palette_count(void);
-PREVIEW_EXPORT const char *preview_palette_name(int palette);
+PREVIEW_EXPORT int preview_look_count(void);
+PREVIEW_EXPORT const char *preview_look_name(int look);
+PREVIEW_EXPORT int preview_scene_count(void);
+PREVIEW_EXPORT const char *preview_scene_name(int scene);
 
-// The newest frame of a mode: PREVIEW_LED_COUNT WS2812 words, after gamma.
-// nullptr for a mode out of range. Only the selected mode renders unless the
-// gallery is on
-PREVIEW_EXPORT const uint32_t *preview_pixels(int mode);
+// The newest frame of a look: PREVIEW_LED_COUNT WS2812 words, after gamma.
+// nullptr for a look out of range. Only the selected look renders unless
+// the gallery is on
+PREVIEW_EXPORT const uint32_t *preview_pixels(int look);
 
 // The newest sound
 PREVIEW_EXPORT float preview_loudness(void);
 PREVIEW_EXPORT float preview_centroid(void);
-// Beats detected since preview_init()
-PREVIEW_EXPORT int preview_beats(void);
+// Low hits detected since preview_init()
+PREVIEW_EXPORT int preview_hits(void);
+// The song part now (parts_part_t) and its name, and the drops since
+// preview_init()
+PREVIEW_EXPORT int preview_part(void);
+PREVIEW_EXPORT const char *preview_part_name(int part);
+PREVIEW_EXPORT int preview_drops(void);
 PREVIEW_EXPORT int preview_hops(void);
 // Band levels, FEATURES_BAND_COUNT floats
 PREVIEW_EXPORT const float *preview_bands(void);

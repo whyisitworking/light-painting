@@ -4,47 +4,33 @@
  * The initial values are the constants they replace, written on the grid:
  * dividing one by its divisor gives exactly that constant, as float division
  * rounds to the nearest float and so does the constant's literal (28 / 10
- * and 2.8f are the same float). test_settings checks every one
+ * and 2.8f are the same float). test_settings checks every one. Hit
+ * sensitivity alone is turned around, see HIT_SENSITIVITY_PRODUCT
  */
+
+// Hit sensitivity s stands for the hit threshold (FEATURES_HIT_THRESHOLD,
+// times the rise's average) HIT_SENSITIVITY_PRODUCT / s, so a higher
+// sensitivity gives more hits. The default threshold squared: sensitivity
+// 3.0 is the threshold 3.0, and 1.5 to 6.0 stand for thresholds 6.0 to 1.5
+constexpr float HIT_SENSITIVITY_PRODUCT =
+    FEATURES_HIT_THRESHOLD * FEATURES_HIT_THRESHOLD;
+
 static const settings_range_t ranges[SETTINGS_ID_COUNT] = {
-    [SETTINGS_MODE] = {0, EFFECTS_MODE_COUNT - 1, 1, EFFECTS_MODE, 1, true},
-    [SETTINGS_PALETTE] = {0, PALETTE_COUNT - 1, 1, EFFECTS_PALETTE, 1,
-                          true},
+    [SETTINGS_LOOK] = {0, SHOW_LOOK_COUNT - 1, 1, SHOW_LOOK, 1, true},
+    [SETTINGS_SCENE] = {0, SCENE_COUNT - 1, 1, SHOW_SCENE, 1, true},
     // Perceptual, before the strip's 8-bit gamma: at 10 % full white is
     // 2 / 255, below about 20 % colours lose their shading, and below 6 %
     // everything rounds to off
     [SETTINGS_BRIGHTNESS] = {10, 100, 5, 100, 100, false},
+    [SETTINGS_SONG_PARTS] = {0, 1, 1, 1, 1, true},
     // VISUALIZER_GAIN. Much above 3, a quiet room's self-noise nears the
     // floor of FEATURES_MIN_CEILING_DB - FEATURES_RANGE_DB
     [SETTINGS_GAIN] = {5, 40, 1, 15, 10, false},
-    // FEATURES_HIT_THRESHOLD, times the rise's average
-    [SETTINGS_BEAT_THRESHOLD] = {15, 60, 1, 30, 10, false},
+    // FEATURES_HIT_THRESHOLD, turned around: see HIT_SENSITIVITY_PRODUCT
+    [SETTINGS_HIT_SENSITIVITY] = {15, 60, 1, 30, 10, false},
     // FEATURES_MIN_CEILING_DB
     [SETTINGS_QUIET_FLOOR] = {-45, -10, 1, -32, 1, false},
-    // FEATURES_ATTACK_MS, FEATURES_DECAY_MS. A hop is 5.2 ms
-    [SETTINGS_ATTACK] = {2, 60, 2, 10, 1, false},
-    [SETTINGS_DECAY] = {20, 600, 10, 120, 1, false},
-    // EFFECTS_DRIFT_PERIOD_S, 0 disables it
-    [SETTINGS_DRIFT] = {0, 300, 10, 60, 1, false},
-    // EFFECTS_WARMTH, EFFECTS_FLASH_LEVEL, in percent
-    [SETTINGS_WARMTH] = {0, 100, 5, 25, 100, false},
-    [SETTINGS_FLASH] = {0, 100, 5, 35, 100, false},
-    // EFFECTS_SPARKLE_RATE, in per mille
-    [SETTINGS_SPARKLES] = {0, 100, 5, 30, 1000, false},
-    // EFFECTS_RIVER_SPEED, EFFECTS_RIPPLE_SPEED
-    [SETTINGS_RIVER_SPEED] = {1, 4, 1, 1, 1, false},
-    [SETTINGS_RIPPLE_SPEED] = {5, 60, 5, 20, 10, false},
-    // EFFECTS_PEAK_HOLD_MS
-    [SETTINGS_PEAK_HOLD] = {0, 2000, 50, 300, 1, false},
     [SETTINGS_BACKLIGHT] = {10, 100, 10, 80, 100, false},
-    // EFFECTS_TRAILS_MS, 0 disables it
-    [SETTINGS_TRAILS] = {0, 1000, 50, 0, 1, false},
-    // EFFECTS_DIFFUSE, in percent
-    [SETTINGS_DIFFUSE] = {0, 100, 5, 0, 100, false},
-    // EFFECTS_SYMMETRY, 1 disables it
-    [SETTINGS_SYMMETRY] = {1, EFFECTS_SYMMETRY_MAX, 1, 1, 1, false},
-    // EFFECTS_CHASE_LEDS_PER_S, 0 disables it
-    [SETTINGS_CHASE] = {-200, 200, 10, 0, 1, false},
 };
 
 // The nearest value on the grid within the range, halves rounding up
@@ -111,16 +97,6 @@ bool settings_step(settings_t *this, settings_id_t id, int steps) {
     return settings_set(this, id, range->min + index * range->step);
 }
 
-// What a shuffle changes: the look, not how bright or how sensitive it is.
-// The trails and the blur suit every mode; the folding and the sliding can
-// look broken at random, so they stay as set
-static const settings_id_t look_ids[] = {
-    SETTINGS_MODE,         SETTINGS_PALETTE,      SETTINGS_DRIFT,
-    SETTINGS_WARMTH,       SETTINGS_FLASH,        SETTINGS_SPARKLES,
-    SETTINGS_RIVER_SPEED,  SETTINGS_RIPPLE_SPEED, SETTINGS_PEAK_HOLD,
-    SETTINGS_TRAILS,       SETTINGS_DIFFUSE,
-};
-
 static uint32_t next_random(uint32_t *state) {
     *state ^= *state << 13;
     *state ^= *state >> 17;
@@ -137,41 +113,16 @@ static int random_value(settings_id_t id, uint32_t *random) {
 }
 
 void settings_shuffle(settings_t *this, uint32_t *random) {
-    int mode = this->values[SETTINGS_MODE];
-    int palette = this->values[SETTINGS_PALETTE];
+    int look = this->values[SETTINGS_LOOK];
+    int scene = this->values[SETTINGS_SCENE];
 
-    for (size_t i = 0; i < sizeof(look_ids) / sizeof(look_ids[0]); i++)
-        settings_set(this, look_ids[i], random_value(look_ids[i], random));
-
-    // Something visibly new: another mode or palette than before
-    while (this->values[SETTINGS_MODE] == mode &&
-           this->values[SETTINGS_PALETTE] == palette) {
-        settings_set(this, SETTINGS_MODE,
-                     random_value(SETTINGS_MODE, random));
-        settings_set(this, SETTINGS_PALETTE,
-                     random_value(SETTINGS_PALETTE, random));
-    }
-}
-
-static const settings_id_t river_ids[] = {SETTINGS_RIVER_SPEED};
-static const settings_id_t ripples_ids[] = {SETTINGS_RIPPLE_SPEED};
-static const settings_id_t vu_ids[] = {SETTINGS_PEAK_HOLD};
-
-const settings_id_t *settings_mode_ids(effects_mode_t mode, size_t *count) {
-    switch (mode) {
-    case EFFECTS_MODE_RIVER:
-        *count = sizeof(river_ids) / sizeof(river_ids[0]);
-        return river_ids;
-    case EFFECTS_MODE_RIPPLES:
-        *count = sizeof(ripples_ids) / sizeof(ripples_ids[0]);
-        return ripples_ids;
-    case EFFECTS_MODE_VU:
-        *count = sizeof(vu_ids) / sizeof(vu_ids[0]);
-        return vu_ids;
-    default:
-        *count = 0;
-        return nullptr;
-    }
+    // Something visibly new: another look or scene than before
+    do {
+        settings_set(this, SETTINGS_LOOK, random_value(SETTINGS_LOOK, random));
+        settings_set(this, SETTINGS_SCENE,
+                     random_value(SETTINGS_SCENE, random));
+    } while (this->values[SETTINGS_LOOK] == look &&
+             this->values[SETTINGS_SCENE] == scene);
 }
 
 visualizer_tuning_t settings_tuning(const settings_t *this) {
@@ -179,27 +130,15 @@ visualizer_tuning_t settings_tuning(const settings_t *this) {
 
     tuning.gain = settings_value(this, SETTINGS_GAIN);
 
-    tuning.features.attack_ms = settings_value(this, SETTINGS_ATTACK);
-    tuning.features.decay_ms = settings_value(this, SETTINGS_DECAY);
     tuning.features.min_ceiling_db = settings_value(this, SETTINGS_QUIET_FLOOR);
     tuning.features.hit_threshold =
-        settings_value(this, SETTINGS_BEAT_THRESHOLD);
+        HIT_SENSITIVITY_PRODUCT /
+        settings_value(this, SETTINGS_HIT_SENSITIVITY);
+    tuning.features.song_parts = settings_get(this, SETTINGS_SONG_PARTS) != 0;
 
-    tuning.effects.mode = (effects_mode_t)settings_get(this, SETTINGS_MODE);
-    tuning.effects.palette = (palette_t)settings_get(this, SETTINGS_PALETTE);
-    tuning.effects.brightness = settings_value(this, SETTINGS_BRIGHTNESS);
-    tuning.effects.river_speed =
-        (size_t)settings_get(this, SETTINGS_RIVER_SPEED);
-    tuning.effects.ripple_speed = settings_value(this, SETTINGS_RIPPLE_SPEED);
-    tuning.effects.peak_hold_ms = settings_value(this, SETTINGS_PEAK_HOLD);
-    tuning.effects.drift_period_s = settings_value(this, SETTINGS_DRIFT);
-    tuning.effects.warmth = settings_value(this, SETTINGS_WARMTH);
-    tuning.effects.flash_level = settings_value(this, SETTINGS_FLASH);
-    tuning.effects.sparkle_rate = settings_value(this, SETTINGS_SPARKLES);
-    tuning.effects.trails_ms = settings_value(this, SETTINGS_TRAILS);
-    tuning.effects.diffuse = settings_value(this, SETTINGS_DIFFUSE);
-    tuning.effects.symmetry = (size_t)settings_get(this, SETTINGS_SYMMETRY);
-    tuning.effects.chase_leds_per_s = settings_value(this, SETTINGS_CHASE);
+    tuning.show.look = (show_look_t)settings_get(this, SETTINGS_LOOK);
+    tuning.show.scene = (scene_t)settings_get(this, SETTINGS_SCENE);
+    tuning.show.brightness = settings_value(this, SETTINGS_BRIGHTNESS);
 
     return tuning;
 }

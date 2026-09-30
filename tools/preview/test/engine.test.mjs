@@ -40,19 +40,18 @@ const kick = (i) => {
   const t = (i / RATE) % 0.5;
   return 0.8 * Math.exp(-t / 0.04) * Math.sin(2 * Math.PI * 55 * t);
 };
-// A tone with kicks: every mode has something to draw (Ripples only draws on
-// beats)
+// A tone with kicks: every look has something to draw
 const music = (i) => 0.2 * Math.sin((2 * Math.PI * 1000 * i) / RATE) + kick(i);
 
 test('names and counts', async () => {
   const m = await engine();
-  assert.equal(m._preview_mode_count(), 15);
-  assert.equal(m.UTF8ToString(m._preview_mode_name(2)), 'River');
-  assert.equal(m.UTF8ToString(m._preview_mode_name(6)), 'Pond');
-  assert.equal(m.UTF8ToString(m._preview_mode_name(14)), 'Bloom');
-  assert.equal(m._preview_palette_count(), 4);
-  assert.equal(m.UTF8ToString(m._preview_palette_name(1)), 'Synthwave');
-  assert.equal(m._preview_setting_count(), 20);
+  assert.equal(m._preview_look_count(), 5);
+  assert.equal(m.UTF8ToString(m._preview_look_name(0)), 'Pulse');
+  assert.equal(m.UTF8ToString(m._preview_look_name(4)), 'Storm');
+  assert.equal(m._preview_scene_count(), 5);
+  assert.equal(m.UTF8ToString(m._preview_scene_name(0)), 'Neon Noir');
+  assert.equal(m.UTF8ToString(m._preview_part_name(1)), 'Build');
+  assert.equal(m._preview_setting_count(), 8);
 });
 
 test('ranges and snapping', async () => {
@@ -66,17 +65,17 @@ test('ranges and snapping', async () => {
   assert.equal(m._preview_get(2), 100);
 });
 
-test('silence is dark, music lights every mode in the gallery', async () => {
+test('silence is dark, music lights every look in the gallery', async () => {
   const m = await engine();
   m._preview_set_gallery(1);
   feed(m, 20000, () => 0);
-  for (let mode = 0; mode < 15; mode++) assert.equal(lit(m, mode), 0, `mode ${mode}`);
+  for (let look = 0; look < 5; look++) assert.equal(lit(m, look), 0, `look ${look}`);
   feed(m, 80000, music);
-  for (let mode = 0; mode < 15; mode++) assert.ok(lit(m, mode) > 0, `mode ${mode}`);
+  for (let look = 0; look < 5; look++) assert.ok(lit(m, look) > 0, `look ${look}`);
   assert.ok(m._preview_loudness() > 0.01);
 });
 
-test('without the gallery only the selected mode renders', async () => {
+test('without the gallery only the selected look renders', async () => {
   const m = await engine();
   m._preview_set(0, 3);
   feed(m, 80000, music);
@@ -93,7 +92,7 @@ test('a trim far below any level is silence', async () => {
   assert.equal(m._preview_loudness(), 0);
 });
 
-test('hops, beats and starting again', async () => {
+test('hops, hits and starting again', async () => {
   const m = await engine();
   const input = m._preview_input() >> 2;
   m.HEAPF32.fill(0, input, input + 256);
@@ -101,10 +100,10 @@ test('hops, beats and starting again', async () => {
   assert.equal(m._preview_push(156), 1);
   assert.equal(m._preview_hops(), 1);
   feed(m, RATE * 6, kick);
-  assert.ok(m._preview_beats() >= 8, `beats ${m._preview_beats()}`);
+  assert.ok(m._preview_hits() >= 8, `hits ${m._preview_hits()}`);
   assert.equal(m._preview_init(44100), 1);
   assert.equal(m._preview_hops(), 0);
-  assert.equal(m._preview_beats(), 0);
+  assert.equal(m._preview_hits(), 0);
 });
 
 test('bands are readable', async () => {
@@ -116,10 +115,10 @@ test('bands are readable', async () => {
   assert.ok(bands.every((level) => level >= 0 && level <= 1));
 });
 
-test('mode rows follow the settings library', async () => {
+test('the song part is readable', async () => {
   const m = await engine();
-  assert.equal(m._preview_mode_setting_count(2), 1); // River
-  assert.equal(m._preview_mode_setting_id(2, 0), 12); // River speed
-  assert.equal(m._preview_mode_setting_count(0), 0);
-  assert.equal(m._preview_mode_setting_id(0, 0), -1);
+  feed(m, 40000, music);
+  const part = m._preview_part();
+  assert.ok(part >= 0 && part < 4, `part ${part}`);
+  assert.equal(m._preview_drops(), 0);
 });

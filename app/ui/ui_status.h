@@ -2,14 +2,14 @@
 #define APP_UI_UI_STATUS_H
 
 /**
- * The status screen, shown while nobody uses the menu: the mode, the
- * palette with a swatch of its colours, the LED brightness, and a note on
+ * The status screen, shown while nobody uses the menu: the look, the scene
+ * with a swatch of its three colours, the LED brightness, and a note on
  * saving.
  *
  *   Light Painting                  Saved
- *   River
+ *   Pulse
  *
- *   Palette                     Synthwave
+ *   Scene                       Neon Noir
  *   ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇
  *
  *   Brightness                      100 %
@@ -19,14 +19,14 @@
  * with the 12 px margins they fill the 172 lines exactly
  */
 
-#include "effects.h"
+#include "show.h"
 
 #include <lvgl/lvgl.h>
 
 // What the screen shows
 typedef struct {
-    effects_mode_t mode;
-    palette_t palette;
+    show_look_t look;
+    scene_t scene;
     int brightness_percent;
     // In the corner, e.g. how saving went. nullptr or "" for none
     const char *note;

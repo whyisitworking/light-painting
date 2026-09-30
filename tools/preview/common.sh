@@ -16,7 +16,7 @@ EMCC_FLAGS=(-std=gnu23 -O2 -Wall -Wextra -fcx-limited-range)
 
 # The portable modules the engine needs, every source of each: a new file in
 # one of them is picked up without touching this list
-MODULES=(fft spectrum features effects color settings visualizer)
+MODULES=(fft spectrum features show color settings visualizer)
 MODULE_INC=()
 MODULE_SRC=()
 for module in "${MODULES[@]}"; do

@@ -234,6 +234,9 @@ show_tuning_t show_default_tuning(void);
  */
 void show_tune(show_t *this, const show_tuning_t *tuning);
 
+// The look starts clean, as after switching to it: no blocks, no state
+void show_restart(show_t *this);
+
 // Renders one frame into led_count color_ws2812_t words
 void show_render(show_t *this, const sound_t *sound, uint32_t *pixels);
 

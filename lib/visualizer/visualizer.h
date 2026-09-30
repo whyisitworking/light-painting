@@ -4,14 +4,14 @@
 /**
  * The visualizer pipeline, hardware independent: I2S frames in, pixels out.
  *
- *   frames ──► spectrum ──bins──► features ──sound_t──► effects ──► pixels
+ *   frames ──► spectrum ──bins──► features ──sound_t──► show ──► pixels
  *
  * Once per hop: visualizer_analyze() with the newest frames, then
  * visualizer_render() into the next LED frame.
  */
 
-#include "effects.h"
 #include "features.h"
+#include "show.h"
 #include "spectrum.h"
 
 #include <stddef.h>
@@ -30,18 +30,20 @@ typedef struct {
     size_t fft_size;
     size_t hop_size;
     size_t led_count;
+    // LEDs on each side wall, at both ends of the strip (0 if none)
+    size_t bend_count;
     // Renders are deterministic for a seed
     uint32_t seed;
 } visualizer_config_t;
 
 // What can be changed while running: the gain and each stage's tuning,
-// the mode and palette among the effects'
+// the look and scene among the show's
 typedef struct {
     // VISUALIZER_GAIN: positive. Applied after the window, on top of the
     // microphone's SPECTRUM_INPUT_GAIN
     float gain;
     features_tuning_t features;
-    effects_tuning_t effects;
+    show_tuning_t show;
 } visualizer_tuning_t;
 
 // The pipeline stages, public for inspection (e.g. features.ceiling_db)
@@ -49,7 +51,7 @@ typedef struct {
     float gain;
     spectrum_t spectrum;
     features_t features;
-    effects_t effects;
+    show_t show;
 } visualizer_t;
 
 /**
@@ -64,7 +66,7 @@ visualizer_tuning_t visualizer_default_tuning(void);
 
 /**
  * Takes effect on the next hop, without resetting the analysis or the
- * effects. A value out of range keeps its current one, see the stages'
+ * show. A value out of range keeps its current one, see the stages'
  * tune functions
  */
 void visualizer_tune(visualizer_t *this, const visualizer_tuning_t *tuning);

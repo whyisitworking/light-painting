@@ -26,7 +26,7 @@ void stats_add_hop(stats_t *this, const int32_t *frames, size_t frame_count,
     this->work_total_us += work_us;
     if (work_us > this->work_max_us)
         this->work_max_us = work_us;
-    this->beat_count += sound->beat;
+    this->hit_count += sound->hits[FEATURES_LOW].fired;
     this->loudness_total += sound->loudness;
 }
 
@@ -76,7 +76,7 @@ stats_report_t stats_report(stats_t *this, float period_s, float hop_period_s,
     }
 
     if (period_s > 0.f) {
-        report.beats_per_s = (float)this->beat_count / period_s;
+        report.hits_per_s = (float)this->hit_count / period_s;
         report.led_fps = (float)frames_latched / period_s;
     }
 

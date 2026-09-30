@@ -8,17 +8,13 @@ constexpr uint32_t TEXT_COLOR = 0xECECF1;
 constexpr uint32_t MUTED_COLOR = 0x8A8F98;
 constexpr uint32_t TRACK_COLOR = 0x2C2F37;
 
-// Where on the palette the accent comes from: its middle, the most vivid
-// point of each
-constexpr float ACCENT_POSITION = 0.5f;
-
 // How much of the accent tints the dark text on it, of 255
 constexpr uint8_t ON_ACCENT_TINT = 24;
 
 static lv_style_t screen, muted, focus, track, fill, warning;
 
-lv_color_t ui_theme_palette_color(palette_t palette, float position) {
-    rgb_t color = palette_color(palette, position);
+lv_color_t ui_theme_scene_color(scene_t scene, scene_role_t role) {
+    rgb_t color = scene_color(scene, role);
 
     return lv_color_make(
         (uint8_t)lroundf(fminf(fmaxf(color.r, 0.f), 1.f) * 255.f),
@@ -26,8 +22,8 @@ lv_color_t ui_theme_palette_color(palette_t palette, float position) {
         (uint8_t)lroundf(fminf(fmaxf(color.b, 0.f), 1.f) * 255.f));
 }
 
-static void set_accent(palette_t palette) {
-    lv_color_t accent = ui_theme_palette_color(palette, ACCENT_POSITION);
+static void set_accent(scene_t scene) {
+    lv_color_t accent = ui_theme_scene_color(scene, SCENE_ACCENT);
 
     lv_style_set_bg_color(&focus, accent);
     lv_style_set_text_color(&focus,
@@ -37,7 +33,7 @@ static void set_accent(palette_t palette) {
     lv_style_set_text_color(&warning, accent);
 }
 
-void ui_theme_init(palette_t palette) {
+void ui_theme_init(scene_t scene) {
     lv_style_init(&screen);
     lv_style_set_bg_color(&screen, lv_color_hex(BACKGROUND_COLOR));
     lv_style_set_bg_opa(&screen, LV_OPA_COVER);
@@ -58,11 +54,11 @@ void ui_theme_init(palette_t palette) {
 
     lv_style_init(&warning);
 
-    set_accent(palette);
+    set_accent(scene);
 }
 
-void ui_theme_set_palette(palette_t palette) {
-    set_accent(palette);
+void ui_theme_set_scene(scene_t scene) {
+    set_accent(scene);
 
     // Everything wearing them is redrawn
     lv_obj_report_style_change(&focus);
