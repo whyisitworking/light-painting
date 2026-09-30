@@ -66,3 +66,26 @@ target_compile_options(preview_api PUBLIC
     -iquote${CMAKE_CURRENT_SOURCE_DIR}/../app/ui)
 target_link_libraries(preview_api PUBLIC settings visualizer)
 lp_add_test(preview preview_api song)
+
+# The timeline tool (tools/timeline): a song's parts and hits from a WAV
+# file. Built with the tests; its WAV reader has a test, and the tool runs on
+# the synthetic song, where it must find the song's two drops
+set(TIMELINE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../tools/timeline)
+add_library(wav STATIC ${TIMELINE_DIR}/wav.c)
+set_source_files_properties(${TIMELINE_DIR}/wav.c
+    PROPERTIES COMPILE_OPTIONS "${PROJECT_WARNINGS}")
+target_compile_options(wav PUBLIC -iquote${TIMELINE_DIR})
+lp_add_test(wav wav)
+set(TIMELINE_SOURCES
+    ${TIMELINE_DIR}/timeline.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../app/ui/ui_names.c)
+add_executable(timeline ${TIMELINE_SOURCES})
+set_source_files_properties(${TIMELINE_SOURCES}
+    PROPERTIES COMPILE_OPTIONS "${PROJECT_WARNINGS}")
+target_compile_options(timeline PRIVATE
+    -iquote${CMAKE_CURRENT_SOURCE_DIR}/../app/ui)
+target_link_libraries(timeline PRIVATE wav spectrum show song)
+add_test(NAME timeline COMMAND timeline --song)
+set_tests_properties(timeline PROPERTIES
+    TIMEOUT 30
+    PASS_REGULAR_EXPRESSION "\n2 drops, 0 lifts\n")

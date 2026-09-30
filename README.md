@@ -29,7 +29,7 @@
 - **Five looks, five scenes.** Pulse, Flow, Stage, Sweep and Storm, each with one idea of its own and a behaviour for every part of a song, in scenes of three colours: a field, an accent and a hit.
 - **Dark when it's quiet, and never too much.** Silence and microphone self-noise stay black. At most three flashes a second (WCAG 2.3.1, measured in light as WCAG measures it), whatever a look draws.
 - **Tuned on the device.** A menu on the board's 1.47" LCD, driven by a 5-way switch: look, scene, brightness, song parts and the sound response, saved to flash. It runs on the second core, and the lights never wait for it.
-- **Tested off the board.** Everything that isn't hardware is plain C23 with unit tests on your computer, including a synthetic song whose parts the analysis must find, and a golden snapshot of the whole pipeline (recorded after the looks' tuning pass).
+- **Tested off the board.** Everything that isn't hardware is plain C23 with unit tests on your computer, including a synthetic song whose parts the analysis must find, a timeline tool that shows what it hears in your own songs, and a golden snapshot of the whole pipeline (recorded after the looks' tuning pass).
 
 ## Hardware
 
@@ -291,6 +291,7 @@ All memory is allocated once at startup, and neither loop allocates. The firmwar
 │   └── swapchain/       lock-free triple buffer between contexts or cores
 ├── third_party/lvgl     LVGL v9.6.0, a git submodule
 ├── tools/preview        a page that runs the real analysis and show in the browser (WebAssembly)
+├── tools/timeline       a song's parts and hits over time, from a WAV file
 ├── cmake/modules.cmake  lp_add_module(): one definition per module, for both builds
 └── tests/               host tests (CTest)
 ```
@@ -375,6 +376,7 @@ ctest --test-dir build-tests --output-on-failure
 | `show` | Every look dark in silence and lit by music in every part, the calm washes lit in every scene, the gap and black after it, the colour swap, Sweep's whole volley, the flash guard for every look, determinism, a clean look switch, the tuning |
 | `visualizer` | End to end from I²S words: silence, a tone on Stage, kicks as low hits, and the same tuning on every hop drawing what it draws tuned once, the defaults what they draw untuned |
 | `golden` | The exact pixels of every look for a fixed input, once recorded after the tuning pass; until then run but not compared |
+| `wav`, `timeline` | The timeline tool's WAV reader, and the tool itself finding the synthetic song's two drops |
 | `stats` | The microphone levels in dBFS, an offset ignored, the window's means, worsts and rates, the stack peaks |
 | `settings` | Ranges and steps, shuffles, every default equal to the constant it replaces, records and their damage, and the flash log on a simulated NOR flash: torn writes, garbage, power lost after an erase |
 
@@ -395,6 +397,18 @@ cmake -S tests -B build-sanitize "-DCMAKE_C_FLAGS=-fsanitize=address,undefined -
 ```bash
 cmake --build build-sanitize && ctest --test-dir build-sanitize --output-on-failure
 ```
+
+To hear a real song as the analysis does, `tools/timeline` prints its parts and hits over time, to compare with how the song goes (the song stays on your computer):
+
+```bash
+afconvert -f WAVE -d LEI16 song.mp3 song.wav
+```
+
+```bash
+build-tests/timeline song.wav
+```
+
+The second argument, the input level in dB (default −18, as the preview's), says how much quieter the microphones hear it than the file.
 
 To see the looks without the strip, [`tools/preview`](tools/preview) builds a page that plays a demo signal, an audio file or the microphone through the firmware's own analysis and show, with the current song part shown (needs Emscripten).
 
