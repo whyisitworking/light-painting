@@ -1,0 +1,10 @@
+{
+    "recommendations": [
+        "marus25.cortex-debug",
+        "raspberry-pi.raspberry-pi-pico",
+        "llvm-vs-code-extensions.vscode-clangd",
+        "ms-vscode.cpptools",
+        "ms-vscode.cpptools-extension-pack",
+        "ms-vscode.vscode-serial-monitor"
+    ]
+}

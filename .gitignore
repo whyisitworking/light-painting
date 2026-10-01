@@ -1,1 +1,19 @@
-build
+# Build outputs
+build/
+build-tests/
+build-sanitize/
+build-docker/
+build-print/
+build-preview/
+
+# Editor and language server caches
+.cache/
+.DS_Store
+
+# AI assistant and agent session state
+.omc/
+.superpowers/
+.impeccable/
+docs/superpowers/
+.claude/settings.local.json
+CLAUDE.local.md

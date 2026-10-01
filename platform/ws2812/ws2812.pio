@@ -1,0 +1,62 @@
+; Fully autonomous WS2812 RGB driver
+; It keeps transmitting bits as long as there is data to transmit. When a
+; pixel is done and the TX FIFO has run dry, the frame is complete: it holds
+; the line LO for the reset/latch pulse, raises IRQ (0 rel) to tell the CPU,
+; then stalls LO on the empty FIFO until the next frame arrives
+
+.program ws2812
+.side_set 1
+
+; 1 cycle = 3 / baud = 0.3us
+.define public baud 10000000
+
+; Reset/latch: WS2812B datasheet RES "above 50us"
+; (1 + reset_loops * reset_loop_cycles) cycles
+; = (1 + 12 * 14) * 0.3us = 50.7us, plus the LO cycles around it
+.define public reset_loops 12
+.define public reset_loop_cycles 14
+
+transmit:
+    out x, 1                side 0          ; 0.3us LO
+    jmp !x, do_zero         side 1          ; 0.3us HI
+do_one:
+    jmp !osre, transmit     side 1          ; 0.3us HI, 1 = 0.6us HI
+do_zero:
+    jmp !osre, transmit     side 0          ; 0.3us LO, 0 = 0.3us HI
+
+; !OSRE fell through: all 24 bits of the pixel are out and autopull found the
+; FIFO empty, so this was the last pixel of the frame
+sync:
+    set x, (reset_loops - 1) side 0
+sync_loop:
+    jmp x--, sync_loop       side 0 [reset_loop_cycles - 1]
+    irq 0 rel                side 0         ; Frame latched
+
+% c-sdk {
+#include <hardware/clocks.h>
+
+/**
+ * Configures the pin and the state machine, a cycle every 3 / baud (0.3 us),
+ * and starts it. Autopull takes 24 bits per word, from the top: G, R, B.
+ * The pin keeps the default pad settings (4 mA, slow slew): it only drives
+ * the 3.3 -> 5 V level shifter next to it, which drives the strip
+ */
+static inline void ws2812_program_init(PIO pio, uint sm, uint offset, uint pin) {
+    pio_gpio_init(pio, pin);
+    pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
+
+    pio_sm_config c = ws2812_program_get_default_config(offset);
+    sm_config_set_sideset_pins(&c, pin);
+    sm_config_set_out_shift(&c, false, true, 24);
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
+    sm_config_set_clkdiv(&c, 3.f * clock_get_hz(clk_sys) / ws2812_baud);
+
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+
+static inline void ws2812_program_deinit(PIO pio, uint sm) {
+    pio_sm_set_enabled(pio, sm, false);
+    pio_sm_unclaim(pio, sm);
+}
+%}

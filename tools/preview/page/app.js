@@ -1,0 +1,633 @@
+'use strict';
+
+// The page: drives the WebAssembly engine from the Web Audio API and draws
+// what it renders. The engine is the firmware's own code (see preview_api.h).
+
+const LED_COUNT = 300;
+const INPUT_CAPACITY = 8192;
+const FIRMWARE_RATE = 48828.125;
+const BAND_COUNT = 32;
+
+// The menu's settings in settings_id_t order (lib/settings/settings.h). A
+// setting the engine has beyond this table still gets a slider
+const SETTINGS = [
+  { name: 'Look', kind: 'look' },
+  { name: 'Scene', kind: 'scene' },
+  { name: 'Brightness', group: 'Look', show: (raw) => `${raw} %` },
+  { name: 'Song parts', group: 'Look', show: (raw) => (raw ? 'On' : 'Off') },
+  { name: 'Gain', group: 'Sound', show: (raw, real) => `${real.toFixed(1)}x` },
+  { name: 'Hit sensitivity', group: 'Sound', show: (raw, real) => real.toFixed(1) },
+  { name: 'Quiet floor', group: 'Sound', show: (raw) => `${raw} dB` },
+  { name: 'Screen', hidden: true }, // the LCD backlight: nothing to see here
+];
+const SETTING_LOOK = 0;
+const SETTING_SCENE = 1;
+const GROUP_ORDER = ['Look', 'Sound', 'Other'];
+
+const $ = (selector) => document.querySelector(selector);
+
+// The LEDs' PWM words are gamma-corrected for the strip, whose light is linear
+// in them; a screen applies its own gamma to a byte, so undo the strip's
+const SCREEN = Uint8ClampedArray.from({ length: 256 }, (_, i) => Math.round(255 * Math.pow(i / 255, 1 / 2.2)));
+
+function note(message) {
+  const element = $('#note');
+  element.hidden = !message;
+  element.textContent = message ?? '';
+}
+
+async function main() {
+  const engine = await createEngine();
+  const inputAt = () => engine._preview_input() >> 2;
+  const names = (count, name) => Array.from({ length: count() }, (_, i) => engine.UTF8ToString(name(i)));
+  const lookNames = names(() => engine._preview_look_count(), (i) => engine._preview_look_name(i));
+  const sceneNames = names(() => engine._preview_scene_count(), (i) => engine._preview_scene_name(i));
+  const settingCount = engine._preview_setting_count();
+
+  // What the page has set, replayed when the engine starts over at another
+  // sample rate
+  const state = { values: new Map(), trim: -18, gallery: false, rate: FIRMWARE_RATE };
+
+  function start(rate) {
+    if (!engine._preview_init(rate)) throw new Error('the engine could not start');
+    state.rate = rate;
+    for (const [id, value] of state.values) engine._preview_set(id, value);
+    engine._preview_set_input_trim_db(state.trim);
+    engine._preview_set_gallery(state.gallery ? 1 : 0);
+  }
+  start(FIRMWARE_RATE);
+  // A reload can restore the checkbox to checked: it follows the state
+  $('#gallery-toggle').checked = state.gallery;
+
+  const setSetting = (id, value) => {
+    const stored = engine._preview_set(id, value);
+    state.values.set(id, stored);
+    return stored;
+  };
+  const selectedLook = () => engine._preview_get(SETTING_LOOK);
+
+  // ---- Settings controls, from the engine's own ranges
+  const refreshers = [];
+
+  function addRow(parent, label, control, output) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    const text = document.createElement('label');
+    text.textContent = label;
+    text.htmlFor = control.id;
+    row.append(text, control);
+    if (output) row.append(output);
+    parent.append(row);
+  }
+
+  function addSelect(parent, id, label, options) {
+    const select = document.createElement('select');
+    select.id = `setting-${id}`;
+    options.forEach((option, i) => select.append(new Option(option, i)));
+    select.value = engine._preview_get(id);
+    select.addEventListener('change', () => setSetting(id, Number(select.value)));
+    refreshers.push(() => { select.value = engine._preview_get(id); });
+    addRow(parent, label, select);
+  }
+
+  function addSlider(parent, id, info) {
+    const at = engine._preview_setting_range(id) >> 1;
+    const [min, max, step, , divisor] = Array.from(engine.HEAP16.subarray(at, at + 6));
+    const slider = document.createElement('input');
+    const output = document.createElement('output');
+    slider.type = 'range';
+    slider.id = `setting-${id}`;
+    Object.assign(slider, { min, max, step });
+    const show = () => {
+      const raw = engine._preview_get(id);
+      slider.value = raw;
+      output.textContent = info.show ? info.show(raw, raw / divisor) : `${raw / divisor}`;
+    };
+    slider.addEventListener('input', () => {
+      setSetting(id, Number(slider.value));
+      show();
+    });
+    refreshers.push(show);
+    show();
+    addRow(parent, info.name, slider, output);
+  }
+
+  function buildControls() {
+    const groups = new Map(GROUP_ORDER.map((group) => [group, []]));
+    for (let id = 0; id < settingCount; id++) {
+      const info = SETTINGS[id] ?? { name: `Setting ${id}`, group: 'Other' };
+      if (info.hidden || info.kind) continue;
+      groups.get(info.group ?? 'Other').push([id, info]);
+    }
+    const controls = $('#controls');
+    const look = document.createElement('div');
+    look.append(Object.assign(document.createElement('h3'), { textContent: 'Look' }));
+    addSelect(look, SETTING_LOOK, 'Look', lookNames);
+    addSelect(look, SETTING_SCENE, 'Scene', sceneNames);
+    for (const [id, info] of groups.get('Look')) addSlider(look, id, info);
+    controls.append(look);
+    for (const group of GROUP_ORDER.slice(1)) {
+      if (!groups.get(group).length) continue;
+      const column = document.createElement('div');
+      column.append(Object.assign(document.createElement('h3'), { textContent: group }));
+      for (const [id, info] of groups.get(group)) addSlider(column, id, info);
+      controls.append(column);
+    }
+  }
+  buildControls();
+
+  $('#reset').addEventListener('click', () => {
+    engine._preview_reset();
+    state.values.clear();
+    refreshers.forEach((refresh) => refresh());
+    markSelected();
+  });
+
+  // ---- Drawing
+  const strips = [];
+  function stripContext(canvas) {
+    const context = canvas.getContext('2d');
+    return { context, image: context.createImageData(LED_COUNT, 1) };
+  }
+  const bigStrip = stripContext($('#strip'));
+  const glow = stripContext($('#glow'));
+
+  function paint(target, look) {
+    const words = new Uint32Array(engine.HEAPU8.buffer, engine._preview_pixels(look), LED_COUNT);
+    const data = target.image.data;
+    for (let i = 0; i < LED_COUNT; i++) {
+      const word = words[i];
+      data[4 * i] = SCREEN[(word >>> 16) & 255];
+      data[4 * i + 1] = SCREEN[(word >>> 24) & 255];
+      data[4 * i + 2] = SCREEN[(word >>> 8) & 255];
+      data[4 * i + 3] = 255;
+    }
+    target.context.putImageData(target.image, 0, 0);
+  }
+
+  const gallery = $('#gallery');
+  lookNames.forEach((name, look) => {
+    const tile = document.createElement('div');
+    tile.className = 'tile';
+    tile.tabIndex = 0;
+    tile.setAttribute('role', 'button');
+    const label = document.createElement('span');
+    label.textContent = name;
+    const canvas = document.createElement('canvas');
+    canvas.width = LED_COUNT;
+    canvas.height = 1;
+    tile.append(label, canvas);
+    const choose = () => {
+      setSetting(SETTING_LOOK, look);
+      refreshers.forEach((refresh) => refresh());
+      markSelected();
+    };
+    tile.addEventListener('click', choose);
+    tile.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        choose();
+      }
+    });
+    gallery.append(tile);
+    strips.push({ tile, ...stripContext(canvas) });
+  });
+
+  function markSelected() {
+    const look = selectedLook();
+    strips.forEach((entry, i) => entry.tile.setAttribute('aria-current', i === look ? 'true' : 'false'));
+    $('#look-name').textContent = lookNames[look];
+  }
+  $('#look-name').textContent = lookNames[selectedLook()];
+  markSelected();
+  // The look select changes the selected look too
+  $('#setting-0').addEventListener('change', markSelected);
+
+  $('#gallery-toggle').addEventListener('change', (event) => {
+    state.gallery = event.target.checked;
+    engine._preview_set_gallery(state.gallery ? 1 : 0);
+    // The tiles stop being painted: dark, not the last frame
+    if (!state.gallery) {
+      strips.forEach((entry) => {
+        entry.context.fillStyle = '#000';
+        entry.context.fillRect(0, 0, LED_COUNT, 1);
+      });
+    }
+  });
+
+  const bandsContext = $('#bands').getContext('2d');
+  let lastHits = 0;
+  let hitAt = 0;
+  let lastHud = 0;
+
+  function frame(now) {
+    const look = selectedLook();
+    paint(bigStrip, look);
+    paint(glow, look);
+    if (state.gallery) strips.forEach((entry, i) => paint(entry, i));
+
+    const hits = engine._preview_hits();
+    if (hits !== lastHits) {
+      lastHits = hits;
+      hitAt = now;
+    }
+    $('#hit').classList.toggle('on', now - hitAt < 120);
+
+    if (now - lastHud > 50) {
+      lastHud = now;
+      $('#loudness i').style.width = `${Math.min(1, engine._preview_loudness()) * 100}%`;
+      $('#hops').textContent = `${engine._preview_hops()} hops`;
+      $('#part').textContent = engine.UTF8ToString(engine._preview_part_name(engine._preview_part()));
+      const at = engine._preview_bands() >> 2;
+      const bands = engine.HEAPF32.subarray(at, at + BAND_COUNT);
+      bandsContext.clearRect(0, 0, BAND_COUNT, 24);
+      bandsContext.fillStyle = '#7c8cff';
+      for (let b = 0; b < BAND_COUNT; b++) {
+        const height = Math.round(bands[b] * 24);
+        bandsContext.fillRect(b, 24 - height, 1, height);
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ---- Audio: sources feed a tap, which hands the samples to the engine
+  const WORKLET = `
+    class Tap extends AudioWorkletProcessor {
+      process(inputs) {
+        const input = inputs[0];
+        // With no source connected the input is empty: post silence, so the
+        // engine keeps advancing and the looks fall off
+        const mono = new Float32Array(input.length ? input[0].length : 128);
+        for (const channel of input) for (let i = 0; i < mono.length; i++) mono[i] += channel[i];
+        if (input.length > 1) for (let i = 0; i < mono.length; i++) mono[i] /= input.length;
+        this.port.postMessage(mono, [mono.buffer]);
+        return true;
+      }
+    }
+    registerProcessor('tap', Tap);`;
+
+  function feed(samples) {
+    for (let offset = 0; offset < samples.length; offset += INPUT_CAPACITY) {
+      const chunk = samples.subarray(offset, offset + INPUT_CAPACITY);
+      engine.HEAPF32.set(chunk, inputAt());
+      engine._preview_push(chunk.length);
+    }
+  }
+
+  // Cached as a promise: two quick clicks share one context, and a failed
+  // creation is dropped (context closed) so a later click can try again
+  let graphPromise = null;
+
+  async function createGraph() {
+    const ctx = new AudioContext({ latencyHint: 'interactive' });
+    try {
+      // A data: URL, not a Blob URL: a page opened from disk has an opaque
+      // origin, and Chrome refuses a worklet module from its blob:null URL
+      await ctx.audioWorklet.addModule('data:text/javascript;base64,' + btoa(WORKLET));
+      const tap = new AudioWorkletNode(ctx, 'tap');
+      tap.port.onmessage = (event) => feed(event.data);
+      // The tap outputs silence; connecting it keeps the browser pulling it
+      tap.connect(ctx.destination);
+      // The browser's rate, not the firmware's: the engine starts over at it
+      start(ctx.sampleRate);
+      return { ctx, tap };
+    } catch (error) {
+      ctx.close().catch(() => {});
+      throw error;
+    }
+  }
+
+  function ensureGraph() {
+    graphPromise ??= createGraph().catch((error) => {
+      graphPromise = null;
+      throw error;
+    });
+    return graphPromise;
+  }
+
+  const SOURCES = {};
+  let current = null;
+  // Each choose() takes a number; a start that finds a newer number after an
+  // await has been superseded and must release whatever it acquired
+  let generation = 0;
+
+  async function choose(name, keepTrim) {
+    const mine = ++generation;
+    const isCurrent = () => mine === generation;
+    if (current) {
+      SOURCES[current].stop();
+      current = null;
+    }
+    note(null);
+    $('#source-extra').replaceChildren();
+    for (const button of document.querySelectorAll('#source-buttons button'))
+      button.setAttribute('aria-pressed', String(button.dataset.source === name));
+    if (!name) return;
+    try {
+      const g = await ensureGraph();
+      if (!isCurrent()) return;
+      // Never awaited: a share picker needs a fresh click, every start only
+      // connects nodes (a suspended context accepts them), and an await
+      // between start() and `current` would hide a live stream from a newer
+      // choose()
+      g.ctx.resume().catch(() => {});
+      if (!keepTrim) setTrim(SOURCES[name].trim);
+      await SOURCES[name].start(g, $('#source-extra'), isCurrent, Boolean(keepTrim));
+      if (!isCurrent()) return;
+      current = name;
+    } catch (error) {
+      if (!isCurrent()) return;
+      // A start that threw may hold part of its setup; stop() is null-safe
+      try {
+        SOURCES[name].stop();
+      } catch {}
+      note(`${SOURCES[name].label}: ${error.message ?? error}`);
+      for (const button of document.querySelectorAll('#source-buttons button'))
+        button.setAttribute('aria-pressed', 'false');
+    }
+  }
+
+  function setTrim(db) {
+    state.trim = db;
+    $('#trim').value = db;
+    $('#trim-out').textContent = `${db} dB`;
+    engine._preview_set_input_trim_db(db);
+  }
+  $('#trim').addEventListener('input', (event) => setTrim(Number(event.target.value)));
+  setTrim(state.trim);
+
+  function addSource(name, source) {
+    SOURCES[name] = source;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.source = name;
+    button.textContent = source.label;
+    button.setAttribute('aria-pressed', 'false');
+    button.addEventListener('click', () => choose(current === name ? null : name));
+    $('#source-buttons').append(button);
+  }
+
+  // A demo signal with the spread of real music, not a lone tone: 10 s of a
+  // 120 BPM kick, a snare on the backbeat, hi-hats, a bass line, a chord pad
+  // and a lead, all with harmonics, then 2 s of silence to watch the looks
+  // fall off. Looped. A thin signal (one tone) lights a few bands and looks
+  // dim on the board too
+  function demoBuffer(ctx) {
+    const seconds = 12;
+    const rate = ctx.sampleRate;
+    const buffer = ctx.createBuffer(1, Math.floor(seconds * rate), rate);
+    const data = buffer.getChannelData(0);
+    const TAU = 2 * Math.PI;
+    let seed = 1;
+    const noise = () => {
+      seed ^= seed << 13;
+      seed ^= seed >>> 17;
+      seed ^= seed << 5;
+      return ((seed >>> 0) / 4294967296) * 2 - 1;
+    };
+    // Harmonics 1..count with 1/h weights: a bright, saw-like tone
+    const saw = (frequency, t, count) => {
+      let sum = 0;
+      for (let h = 1; h <= count; h++) sum += Math.sin(TAU * frequency * h * t) / h;
+      return sum;
+    };
+    const bass = [55, 55, 82.4, 65.4];
+    const chord = [220, 261.6, 329.6];
+    const lead = [880, 784, 659.3, 587.3, 659.3, 784, 987.8, 784];
+    for (let i = 0; i < data.length; i++) {
+      const t = i / rate;
+      if (t >= 10) continue;
+      const beat = t % 0.5;
+      const bar = Math.floor(t / 2);
+      const kick = 0.55 * Math.exp(-beat / 0.05) * Math.sin(TAU * (48 + 60 * Math.exp(-beat / 0.02)) * beat);
+      const backbeat = (t % 1) - 0.5;
+      const snare = backbeat >= 0 ? Math.exp(-backbeat / 0.07) * (0.22 * noise() + 0.12 * Math.sin(TAU * 190 * backbeat)) : 0;
+      const offBeat = (t + 0.25) % 0.5;
+      const hat = (offBeat < 0.08 ? 0.16 : 0.03) * noise() * Math.exp(-offBeat / 0.02);
+      const bassLine = 0.16 * saw(bass[bar % bass.length], t, 6) * (0.6 + 0.4 * Math.exp(-beat / 0.3));
+      const pad = 0.035 * chord.reduce((sum, f) => sum + saw(f, t, 8), 0) * (0.7 + 0.3 * Math.sin(TAU * 0.25 * t));
+      const step = Math.floor(t / 0.25);
+      const noteT = t % 0.25;
+      const melody = 0.07 * saw(lead[step % lead.length], t, 10) * Math.exp(-noteT / 0.18);
+      data[i] = 0.75 * (kick + snare + hat + bassLine + pad + melody);
+    }
+    return buffer;
+  }
+
+  let demo = null;
+  addSource('demo', {
+    label: 'Demo signal',
+    trim: -18,
+    async start(g) {
+      demo = g.ctx.createBufferSource();
+      demo.buffer = demoBuffer(g.ctx);
+      demo.loop = true;
+      demo.connect(g.ctx.destination);
+      demo.connect(g.tap);
+      demo.start();
+    },
+    stop() {
+      demo?.stop();
+      demo?.disconnect();
+      demo = null;
+    },
+  });
+
+  // An audio file: played by an audio element (seeking, volume), heard and
+  // tapped
+  let fileNode = null;
+  addSource('file', {
+    label: 'Audio file',
+    trim: -18,
+    async start(g, extra) {
+      // Synchronous: nothing to supersede, and a throw is cleaned up by stop()
+      const picker = document.createElement('input');
+      picker.type = 'file';
+      picker.accept = 'audio/*';
+      picker.setAttribute('aria-label', 'Choose an audio file');
+      const player = document.createElement('audio');
+      player.controls = true;
+      player.loop = true;
+      player.addEventListener('error', () => note('That file could not be played.'));
+      player.addEventListener('play', () => g.ctx.resume());
+      picker.addEventListener('change', () => {
+        const [file] = picker.files;
+        if (!file) return;
+        note(null);
+        player.src = URL.createObjectURL(file);
+        player.play().catch(() => {});
+      });
+      extra.append(picker, player);
+      // One node per element for good: rebuilt with the element each time
+      fileNode = g.ctx.createMediaElementSource(player);
+      fileNode.connect(g.ctx.destination);
+      fileNode.connect(g.tap);
+    },
+    stop() {
+      fileNode?.disconnect();
+      fileNode = null;
+      $('#source-extra audio')?.pause();
+    },
+  });
+
+  // A track that ends by itself (Chrome's "Stop sharing", an unplugged device)
+  // stops its source. Tracks stopped by stop() fire no ended event, so this
+  // cannot loop; a start that has been superseded is left alone
+  // A track that is already ended will never fire the event: that fails the
+  // start (before it writes state), and choose() shows the message
+  function stopOnEnd(tracks, isCurrent, message) {
+    if (tracks.some((track) => track.readyState === 'ended')) throw new Error('The capture ended right away.');
+    for (const track of tracks) {
+      track.addEventListener('ended', () => {
+        if (!isCurrent()) return;
+        choose(null);
+        note(message);
+      }, { once: true });
+    }
+  }
+
+  // Computer audio: a browser tab (or, on newer Chrome and macOS, the system)
+  // shared through Chrome's picker. Tapped, not heard: the shared audio keeps
+  // playing on its own, and connecting it would double it
+  let displayStream = null;
+  let displayNode = null;
+  addSource('display', {
+    label: 'Computer audio',
+    trim: -18,
+    async start(g, extra, isCurrent) {
+      if (!navigator.mediaDevices?.getDisplayMedia)
+        throw new Error('This browser cannot share audio from the computer');
+      // Chrome only offers audio together with video. The unknown members are
+      // ignored by a browser that does not know them
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+          systemAudio: 'include',
+          windowAudio: 'system',
+        });
+      } catch (error) {
+        const text = `${error.name} ${error.message}`;
+        if (/user gesture|transient activation/i.test(text))
+          throw new Error('Click Computer audio again: the browser wanted a fresher click.');
+        if (error.name === 'NotAllowedError' || /permission denied/i.test(text))
+          throw new Error('Sharing was cancelled or blocked.');
+        throw error;
+      }
+      const release = () => stream.getTracks().forEach((track) => track.stop());
+      if (!isCurrent()) return release();
+      const audioTracks = stream.getAudioTracks();
+      if (!audioTracks.length) {
+        release();
+        throw new Error(
+          'No audio was shared. In the picker choose a Chrome tab and tick "Also share tab audio", ' +
+            'or a screen or window and tick "Also share system audio".');
+      }
+      // The video is never shown: kept alive (stopping it may end the share)
+      // but switched off
+      stream.getVideoTracks().forEach((track) => { track.enabled = false; });
+      try {
+        stopOnEnd(stream.getTracks(), isCurrent, 'Sharing stopped.');
+        const node = g.ctx.createMediaStreamSource(new MediaStream(audioTracks));
+        node.connect(g.tap);
+        displayStream = stream;
+        displayNode = node;
+      } catch (error) {
+        release();
+        throw error;
+      }
+    },
+    stop() {
+      displayNode?.disconnect();
+      displayStream?.getTracks().forEach((track) => track.stop());
+      displayNode = null;
+      displayStream = null;
+    },
+  });
+
+  // The microphone: tapped, not heard (that would feed back). The browser's
+  // own gain control, echo cancelling and noise suppression are off: they
+  // would reshape the sound before the analysis. Another input (a virtual
+  // device such as BlackHole) can be picked; undefined is the default input
+  let micStream = null;
+  let micNode = null;
+  let micDeviceId;
+  addSource('mic', {
+    label: 'Microphone',
+    trim: 0,
+    async start(g, extra, isCurrent, restart) {
+      if (!navigator.mediaDevices?.getUserMedia)
+        throw new Error('The microphone needs a secure page (https or localhost)');
+      const audio = { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 };
+      if (micDeviceId) audio.deviceId = { exact: micDeviceId };
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio });
+      } catch (error) {
+        if (micDeviceId && isCurrent()) {
+          micDeviceId = undefined;
+          if (error.name === 'OverconstrainedError' || error.name === 'NotFoundError')
+            throw new Error('The chosen input device is unavailable; the default input is used next.');
+        }
+        throw error;
+      }
+      const release = () => stream.getTracks().forEach((track) => track.stop());
+      // Superseded while the permission prompt was open: this stream is ours
+      // alone to release, and the newer start's state is not touched
+      if (!isCurrent()) return release();
+      try {
+        // Device labels are only available after permission was given. The
+        // state is written after this await: a superseded start must not have
+        // written any
+        let inputs = [];
+        try {
+          inputs = (await navigator.mediaDevices.enumerateDevices()).filter((device) => device.kind === 'audioinput');
+        } catch {}
+        if (!isCurrent()) return release();
+        stopOnEnd(stream.getTracks(), isCurrent, 'The microphone stopped.');
+        const node = g.ctx.createMediaStreamSource(stream);
+        node.connect(g.tap);
+        micStream = stream;
+        micNode = node;
+        const [track] = stream.getAudioTracks();
+        if (inputs.length) {
+          const inUse = track?.getSettings().deviceId ?? micDeviceId;
+          const select = document.createElement('select');
+          select.id = 'mic-device';
+          inputs.forEach((device, i) => select.append(new Option(device.label || `Input ${i + 1}`, device.deviceId)));
+          select.value = inUse;
+          if (select.selectedIndex < 0) select.selectedIndex = 0;
+          select.addEventListener('change', () => {
+            micDeviceId = select.value;
+            choose('mic', true);
+          });
+          const label = document.createElement('label');
+          label.htmlFor = select.id;
+          label.textContent = 'Input device';
+          const hint = document.createElement('p');
+          hint.textContent = 'To hear what your Mac plays, install a virtual input such as BlackHole and pick it here.';
+          extra.append(label, select, hint);
+          if (restart) select.focus();
+        }
+      } catch (error) {
+        release();
+        throw error;
+      }
+    },
+    stop() {
+      micNode?.disconnect();
+      micStream?.getTracks().forEach((track) => track.stop());
+      micNode = null;
+      micStream = null;
+    },
+  });
+
+  window.preview = { engine, SOURCES, addSource, choose, note, state };
+}
+
+main().catch((error) => {
+  note(`The preview could not start: ${error.message ?? error}`);
+  console.error(error);
+});

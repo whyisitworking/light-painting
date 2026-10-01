@@ -1,0 +1,115 @@
+; I2S stereo receiver.
+; Interleaved L/R samples.
+;
+;   L starts         L ends  R starts
+;  |                      | |
+; _                         ________...
+;  \_______________________/
+; _   _   _   _     _     _   _   _
+;  \_/ \_/ \_/ \.../ \.../ \_/ \_/ \...
+;
+;     |   |         |     |    
+;    31  30 samples 7     0 
+
+; Side-set: bit 0 is SCK, bit 1 is WS. Data is sampled on the rising edge
+; of SCK, WS changes on the falling one (INMP441 datasheet timing)
+.program i2s
+.side_set 2
+
+; 2 PIO cycles per SCK period, 64 SCK periods per stereo frame
+; INMP441 datasheet: fSCK max 3.2 MHz (tSCP min 312 ns), 64 SCK per frame
+.define public sck_max_hz           3200000
+.define public cycles_per_sck       2
+.define public sck_per_frame        64
+.define public bits_in_per_word     32
+
+frame_l:
+    set x, 30           side 0b00   ; L starts
+                                    ; L - WS switches on SCK falling edge
+data_l:
+    in pins, 1          side 0b01   ; L - Sample bit
+    jmp x--, data_l     side 0b00   ; L - Loop through bits 0..30
+    in pins, 1          side 0b01   ; L - Sample bit 31
+
+frame_r:
+    set x, 30           side 0b10   ; Switch to R
+                                    ; R - WS switches on SCK falling edge
+data_r:
+    in pins, 1          side 0b11   ; R - Sample bit
+    jmp x--, data_r     side 0b10   ; R - Loop through bits 0..30
+    in pins, 1          side 0b11   ; R - Sample bit 31
+
+% c-sdk {
+#include <hardware/clocks.h>
+#include <hardware/gpio.h>
+
+/**
+ * Integer clock divider for the fastest SCK not above sck_max_hz. A
+ * fractional divider would stretch only some cycles: the unstretched ones
+ * run faster than the average and break the minimum SCK period.
+ */
+static inline uint32_t i2s_program_clkdiv(uint32_t sys_hz) {
+    uint32_t max_pio_hz = i2s_sck_max_hz * i2s_cycles_per_sck;
+
+    // Round up, so SCK never exceeds the maximum
+    return (sys_hz + max_pio_hz - 1) / max_pio_hz;
+}
+
+/**
+ * Resulting WS (sample) frequency in Hz for the given system clock
+ */
+static inline float i2s_program_sample_rate(uint32_t sys_hz) {
+    return (float)sys_hz / (i2s_program_clkdiv(sys_hz) * i2s_cycles_per_sck *
+                            i2s_sck_per_frame);
+}
+
+/**
+ * Configures the pins and the state machine at the integer divider, and
+ * starts it: the RX FIFO fills until the DMA drains it.
+ *
+ * SCK and WS keep the default pad settings (4 mA, slow slew): plenty for a
+ * 3.125 MHz clock into two microphones, and gentler edges ring less on the
+ * wires. The data pin keeps its input synchronizer too: it costs 2 clk_sys
+ * cycles (~13 ns), against ~160 ns between the data changing (SCK falling)
+ * and being sampled (SCK rising)
+ */
+static inline void i2s_program_init(PIO pio, uint sm, uint offset,
+                                            uint sck_pin, uint ws_pin,
+                                            uint data_pin) {
+    pio_sm_set_pindirs_with_mask(
+        pio, sm, (1u << sck_pin) | (1u << ws_pin) | (0u << data_pin),
+        (1u << sck_pin) | (1u << ws_pin) | (1u << data_pin));
+
+    pio_gpio_init(pio, data_pin);
+    pio_gpio_init(pio, sck_pin);
+    pio_gpio_init(pio, ws_pin);
+
+    pio_sm_config cfg = i2s_program_get_default_config(offset);
+    
+    sm_config_set_clkdiv_int_frac8(&cfg, i2s_program_clkdiv(clock_get_hz(clk_sys)), 0);
+    sm_config_set_in_pins(&cfg, data_pin);
+    sm_config_set_sideset_pins(&cfg, sck_pin);
+    sm_config_set_in_shift(&cfg, false, true, i2s_bits_in_per_word);
+    sm_config_set_fifo_join(&cfg, PIO_FIFO_JOIN_RX);
+
+    // Each microphone tri-states the data line outside its own channel, and
+    // the bits it leaves are ignored. With one missing or dead, though, its
+    // whole half would float and read as noise into the mono sum. Both pulls
+    // make a bus keeper that holds the last level driven instead (a mode of
+    // its own, only one resistor is ever on: RP2350 datasheet 9.6.1), so a
+    // missing microphone reads as silence. It does what the INMP441
+    // datasheet's 100 kΩ pull-down does, with no part and next to no
+    // current: it never holds against a driven line. Not a plain pull-down:
+    // RP2350-E9 input leakage can overpower the internal one; with E9 the
+    // keeper still settles to a steady level
+    gpio_set_pulls(data_pin, true, true);
+
+    pio_sm_init(pio, sm, offset, &cfg);
+    pio_sm_set_enabled(pio, sm, true);
+}
+
+static inline void i2s_program_deinit(PIO pio, uint sm) {
+    pio_sm_set_enabled(pio, sm, false);
+    pio_sm_unclaim(pio, sm);
+}
+%}

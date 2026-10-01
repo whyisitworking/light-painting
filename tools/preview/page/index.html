@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Light Painting preview</title>
+<style>/*STYLE*/</style>
+</head>
+<body>
+<header>
+  <h1>Light Painting preview</h1>
+  <p class="muted">The firmware's own analysis and show, compiled to WebAssembly, on 300 LEDs. Not measured on the board.</p>
+  <p id="note" role="status" hidden></p>
+</header>
+
+<main>
+  <section id="stage" aria-label="Strip">
+    <div id="strip-wrap">
+      <canvas id="glow" width="300" height="1"></canvas>
+      <canvas id="strip" width="300" height="1" aria-label="The selected look on 300 LEDs"></canvas>
+    </div>
+    <div id="hud">
+      <strong id="look-name"></strong>
+      <span id="part" aria-label="Song part"></span>
+      <span id="hit" aria-label="Low hit">●</span>
+      <div id="loudness" aria-label="Loudness"><i></i></div>
+      <canvas id="bands" width="32" height="24" aria-label="Band levels"></canvas>
+      <span id="hops" class="muted"></span>
+    </div>
+  </section>
+
+  <section aria-label="Source">
+    <h2>Source</h2>
+    <div id="source-buttons"></div>
+    <div id="source-extra"></div>
+    <div class="row">
+      <label for="trim">Input level</label>
+      <input id="trim" type="range" min="-60" max="12" step="1" value="-18">
+      <output id="trim-out"></output>
+    </div>
+  </section>
+
+  <section aria-label="Settings">
+    <h2>Settings <button id="reset" type="button">Reset to defaults</button></h2>
+    <div id="controls"></div>
+  </section>
+
+  <section aria-label="All looks">
+    <h2>All looks <label class="inline"><input id="gallery-toggle" type="checkbox" autocomplete="off"> show all at once</label></h2>
+    <div id="gallery"></div>
+  </section>
+</main>
+
+<script>/*ENGINE*/</script>
+<script>/*APP*/</script>
+</body>
+</html>
